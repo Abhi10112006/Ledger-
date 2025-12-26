@@ -1,0 +1,5 @@
+{
+  "name": "Abhi's Ledger",
+  "description": "A high-performance, cyberpunk-themed offline financial tracker for personal loans and debts with trust-score algorithms and file-based data persistence.",
+  "requestFramePermissions": []
+}
