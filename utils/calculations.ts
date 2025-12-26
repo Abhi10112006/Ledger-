@@ -26,7 +26,6 @@ export const calculateInterest = (t: Transaction): number => {
       break;
   }
 
-  // Simple interest calculation: P * r * t
   return t.principalAmount * (t.interestRate / 100) * periods;
 };
 
@@ -34,34 +33,55 @@ export const getTotalPayable = (t: Transaction): number => {
   return t.principalAmount + calculateInterest(t);
 };
 
+/**
+ * Modern Credit Scoring System (300 - 900)
+ * Logic factors:
+ * - Base: 650 (Fair)
+ * - Repayment consistency: + points per on-time repayment
+ * - Overdue penalty: Heavy - points for days late
+ * - History: Bonus for older relationships with completed deals
+ */
 export const calculateTrustScore = (friendName: string, transactions: Transaction[]): number => {
   const friendTx = transactions.filter(t => t.friendName === friendName);
-  if (friendTx.length === 0) return 100;
+  if (friendTx.length === 0) return 650; // Neutral starting score
 
-  let score = 80; // Baseline
+  let score = 650; 
   const now = new Date();
 
   friendTx.forEach(t => {
     const due = new Date(t.returnDate);
+    const totalPayable = getTotalPayable(t);
     
+    // Repayment Analysis
+    if (t.repayments.length > 0) {
+      t.repayments.forEach(r => {
+        const payDate = new Date(r.date);
+        if (payDate <= due) {
+          score += 15; // Positive behavior: paying before/on due date
+        } else {
+          score -= 10; // Negative behavior: late partial payments
+        }
+      });
+    }
+
     if (t.isCompleted) {
-      // Bonus for on-time
       const completedOn = new Date(t.repayments[t.repayments.length - 1]?.date || t.startDate);
       if (completedOn <= due) {
-        score += 5;
+        score += 50; // Major boost for finishing on time
       } else {
-        score -= 5;
+        score -= 20; // Slight penalty for finishing late
       }
     } else {
-      // Penalty for active overdue
       if (now > due) {
         const daysLate = calculateDaysBetween(due, now);
-        score -= Math.min(20, Math.floor(daysLate / 7) * 5); // -5 every week late
+        // Heavy penalty for active overdue status
+        score -= Math.min(200, 30 + (daysLate * 5)); 
       }
     }
   });
 
-  return Math.max(0, Math.min(100, score));
+  // Clamp to standard banking range
+  return Math.max(300, Math.min(900, score));
 };
 
 export const getSummaryStats = (transactions: Transaction[]): SummaryStats => {
