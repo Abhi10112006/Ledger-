@@ -33,55 +33,113 @@ export const getTotalPayable = (t: Transaction): number => {
   return t.principalAmount + calculateInterest(t);
 };
 
+export interface TrustBreakdown {
+  score: number;
+  factors: { label: string; impact: 'positive' | 'negative' | 'neutral'; value: string }[];
+  history: { date: string; event: string; status: string }[];
+}
+
 /**
- * Modern Credit Scoring System (300 - 900)
+ * Modern Credit Scoring System (0 - 100)
  * Logic factors:
- * - Base: 650 (Fair)
- * - Repayment consistency: + points per on-time repayment
- * - Overdue penalty: Heavy - points for days late
- * - History: Bonus for older relationships with completed deals
+ * - Base: 50 (Neutral)
+ * - Repayment consistency: Weight 40%
+ * - Overdue behavior: Weight 40% (Penalty-heavy)
+ * - Historical completion: Weight 20%
  */
 export const calculateTrustScore = (friendName: string, transactions: Transaction[]): number => {
-  const friendTx = transactions.filter(t => t.friendName === friendName);
-  if (friendTx.length === 0) return 650; // Neutral starting score
+  const breakdown = getTrustBreakdown(friendName, transactions);
+  return breakdown.score;
+};
 
-  let score = 650; 
+export const getTrustBreakdown = (friendName: string, transactions: Transaction[]): TrustBreakdown => {
+  const friendTx = transactions.filter(t => t.friendName.toLowerCase() === friendName.toLowerCase());
+  if (friendTx.length === 0) {
+    return { 
+      score: 50, 
+      factors: [{ label: 'Baseline', impact: 'neutral', value: 'New Account' }],
+      history: []
+    };
+  }
+
+  let score = 50;
+  const factors: TrustBreakdown['factors'] = [];
+  const history: TrustBreakdown['history'] = [];
   const now = new Date();
+
+  let onTimePayments = 0;
+  let latePayments = 0;
+  let totalPayments = 0;
+  let maxDaysOverdue = 0;
+  let completedDeals = 0;
 
   friendTx.forEach(t => {
     const due = new Date(t.returnDate);
-    const totalPayable = getTotalPayable(t);
     
-    // Repayment Analysis
-    if (t.repayments.length > 0) {
-      t.repayments.forEach(r => {
-        const payDate = new Date(r.date);
-        if (payDate <= due) {
-          score += 15; // Positive behavior: paying before/on due date
-        } else {
-          score -= 10; // Negative behavior: late partial payments
-        }
+    // Track History
+    history.push({ 
+      date: new Date(t.startDate).toLocaleDateString(), 
+      event: `Loan of ₹${t.principalAmount}`, 
+      status: 'Disbursed' 
+    });
+
+    t.repayments.forEach(r => {
+      totalPayments++;
+      const payDate = new Date(r.date);
+      const isLate = payDate > due;
+      if (isLate) latePayments++; else onTimePayments++;
+      
+      history.push({ 
+        date: payDate.toLocaleDateString(), 
+        event: `Payment of ₹${r.amount}`, 
+        status: isLate ? 'Late' : 'On-Time' 
       });
-    }
+    });
 
     if (t.isCompleted) {
-      const completedOn = new Date(t.repayments[t.repayments.length - 1]?.date || t.startDate);
-      if (completedOn <= due) {
-        score += 50; // Major boost for finishing on time
-      } else {
-        score -= 20; // Slight penalty for finishing late
+      completedDeals++;
+      const lastPayment = t.repayments[t.repayments.length - 1];
+      if (lastPayment && new Date(lastPayment.date) <= due) {
+        score += 8; // On-time completion bonus
       }
-    } else {
-      if (now > due) {
-        const daysLate = calculateDaysBetween(due, now);
-        // Heavy penalty for active overdue status
-        score -= Math.min(200, 30 + (daysLate * 5)); 
-      }
+    } else if (now > due) {
+      const days = calculateDaysBetween(due, now);
+      maxDaysOverdue = Math.max(maxDaysOverdue, days);
     }
   });
 
-  // Clamp to standard banking range
-  return Math.max(300, Math.min(900, score));
+  // Calculate Impact
+  if (onTimePayments > 0) {
+    const bonus = Math.min(25, onTimePayments * 4);
+    score += bonus;
+    factors.push({ label: 'On-time Payments', impact: 'positive', value: `+${bonus} pts` });
+  }
+
+  if (latePayments > 0) {
+    const penalty = Math.min(30, latePayments * 7);
+    score -= penalty;
+    factors.push({ label: 'Late Repayments', impact: 'negative', value: `-${penalty} pts` });
+  }
+
+  if (maxDaysOverdue > 0) {
+    const penalty = Math.min(40, 10 + (maxDaysOverdue * 2));
+    score -= penalty;
+    factors.push({ label: 'Current Overdue', impact: 'negative', value: `-${penalty} pts` });
+  }
+
+  if (completedDeals > 0) {
+    const bonus = Math.min(15, completedDeals * 5);
+    score += bonus;
+    factors.push({ label: 'Resolved Contracts', impact: 'positive', value: `+${bonus} pts` });
+  }
+
+  const finalScore = Math.max(0, Math.min(100, Math.round(score)));
+
+  return {
+    score: finalScore,
+    factors,
+    history: history.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+  };
 };
 
 export const getSummaryStats = (transactions: Transaction[]): SummaryStats => {

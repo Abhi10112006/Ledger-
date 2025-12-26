@@ -23,14 +23,15 @@ import {
   FileText,
   CreditCard,
   Sparkles,
-  ZapOff
+  ZapOff,
+  Image as ImageIcon
 } from 'lucide-react';
 import { Transaction, Repayment, InterestType } from './types';
 import { getSummaryStats } from './utils/calculations';
 import TransactionCard from './components/TransactionCard';
 
 const STORAGE_KEY = 'abhi_ledger_session';
-const TOUR_KEY = 'abhi_ledger_tour_complete_v7';
+const TOUR_KEY = 'abhi_ledger_tour_complete_v8';
 
 const generateId = () => {
   if (typeof crypto !== 'undefined' && crypto.randomUUID) {
@@ -204,29 +205,29 @@ const App: React.FC = () => {
       title: "3. Log Installments", 
       desc: "When they pay you back partially, use the 'Log Payment' button on the card. It's the purple button we're highlighting now!", 
       icon: <CreditCard className="text-purple-400" />,
-      pos: 'top'
+      pos: 'top' 
     },
     { 
       title: "4. Neural Trust Score", 
-      desc: "Our algorithm calculates a score (300-900). Good payers get a high score; late ones drop. It helps you decide who to trust next time!", 
+      desc: "The Score tracks reliability from 0 to 100. Click the score to see a full breakdown of factors like on-time payments and late penalties.", 
       icon: <UserCheck className="text-emerald-500" />,
-      pos: 'top'
+      pos: 'bottom' 
     },
     { 
       title: "5. Flex Deadlines", 
       desc: "Plans change. Click the 'Due Date' on any card to extend the return window. The system will log this as a term adjustment.", 
       icon: <CalendarDays className="text-blue-400" />,
-      pos: 'top'
+      pos: 'top' 
     },
     { 
       title: "6. Detailed PDF Dossier", 
-      desc: "Click the File icon (the red one highlighted) to generate a professional PDF statement. Great for sending proof to clients.", 
+      desc: "Click the File icon (the red one highlighted) to generate a professional PDF statement including the new nuanced Trust breakdown.", 
       icon: <FileText className="text-rose-400" />,
       pos: 'top'
     },
     { 
       title: "7. Save Your Data", 
-      desc: "Final step: Since this is offline, click the Download icon at the top to save a backup to your device. Keep your data safe!", 
+      desc: "Final step: Since this is offline, click the Download icon at the top to save a backup to your device. Look for the blinking green icon!", 
       icon: <Download className="text-amber-400" />,
       pos: 'bottom'
     }
@@ -282,17 +283,19 @@ const App: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 pb-24 selection:bg-emerald-500/30 font-inter">
-      <nav className="sticky top-0 z-40 glass border-b border-slate-800/30 px-6 py-4 flex justify-between items-center">
+      {/* Navigation */}
+      <nav className={`sticky top-0 px-6 py-4 flex justify-between items-center glass border-b border-slate-800/30 transition-all duration-500 ${tourStep === 7 ? 'z-[60] border-emerald-500/40' : 'z-40'}`}>
         <div className="flex items-center gap-3">
           <Zap className="w-6 h-6 text-emerald-400 fill-emerald-400/20" />
           <h1 className="font-bold text-xl tracking-tight">Abhi's Ledger</h1>
         </div>
-        <div ref={headerActionsRef} className="flex items-center gap-4 relative z-[60]">
+        <div ref={headerActionsRef} className={`flex items-center gap-4 relative transition-all ${tourStep === 7 ? 'z-[70]' : ''}`}>
           <button onClick={() => setTourStep(0)} className="p-2 text-slate-400 hover:text-blue-400 transition-all hover:bg-slate-800/50 rounded-lg"><HelpCircle className="w-5 h-5" /></button>
           <button 
             ref={exportBtnRef} 
             onClick={handleExport} 
-            className={`p-2 transition-all rounded-lg ${tourStep === 7 ? 'z-[101] bg-emerald-500 text-slate-950 scale-125 shadow-[0_0_20px_rgba(16,185,129,0.5)]' : 'text-slate-400 hover:text-emerald-400 hover:bg-slate-800/50'}`} 
+            className={`p-2 transition-all rounded-lg duration-500 ${tourStep === 7 ? 'z-[80] bg-emerald-500 text-slate-950 scale-125 shadow-[0_0_50px_rgba(16,185,129,1)] ring-4 ring-emerald-500/40 animate-pulse' : 'text-slate-400 hover:text-emerald-400 hover:bg-slate-800/50'}`} 
+            title="Save Backup to Device"
           >
             <Download className="w-5 h-5" />
           </button>
@@ -300,8 +303,8 @@ const App: React.FC = () => {
         </div>
       </nav>
 
-      <main ref={mainAreaRef} className="max-w-4xl mx-auto px-6 space-y-8 pt-8">
-        <div ref={statsRef} className={`grid grid-cols-2 gap-4 sm:gap-6 relative transition-all duration-300 ${tourStep === 1 ? 'z-[101] scale-105 ring-4 ring-emerald-500/30 ring-offset-8 ring-offset-slate-950 rounded-3xl' : 'z-[51]'}`}>
+      <main ref={mainAreaRef} className="max-w-4xl mx-auto px-6 space-y-8 pt-8 relative">
+        <div ref={statsRef} className={`grid grid-cols-2 gap-4 sm:gap-6 relative transition-all duration-300 ${tourStep === 1 ? 'z-[60] scale-105 ring-4 ring-emerald-500/30 ring-offset-8 ring-offset-slate-950 rounded-3xl' : ''}`}>
           <MinimalStatCard label="PENDING" value={`₹${stats.pending.toLocaleString('en-IN')}`} icon={<TrendingUp className="w-4 h-4" />} accent="text-emerald-400" subtext={`${stats.activeCount} active`} />
           <MinimalStatCard label="RETURNED" value={`₹${stats.received.toLocaleString('en-IN')}`} icon={<CheckCircle2 className="w-4 h-4" />} accent="text-slate-300" subtext={`${stats.overdueCount} overdue`} />
         </div>
@@ -337,65 +340,73 @@ const App: React.FC = () => {
         </div>
       </main>
 
-      <button ref={addBtnRef} onClick={() => setIsModalOpen(true)} className={`fixed bottom-8 right-8 w-18 h-18 bg-emerald-500 hover:bg-emerald-400 text-slate-950 rounded-[2rem] flex items-center justify-center shadow-2xl active:scale-90 transition-all group ${tourStep === 2 ? 'z-[101] ring-8 ring-emerald-500/30 scale-110' : 'z-50'}`}>
+      <button ref={addBtnRef} onClick={() => setIsModalOpen(true)} className={`fixed bottom-8 right-8 w-18 h-18 bg-emerald-500 hover:bg-emerald-400 text-slate-950 rounded-[2rem] flex items-center justify-center shadow-2xl active:scale-90 transition-all group ${tourStep === 2 ? 'z-[60] ring-8 ring-emerald-500/30 scale-110' : 'z-30'}`}>
         <Plus className="w-10 h-10 group-hover:rotate-90 transition-transform duration-300" />
       </button>
 
-      {/* Tour UI - Dynamic Position for Mobile */}
+      {/* Tour UI Overlay - No parent z-index to allow correct child interleaving */}
       {currentStep && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-6">
-          <div className="absolute inset-0 bg-slate-950/90 backdrop-blur-md" onClick={completeTour}></div>
+        <div className="fixed inset-0 flex items-center justify-center p-4 pointer-events-none" style={{ zIndex: 100 }}>
+          {/* Backdrop - globally z-50, slightly lighter for better visibility */}
+          <div className="absolute inset-0 bg-slate-950/80 pointer-events-auto" style={{ zIndex: 50 }} onClick={completeTour}></div>
           
-          <div className={`relative z-[110] w-full max-w-sm transition-all duration-500 ${
-            currentStep.pos === 'top' ? 'mb-auto mt-12' : 
-            currentStep.pos === 'bottom' ? 'mt-auto mb-12' : 
-            ''
-          }`}>
-            <div className="glass rounded-[2.5rem] p-8 space-y-6 border-emerald-500/20 shadow-2xl">
-              <div className="flex items-center gap-4">
-                <div className="w-10 h-10 bg-slate-900 rounded-xl flex items-center justify-center border border-slate-800">
-                  {currentStep.icon}
+          <div className={`relative w-full max-w-sm transition-all duration-500 pointer-events-auto ${
+            currentStep.pos === 'top' ? 'mb-auto mt-4' : 
+            currentStep.pos === 'bottom' ? 'mt-auto mb-20' : 
+            'm-auto'
+          }`} style={{ zIndex: 70 }}>
+            <div className="glass rounded-[2.5rem] overflow-hidden border border-emerald-500/60 shadow-[0_40px_100px_rgba(0,0,0,1)] flex flex-col">
+              <div className="p-8 space-y-6 bg-slate-900/95 backdrop-blur-md">
+                <div className="flex items-center gap-4">
+                  <div className="w-10 h-10 bg-slate-950 rounded-xl flex items-center justify-center border border-white/10 shadow-inner">
+                    {currentStep.icon}
+                  </div>
+                  <div>
+                    <div className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-400 mb-1">Briefing {tourStep + 1}/8</div>
+                    <h3 className="text-xl font-black leading-tight text-white">{currentStep.title}</h3>
+                  </div>
                 </div>
-                <div>
-                  <div className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-400/60 mb-1">Briefing {tourStep + 1}/8</div>
-                  <h3 className="text-xl font-black">{currentStep.title}</h3>
+                
+                <p className="text-slate-100 text-sm leading-relaxed font-semibold">{currentStep.desc}</p>
+                
+                <div className="flex items-center justify-between pt-6 border-t border-white/10">
+                  <button onClick={completeTour} className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 hover:text-rose-400 transition-colors">Skip Tour</button>
+                  <button 
+                    onClick={() => tourStep < tourSteps.length - 1 ? setTourStep(tourStep + 1) : completeTour()}
+                    className="px-6 py-3 bg-emerald-600 text-white rounded-xl text-xs font-black uppercase tracking-widest flex items-center gap-2 group shadow-2xl shadow-emerald-500/20"
+                  >
+                    {tourStep < tourSteps.length - 1 ? 'Next Phase' : 'Activate Ledger'} <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                  </button>
                 </div>
-              </div>
-              
-              <p className="text-slate-300 text-sm leading-relaxed">{currentStep.desc}</p>
-              
-              <div className="flex items-center justify-between pt-4">
-                <button onClick={completeTour} className="text-xs font-bold text-slate-500 hover:text-rose-400 transition-colors">Skip</button>
-                <button 
-                  onClick={() => tourStep < tourSteps.length - 1 ? setTourStep(tourStep + 1) : completeTour()}
-                  className="px-6 py-3 bg-emerald-600 text-white rounded-xl text-xs font-black uppercase tracking-widest flex items-center gap-2 group shadow-lg shadow-emerald-900/30"
-                >
-                  {tourStep < tourSteps.length - 1 ? 'Next Phase' : 'Activate'} <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-                </button>
               </div>
             </div>
 
-            {/* Visual Pointer adjustments */}
-            {tourStep === 1 && <div className="absolute -top-12 left-1/2 -translate-x-1/2 animate-bounce"><Target className="w-8 h-8 text-emerald-400" /></div>}
-            {tourStep === 2 && <div className="absolute -bottom-16 right-4 animate-bounce"><Target className="w-8 h-8 text-emerald-400" /></div>}
-            {tourStep === 7 && <div className="absolute -top-12 right-12 animate-bounce"><Target className="w-8 h-8 text-amber-400" /></div>}
+            {/* Target Pointer for Export */}
+            {tourStep === 7 && (
+              <div className="fixed top-24 right-10 animate-bounce pointer-events-none" style={{ zIndex: 80 }}>
+                <div className="flex flex-col items-center gap-2">
+                  <div className="w-1 bg-gradient-to-t from-emerald-500 to-transparent h-12"></div>
+                  <Target className="w-10 h-10 text-emerald-400 drop-shadow-[0_0_20px_rgba(16,185,129,1)]" />
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}
 
-      {/* Standard Modals */}
+      {/* Modals */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">
-          <div className="glass w-full max-w-lg rounded-[2.5rem] animate-in zoom-in-95 duration-200">
+        <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">
+          <div className="glass w-full max-w-lg rounded-[2.5rem] animate-in zoom-in-95 duration-200 shadow-[0_0_100px_rgba(0,0,0,0.8)]">
             <div className="p-8 border-b border-slate-800 flex justify-between items-center bg-slate-900/40">
               <h2 className="text-2xl font-black flex items-center gap-3"><PlusCircle className="text-emerald-500 w-7 h-7" /> New Deal</h2>
-              <button onClick={() => setIsModalOpen(false)} className="p-2 hover:bg-slate-800 rounded-full text-slate-400"><X /></button>
+              <button onClick={() => setIsModalOpen(false)} className="p-2 hover:bg-slate-800 rounded-full text-slate-400 transition-colors"><X /></button>
             </div>
             <form onSubmit={handleAddLoan} className="p-8 space-y-6">
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <label className="text-[10px] font-black text-slate-500 ml-1">Client</label>
-                  <input required autoFocus placeholder="Name" value={friendName} onChange={e => setFriendName(e.target.value)} className="w-full bg-slate-900 border border-slate-800 rounded-xl px-5 py-4 text-slate-100" />
+                  <input required autoFocus placeholder="Name" value={friendName} onChange={e => setFriendName(e.target.value)} className="w-full bg-slate-900 border border-slate-800 rounded-xl px-5 py-4 text-slate-100 placeholder-slate-700" />
                 </div>
                 <div className="space-y-2">
                   <label className="text-[10px] font-black text-slate-500 ml-1">Principal (₹)</label>
@@ -424,14 +435,14 @@ const App: React.FC = () => {
                   </select>
                 </div>
               </div>
-              <button className="w-full py-5 bg-emerald-600 text-white rounded-2xl font-black uppercase tracking-widest shadow-xl shadow-emerald-900/20 active:scale-[0.98]">Save Deal</button>
+              <button className="w-full py-5 bg-emerald-600 text-white rounded-2xl font-black uppercase tracking-widest shadow-xl shadow-emerald-500/20 active:scale-[0.98] transition-transform">Save Deal</button>
             </form>
           </div>
         </div>
       )}
 
       {isPaymentModalOpen && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">
+        <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">
           <div className="glass w-full max-w-sm rounded-[2.5rem] p-8 animate-in zoom-in-95 duration-200">
             <div className="flex justify-between items-center mb-6"><h2 className="text-xl font-black">Log Payment</h2><button onClick={() => setIsPaymentModalOpen(false)} className="text-slate-400"><X /></button></div>
             <form onSubmit={handleAddPayment} className="space-y-6">
@@ -444,7 +455,7 @@ const App: React.FC = () => {
       )}
 
       {isEditDateModalOpen && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">
+        <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">
           <div className="glass w-full max-w-sm rounded-[2.5rem] p-8 animate-in zoom-in-95 duration-200">
             <div className="flex justify-between items-center mb-6"><h2 className="text-xl font-black">Extend Return</h2><button onClick={() => setIsEditDateModalOpen(false)} className="text-slate-400"><X /></button></div>
             <form onSubmit={handleUpdateDueDate} className="space-y-6">
@@ -456,13 +467,13 @@ const App: React.FC = () => {
       )}
 
       {isDeleteModalOpen && (
-        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-slate-950/90 backdrop-blur-md">
+        <div className="fixed inset-0 z-[2100] flex items-center justify-center p-4 bg-slate-950/90 backdrop-blur-md">
           <div className="glass w-full max-w-sm rounded-[2.5rem] p-8 text-center animate-in zoom-in-90 duration-300">
             <AlertTriangle className="w-16 h-16 text-rose-500 mx-auto mb-4" />
-            <h2 className="text-2xl font-black mb-2">Delete?</h2>
-            <p className="text-slate-400 mb-8">This action is permanent.</p>
+            <h2 className="text-2xl font-black mb-2 text-white">Confirm Deletion</h2>
+            <p className="text-slate-400 mb-8">This action is permanent and will purge this deal from your ledger.</p>
             <div className="space-y-3">
-              <button onClick={() => { setTransactions(prev => prev.filter(t => t.id !== activeTxId)); setIsDeleteModalOpen(false); setActiveTxId(null); }} className="w-full py-4 bg-rose-600 text-white rounded-2xl font-black">Yes, Delete</button>
+              <button onClick={() => { setTransactions(prev => prev.filter(t => t.id !== activeTxId)); setIsDeleteModalOpen(false); setActiveTxId(null); }} className="w-full py-4 bg-rose-600 text-white rounded-2xl font-black shadow-lg shadow-rose-500/20 active:scale-[0.98] transition-transform">Purge Record</button>
               <button onClick={() => setIsDeleteModalOpen(false)} className="w-full py-4 bg-slate-800 text-slate-300 rounded-2xl font-black">Cancel</button>
             </div>
           </div>

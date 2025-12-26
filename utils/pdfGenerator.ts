@@ -2,7 +2,7 @@
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { Transaction } from '../types';
-import { calculateTrustScore, getTotalPayable, calculateInterest } from './calculations';
+import { getTrustBreakdown, getTotalPayable, calculateInterest } from './calculations';
 
 const formatDate = (date: Date) => {
   const d = date.getDate().toString().padStart(2, '0');
@@ -14,7 +14,7 @@ const formatDate = (date: Date) => {
 export const generateStatementPDF = (friendName: string, allTransactions: Transaction[]) => {
   const doc = new jsPDF();
   const friendTx = allTransactions.filter(t => t.friendName.toLowerCase() === friendName.toLowerCase());
-  const score = calculateTrustScore(friendName, allTransactions);
+  const breakdown = getTrustBreakdown(friendName, allTransactions);
 
   // Financial aggregation
   let totalBorrowed = 0;
@@ -34,7 +34,7 @@ export const generateStatementPDF = (friendName: string, allTransactions: Transa
       date: new Date(t.startDate),
       type: 'Loan Disbursed',
       amount: t.principalAmount,
-      note: `Initial Principal (Rate: ${t.interestRate}% ${t.interestType})`
+      note: `Principal (Rate: ${t.interestRate}% ${t.interestType})`
     });
 
     if (interest > 0) {
@@ -42,7 +42,7 @@ export const generateStatementPDF = (friendName: string, allTransactions: Transa
         date: new Date(),
         type: 'Interest Accrued',
         amount: interest,
-        note: 'Calculated based on current duration'
+        note: 'Based on current duration'
       });
     }
 
@@ -68,30 +68,42 @@ export const generateStatementPDF = (friendName: string, allTransactions: Transa
   doc.text("ABHI'S LEDGER", 14, 20);
   doc.setFontSize(10);
   doc.setFont('helvetica', 'normal');
-  doc.text("OFFICIAL FINANCIAL STATEMENT", 14, 28);
+  doc.text("OFFICIAL FINANCIAL DOSSIER", 14, 28);
   doc.text(`Generated: ${formatDate(new Date())}`, 140, 28);
 
-  // Friend Profile Section
+  // Profile Section
   doc.setTextColor(15, 23, 42);
   doc.setFontSize(14);
   doc.setFont('helvetica', 'bold');
-  doc.text("Account Summary", 14, 55);
+  doc.text("Account Intelligence Summary", 14, 55);
   
   doc.setFontSize(10);
   doc.setFont('helvetica', 'normal');
-  doc.text(`Client Name: ${friendName}`, 14, 65);
-  doc.text(`Current Trust Score: ${score}`, 14, 70);
+  doc.text(`Client Identifier: ${friendName}`, 14, 65);
+  doc.text(`Current Neural Trust Score: ${breakdown.score}/100`, 14, 70);
   
-  // Scoring Badge Logic Visual
+  // Scoring Breakdown for PDF
+  const scoreY = 78;
+  doc.setFont('helvetica', 'bold');
+  doc.text("Scoring Factors:", 14, scoreY);
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(9);
+  breakdown.factors.forEach((f, i) => {
+    const color = f.impact === 'positive' ? [16, 185, 129] : f.impact === 'negative' ? [220, 38, 38] : [100, 116, 139];
+    doc.setTextColor(color[0], color[1], color[2]);
+    doc.text(`• ${f.label}: ${f.value}`, 18, scoreY + 6 + (i * 5));
+  });
+
   doc.setDrawColor(200, 200, 200);
-  doc.line(14, 75, 196, 75);
+  const lineY = scoreY + 6 + (breakdown.factors.length * 5) + 5;
+  doc.line(14, lineY, 196, lineY);
 
   // Summary Metrics
   const netDue = (totalBorrowed + totalInterest) - totalPaid;
   
   autoTable(doc, {
-    startY: 85,
-    head: [['Total Borrowed', 'Total Interest', 'Total Repaid', 'Net Outstanding']],
+    startY: lineY + 10,
+    head: [['Total Principal', 'Interest Accrued', 'Total Settled', 'Current Exposure']],
     body: [[
       `INR ${totalBorrowed.toLocaleString()}`,
       `INR ${totalInterest.toLocaleString()}`,
@@ -104,18 +116,19 @@ export const generateStatementPDF = (friendName: string, allTransactions: Transa
   });
 
   // Detailed Activity Table
+  doc.setTextColor(15, 23, 42);
   doc.setFontSize(12);
   doc.setFont('helvetica', 'bold');
-  doc.text("Detailed Transaction History", 14, (doc as any).lastAutoTable.finalY + 15);
+  doc.text("Full Verification History", 14, (doc as any).lastAutoTable.finalY + 15);
 
   autoTable(doc, {
     startY: (doc as any).lastAutoTable.finalY + 20,
-    head: [['Date', 'Description', 'Amount', 'Balance Delta']],
+    head: [['Date', 'Description', 'Amount', 'Status']],
     body: events.map(e => [
       formatDate(e.date),
       e.type,
       `INR ${Math.abs(e.amount).toLocaleString()}`,
-      e.amount > 0 ? `+${e.amount}` : `-${Math.abs(e.amount)}`
+      e.amount > 0 ? 'LIABILITY' : 'CREDIT'
     ]),
     theme: 'striped',
     headStyles: { fillColor: [15, 23, 42], textColor: [255, 255, 255] },
@@ -131,9 +144,9 @@ export const generateStatementPDF = (friendName: string, allTransactions: Transa
     doc.setPage(i);
     doc.setFontSize(8);
     doc.setTextColor(150);
-    doc.text("This is an electronically generated document. No signature required.", 14, 285);
+    doc.text("Private Ledger Data. No signature required.", 14, 285);
     doc.text(`Page ${i} of ${pageCount}`, 180, 285);
   }
 
-  doc.save(`${friendName.replace(/\s+/g, '_')}_Statement.pdf`);
+  doc.save(`${friendName.replace(/\s+/g, '_')}_Dossier.pdf`);
 };
