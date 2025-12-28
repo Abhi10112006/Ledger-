@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { 
   Plus, 
   Download, 
@@ -12,26 +12,32 @@ import {
   Zap,
   LogOut,
   HelpCircle,
-  ChevronRight,
   Cpu,
   Target,
   ArrowRight,
-  Database,
   UserCheck,
   CalendarDays,
   AlertTriangle,
   FileText,
   CreditCard,
   Sparkles,
-  ZapOff,
-  Image as ImageIcon
+  ArrowUpDown,
+  Filter,
+  Globe
 } from 'lucide-react';
 import { Transaction, Repayment, InterestType } from './types';
-import { getSummaryStats } from './utils/calculations';
+import { getSummaryStats, calculateTrustScore, getTotalPayable } from './utils/calculations';
+import { generateStatementPDF } from './utils/pdfGenerator';
 import TransactionCard from './components/TransactionCard';
+import TrustScoreBadge from './components/TrustScoreBadge';
 
 const STORAGE_KEY = 'abhi_ledger_session';
 const TOUR_KEY = 'abhi_ledger_tour_complete_v8';
+const CURRENCY_KEY = 'abhi_ledger_currency';
+
+type SortOption = 'name' | 'exposure' | 'trust' | 'recent';
+
+const CURRENCIES = ['₹', '$', '€', '£', '¥'];
 
 const generateId = () => {
   if (typeof crypto !== 'undefined' && crypto.randomUUID) {
@@ -49,6 +55,8 @@ const App: React.FC = () => {
   const [tourStep, setTourStep] = useState<number>(-1);
   const [activeTxId, setActiveTxId] = useState<string | null>(null);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [sortBy, setSortBy] = useState<SortOption>('recent');
+  const [currency, setCurrency] = useState('₹');
 
   // Form States
   const [friendName, setFriendName] = useState('');
@@ -74,6 +82,7 @@ const App: React.FC = () => {
   useEffect(() => {
     const saved = localStorage.getItem(STORAGE_KEY);
     const tourComplete = localStorage.getItem(TOUR_KEY);
+    const savedCurrency = localStorage.getItem(CURRENCY_KEY);
     
     if (saved) {
       try {
@@ -87,6 +96,10 @@ const App: React.FC = () => {
       }
     }
 
+    if (savedCurrency) {
+      setCurrency(savedCurrency);
+    }
+
     if (!tourComplete) {
       setTimeout(() => setTourStep(0), 1500);
     }
@@ -97,6 +110,16 @@ const App: React.FC = () => {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(transactions));
     }
   }, [transactions, isLoggedIn]);
+
+  useEffect(() => {
+    localStorage.setItem(CURRENCY_KEY, currency);
+  }, [currency]);
+
+  const toggleCurrency = () => {
+    const currentIndex = CURRENCIES.indexOf(currency);
+    const nextIndex = (currentIndex + 1) % CURRENCIES.length;
+    setCurrency(CURRENCIES[nextIndex]);
+  };
 
   const completeTour = () => {
     localStorage.setItem(TOUR_KEY, 'true');
@@ -160,13 +183,38 @@ const App: React.FC = () => {
     e.preventDefault();
     if (!activeTxId || !paymentAmount) return;
     const numPayment = parseFloat(paymentAmount);
-    setTransactions(prev => prev.map(t => t.id === activeTxId ? {
-      ...t,
-      paidAmount: t.paidAmount + numPayment,
-      isCompleted: (t.paidAmount + numPayment) >= t.principalAmount,
-      repayments: [...t.repayments, { id: generateId(), amount: numPayment, date: new Date(paymentDate).toISOString() }]
-    } : t));
-    setPaymentAmount(''); setPaymentDate(new Date().toISOString().split('T')[0]); setIsPaymentModalOpen(false); setActiveTxId(null);
+    
+    setTransactions(prev => prev.map(t => {
+      if (t.id === activeTxId) {
+        const newRepayment: Repayment = { 
+          id: generateId(), 
+          amount: numPayment, 
+          date: new Date(paymentDate).toISOString() 
+        };
+        const updatedRepayments = [...t.repayments, newRepayment];
+        const updatedPaidAmount = t.paidAmount + numPayment;
+
+        // Calculate total payable including interest to determine completion
+        const tempTx = { ...t, repayments: updatedRepayments, paidAmount: updatedPaidAmount };
+        const totalPayable = getTotalPayable(tempTx);
+        
+        // Contract is complete if total paid >= total payable (allowing slight float precision tolerance)
+        const isCompleted = updatedPaidAmount >= (totalPayable - 0.1);
+
+        return {
+          ...t,
+          paidAmount: updatedPaidAmount,
+          isCompleted,
+          repayments: updatedRepayments
+        };
+      }
+      return t;
+    }));
+
+    setPaymentAmount(''); 
+    setPaymentDate(new Date().toISOString().split('T')[0]); 
+    setIsPaymentModalOpen(false); 
+    setActiveTxId(null);
   };
 
   const handleUpdateDueDate = (e: React.FormEvent) => {
@@ -179,6 +227,61 @@ const App: React.FC = () => {
     } : t));
     setNewDueDate(''); setIsEditDateModalOpen(false); setActiveTxId(null);
   };
+
+  // Logic to group and sort transactions by Client
+  const accounts = useMemo(() => {
+    const simulationTx: Transaction = {
+      id: 'sim-tx',
+      friendName: 'Example Client',
+      principalAmount: 5000,
+      paidAmount: 1500,
+      startDate: new Date().toISOString(),
+      returnDate: new Date(Date.now() + 604800000).toISOString(),
+      notes: 'Sample deal for tour.',
+      interestType: 'monthly',
+      interestRate: 3,
+      isCompleted: false,
+      repayments: []
+    };
+
+    const txToProcess = (transactions.length === 0 && tourStep >= 3 && tourStep <= 6) 
+      ? [simulationTx] 
+      : transactions;
+
+    // Grouping
+    const grouped: Record<string, Transaction[]> = {};
+    txToProcess.forEach(t => {
+      const name = t.friendName.trim();
+      if (!grouped[name]) grouped[name] = [];
+      grouped[name].push(t);
+    });
+
+    // Transform into Account objects for sorting
+    const accountList = Object.entries(grouped).map(([name, txs]) => {
+      const exposure = txs.reduce((acc, t) => acc + (getTotalPayable(t) - t.paidAmount), 0);
+      const trust = calculateTrustScore(name, transactions);
+      const lastActivity = Math.max(...txs.map(t => new Date(t.startDate).getTime()));
+      
+      return {
+        name,
+        transactions: txs.sort((a, b) => new Date(b.startDate).getTime() - new Date(a.startDate).getTime()),
+        totalExposure: exposure,
+        trustScore: trust,
+        lastActivity
+      };
+    });
+
+    // Sorting
+    return accountList.sort((a, b) => {
+      switch (sortBy) {
+        case 'name': return a.name.localeCompare(b.name);
+        case 'exposure': return b.totalExposure - a.totalExposure;
+        case 'trust': return b.trustScore - a.trustScore;
+        case 'recent': return b.lastActivity - a.lastActivity;
+        default: return 0;
+      }
+    });
+  }, [transactions, sortBy, tourStep]);
 
   const stats = getSummaryStats(transactions);
 
@@ -221,7 +324,7 @@ const App: React.FC = () => {
     },
     { 
       title: "6. Detailed PDF Dossier", 
-      desc: "Click the File icon (the red one highlighted) to generate a professional PDF statement including the new nuanced Trust breakdown.", 
+      desc: "Click the File icon (the red one highlighted) next to the Total Liability to generate a professional PDF statement including the new nuanced Trust breakdown.", 
       icon: <FileText className="text-rose-400" />,
       pos: 'top'
     },
@@ -232,24 +335,6 @@ const App: React.FC = () => {
       pos: 'bottom'
     }
   ];
-
-  const simulationTx: Transaction = {
-    id: 'sim-tx',
-    friendName: 'Example Client',
-    principalAmount: 5000,
-    paidAmount: 1500,
-    startDate: new Date().toISOString(),
-    returnDate: new Date(Date.now() + 604800000).toISOString(),
-    notes: 'Sample deal for tour.',
-    interestType: 'monthly',
-    interestRate: 3,
-    isCompleted: false,
-    repayments: []
-  };
-
-  const displayTransactions = (transactions.length === 0 && tourStep >= 3 && tourStep <= 6) 
-    ? [simulationTx] 
-    : transactions;
 
   if (!isLoggedIn) {
     return (
@@ -287,9 +372,21 @@ const App: React.FC = () => {
       <nav className={`sticky top-0 px-6 py-4 flex justify-between items-center glass border-b border-slate-800/30 transition-all duration-500 ${tourStep === 7 ? 'z-[60] border-emerald-500/40' : 'z-40'}`}>
         <div className="flex items-center gap-3">
           <Zap className="w-6 h-6 text-emerald-400 fill-emerald-400/20" />
-          <h1 className="font-bold text-xl tracking-tight">Abhi's Ledger</h1>
+          <h1 className="font-bold text-xl tracking-tight hidden sm:block">Abhi's Ledger</h1>
+          <h1 className="font-bold text-xl tracking-tight sm:hidden">AL</h1>
         </div>
-        <div ref={headerActionsRef} className={`flex items-center gap-4 relative transition-all ${tourStep === 7 ? 'z-[70]' : ''}`}>
+        <div ref={headerActionsRef} className={`flex items-center gap-3 relative transition-all ${tourStep === 7 ? 'z-[70]' : ''}`}>
+          
+          <button 
+            onClick={toggleCurrency} 
+            className="p-2 text-slate-400 hover:text-emerald-400 transition-all hover:bg-slate-800/50 rounded-lg flex items-center justify-center font-mono font-bold text-lg w-10 h-10"
+            title="Toggle Currency"
+          >
+            {currency}
+          </button>
+          
+          <div className="h-6 w-px bg-slate-800 mx-1"></div>
+
           <button onClick={() => setTourStep(0)} className="p-2 text-slate-400 hover:text-blue-400 transition-all hover:bg-slate-800/50 rounded-lg"><HelpCircle className="w-5 h-5" /></button>
           <button 
             ref={exportBtnRef} 
@@ -305,38 +402,109 @@ const App: React.FC = () => {
 
       <main ref={mainAreaRef} className="max-w-4xl mx-auto px-6 space-y-8 pt-8 relative">
         <div ref={statsRef} className={`grid grid-cols-2 gap-4 sm:gap-6 relative transition-all duration-300 ${tourStep === 1 ? 'z-[60] scale-105 ring-4 ring-emerald-500/30 ring-offset-8 ring-offset-slate-950 rounded-3xl' : ''}`}>
-          <MinimalStatCard label="PENDING" value={`₹${stats.pending.toLocaleString('en-IN')}`} icon={<TrendingUp className="w-4 h-4" />} accent="text-emerald-400" subtext={`${stats.activeCount} active`} />
-          <MinimalStatCard label="RETURNED" value={`₹${stats.received.toLocaleString('en-IN')}`} icon={<CheckCircle2 className="w-4 h-4" />} accent="text-slate-300" subtext={`${stats.overdueCount} overdue`} />
-        </div>
-
-        <div className="flex justify-between items-end mt-12 border-b border-slate-800/50 pb-4">
-          <h2 className="text-xl font-bold text-slate-200 tracking-tight">Activity</h2>
-          <button onClick={() => setIsModalOpen(true)} className="text-emerald-400 text-[10px] font-black uppercase tracking-[0.2em] hover:text-emerald-300 transition-colors flex items-center gap-2 group">
-            <PlusCircle className="w-4 h-4 group-hover:rotate-90 transition-transform" /> + New Deal
-          </button>
+          <MinimalStatCard label="PENDING" value={`${currency}${stats.pending.toLocaleString('en-IN')}`} icon={<TrendingUp className="w-4 h-4" />} accent="text-emerald-400" subtext={`${stats.activeCount} active`} />
+          <MinimalStatCard label="RETURNED" value={`${currency}${stats.received.toLocaleString('en-IN')}`} icon={<CheckCircle2 className="w-4 h-4" />} accent="text-slate-300" subtext={`${stats.overdueCount} overdue`} />
         </div>
 
         <div className="space-y-6">
-          {displayTransactions.length > 0 ? (
-            displayTransactions.map((tx, idx) => (
-              <TransactionCard 
-                key={tx.id} 
-                transaction={tx} 
-                allTransactions={displayTransactions} 
-                onAddPayment={(id) => { if(tx.id === 'sim-tx') return; setActiveTxId(id); setIsPaymentModalOpen(true); }}
-                onUpdateDueDate={(id) => { if(tx.id === 'sim-tx') return; setActiveTxId(id); const t = transactions.find(x => x.id === id); if (t) setNewDueDate(t.returnDate.split('T')[0]); setIsEditDateModalOpen(true); }}
-                onDelete={(id) => { if(tx.id === 'sim-tx') return; setActiveTxId(id); setIsDeleteModalOpen(true); }}
-                tourStep={idx === 0 ? tourStep : -1}
-              />
-            ))
-          ) : (
-            <div className="glass rounded-[2.5rem] p-12 border-slate-800/40 border-dashed border-2 text-center">
-              <Cpu className="w-10 h-10 text-slate-700 mx-auto mb-4" />
-              <h3 className="text-xl font-bold text-slate-300 mb-2">No Contracts</h3>
-              <p className="text-slate-500 text-sm mb-6">Start your first deal to see tracking algorithms in action.</p>
-              <button onClick={() => setIsModalOpen(true)} className="px-8 py-3 bg-emerald-600 text-white rounded-xl font-bold hover:bg-emerald-500 transition-all">Start Now</button>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-800/50 pb-6 mt-12">
+            <div>
+              <h2 className="text-2xl font-black text-slate-200 tracking-tight">Accounts Portfolio</h2>
+              <p className="text-xs text-slate-500 font-bold uppercase tracking-widest mt-1">{accounts.length} Client Profiles Active</p>
             </div>
-          )}
+            
+            <div className="flex items-center gap-3 overflow-x-auto pb-2 sm:pb-0 scrollbar-hide">
+              <div className="flex items-center gap-1 bg-slate-900/50 border border-slate-800 p-1 rounded-xl shrink-0">
+                {(['recent', 'exposure', 'trust', 'name'] as SortOption[]).map((opt) => (
+                  <button
+                    key={opt}
+                    onClick={() => setSortBy(opt)}
+                    className={`px-3 py-1.5 text-[9px] font-black uppercase tracking-wider rounded-lg transition-all ${sortBy === opt ? 'bg-emerald-500 text-slate-950 shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}
+                  >
+                    {opt}
+                  </button>
+                ))}
+              </div>
+              <button onClick={() => setIsModalOpen(true)} className="bg-emerald-600/10 border border-emerald-500/20 text-emerald-400 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] hover:bg-emerald-600 hover:text-white transition-all flex items-center gap-2 group whitespace-nowrap shrink-0">
+                <PlusCircle className="w-4 h-4 group-hover:rotate-90 transition-transform" /> <span className="hidden sm:inline">+ New Deal</span><span className="sm:hidden">New</span>
+              </button>
+            </div>
+          </div>
+
+          <div className="space-y-12">
+            {accounts.length > 0 ? (
+              accounts.map((account, accIdx) => (
+                <div key={account.name} className="space-y-6 animate-in slide-in-from-bottom-4 duration-500" style={{ animationDelay: `${accIdx * 100}ms` }}>
+                  {/* Account Section Header */}
+                  <div className="flex items-center justify-between px-4">
+                    <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-slate-800 to-slate-900 border border-white/5 flex items-center justify-center shadow-xl">
+                        <span className="text-xl font-black text-emerald-400">{account.name.charAt(0).toUpperCase()}</span>
+                      </div>
+                      <div>
+                        <h3 className="text-xl font-black tracking-tight text-white">{account.name}</h3>
+                        <div className="flex items-center gap-3 mt-1">
+                           <TrustScoreBadge 
+                            score={account.trustScore} 
+                            friendName={account.name} 
+                            allTransactions={transactions} 
+                            currency={currency}
+                          />
+                          <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">
+                            {account.transactions.length} Contracts
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div className="flex items-center gap-5">
+                       {/* PDF Button - Account Level */}
+                      <button 
+                        onClick={() => generateStatementPDF(account.name, transactions, currency)}
+                        className={`p-3 rounded-xl bg-slate-800/50 border border-slate-700 hover:border-emerald-500/50 hover:bg-emerald-500/10 transition-all group ${tourStep === 6 && accIdx === 0 ? 'z-[65] ring-4 ring-rose-500/60 bg-rose-500/10 border-rose-500' : ''}`}
+                        title="Generate Statement"
+                      >
+                        <FileText className={`w-5 h-5 ${tourStep === 6 && accIdx === 0 ? 'text-rose-500' : 'text-slate-400 group-hover:text-emerald-400'}`} />
+                      </button>
+
+                      <div className="text-right hidden sm:block">
+                        <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] mb-1">Total Liability</p>
+                        <p className={`text-2xl font-mono font-black ${account.totalExposure > 0 ? 'text-emerald-400' : 'text-slate-600'}`}>
+                          {currency}{account.totalExposure.toLocaleString('en-IN')}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Account's Transactions */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pl-2 sm:pl-16 relative">
+                    {/* Visual Connector for Grouping */}
+                    <div className="absolute left-8 top-0 bottom-0 w-px bg-gradient-to-b from-slate-800 via-slate-800 to-transparent hidden sm:block"></div>
+                    
+                    {account.transactions.map((tx, txIdx) => (
+                      <TransactionCard 
+                        key={tx.id} 
+                        transaction={tx} 
+                        allTransactions={transactions} 
+                        onAddPayment={(id) => { if(tx.id === 'sim-tx') return; setActiveTxId(id); setIsPaymentModalOpen(true); }}
+                        onUpdateDueDate={(id) => { if(tx.id === 'sim-tx') return; setActiveTxId(id); const t = transactions.find(x => x.id === id); if (t) setNewDueDate(t.returnDate.split('T')[0]); setIsEditDateModalOpen(true); }}
+                        onDelete={(id) => { if(tx.id === 'sim-tx') return; setActiveTxId(id); setIsDeleteModalOpen(true); }}
+                        tourStep={(accIdx === 0 && txIdx === 0) ? tourStep : -1}
+                        currency={currency}
+                      />
+                    ))}
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div className="glass rounded-[2.5rem] p-12 border-slate-800/40 border-dashed border-2 text-center">
+                <Cpu className="w-10 h-10 text-slate-700 mx-auto mb-4" />
+                <h3 className="text-xl font-bold text-slate-300 mb-2">No Profiles Detected</h3>
+                <p className="text-slate-500 text-sm mb-6">Initiate a new contract to build your intelligence database.</p>
+                <button onClick={() => setIsModalOpen(true)} className="px-8 py-3 bg-emerald-600 text-white rounded-xl font-bold hover:bg-emerald-500 transition-all">Start Now</button>
+              </div>
+            )}
+          </div>
         </div>
       </main>
 
@@ -344,10 +512,9 @@ const App: React.FC = () => {
         <Plus className="w-10 h-10 group-hover:rotate-90 transition-transform duration-300" />
       </button>
 
-      {/* Tour UI Overlay - No parent z-index to allow correct child interleaving */}
+      {/* Tour UI Overlay */}
       {currentStep && (
         <div className="fixed inset-0 flex items-center justify-center p-4 pointer-events-none" style={{ zIndex: 100 }}>
-          {/* Backdrop - globally z-50, slightly lighter for better visibility */}
           <div className="absolute inset-0 bg-slate-950/80 pointer-events-auto" style={{ zIndex: 50 }} onClick={completeTour}></div>
           
           <div className={`relative w-full max-w-sm transition-all duration-500 pointer-events-auto ${
@@ -381,7 +548,6 @@ const App: React.FC = () => {
               </div>
             </div>
 
-            {/* Target Pointer for Export */}
             {tourStep === 7 && (
               <div className="fixed top-24 right-10 animate-bounce pointer-events-none" style={{ zIndex: 80 }}>
                 <div className="flex flex-col items-center gap-2">
@@ -409,7 +575,7 @@ const App: React.FC = () => {
                   <input required autoFocus placeholder="Name" value={friendName} onChange={e => setFriendName(e.target.value)} className="w-full bg-slate-900 border border-slate-800 rounded-xl px-5 py-4 text-slate-100 placeholder-slate-700" />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-[10px] font-black text-slate-500 ml-1">Principal (₹)</label>
+                  <label className="text-[10px] font-black text-slate-500 ml-1">Principal ({currency})</label>
                   <input required type="number" value={amount} onChange={e => setAmount(e.target.value)} className="w-full bg-slate-900 border border-slate-800 rounded-xl px-5 py-4 text-slate-100" />
                 </div>
               </div>
@@ -446,7 +612,7 @@ const App: React.FC = () => {
           <div className="glass w-full max-w-sm rounded-[2.5rem] p-8 animate-in zoom-in-95 duration-200">
             <div className="flex justify-between items-center mb-6"><h2 className="text-xl font-black">Log Payment</h2><button onClick={() => setIsPaymentModalOpen(false)} className="text-slate-400"><X /></button></div>
             <form onSubmit={handleAddPayment} className="space-y-6">
-              <div className="relative"><span className="absolute left-5 top-1/2 -translate-y-1/2 text-emerald-500 font-bold text-2xl">₹</span><input required autoFocus type="number" value={paymentAmount} onChange={e => setPaymentAmount(e.target.value)} className="w-full bg-slate-900 border border-slate-800 rounded-2xl pl-12 pr-5 py-5 text-3xl font-mono font-bold text-emerald-400 text-center" /></div>
+              <div className="relative"><span className="absolute left-5 top-1/2 -translate-y-1/2 text-emerald-500 font-bold text-2xl">{currency}</span><input required autoFocus type="number" value={paymentAmount} onChange={e => setPaymentAmount(e.target.value)} className="w-full bg-slate-900 border border-slate-800 rounded-2xl pl-12 pr-5 py-5 text-3xl font-mono font-bold text-emerald-400 text-center" /></div>
               <input required type="date" value={paymentDate} onChange={e => setPaymentDate(e.target.value)} className="w-full bg-slate-900 border border-slate-800 rounded-xl px-5 py-4 text-slate-100 text-center font-mono" />
               <button className="w-full py-5 bg-emerald-600 text-white rounded-2xl font-black shadow-lg">Save Payment</button>
             </form>

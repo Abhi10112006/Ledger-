@@ -2,31 +2,81 @@
 import { Transaction, SummaryStats, InterestType } from '../types';
 
 export const calculateDaysBetween = (start: Date, end: Date): number => {
-  const diffTime = end.getTime() - start.getTime();
-  return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+  // Normalize to UTC midnight to avoid DST/Timezone offset issues affecting day count
+  const oneDay = 1000 * 60 * 60 * 24;
+  const startUTC = Date.UTC(start.getFullYear(), start.getMonth(), start.getDate());
+  const endUTC = Date.UTC(end.getFullYear(), end.getMonth(), end.getDate());
+  return Math.max(0, Math.ceil((endUTC - startUTC) / oneDay));
 };
 
 export const calculateInterest = (t: Transaction): number => {
   if (t.interestType === 'none' || t.interestRate <= 0) return 0;
 
   const start = new Date(t.startDate);
-  const now = new Date();
-  const daysElapsed = Math.max(0, calculateDaysBetween(start, now));
+  start.setHours(0,0,0,0);
   
-  let periods = 0;
-  switch (t.interestType) {
-    case 'daily':
-      periods = daysElapsed;
-      break;
-    case 'monthly':
-      periods = daysElapsed / 30.44;
-      break;
-    case 'yearly':
-      periods = daysElapsed / 365;
-      break;
+  const now = new Date();
+  now.setHours(0,0,0,0);
+
+  // If the loan hasn't started yet relative to 'now', no interest.
+  if (now <= start) return 0;
+
+  // 1. Sort repayments chronologically
+  const sortedRepayments = t.repayments
+    .map(r => ({ 
+      amount: r.amount, 
+      date: new Date(r.date) 
+    }))
+    .sort((a, b) => a.date.getTime() - b.date.getTime());
+
+  // Normalize repayment dates to midnight for consistent day-diff calculation
+  sortedRepayments.forEach(r => r.date.setHours(0,0,0,0));
+
+  let currentBalance = t.principalAmount;
+  let accruedInterest = 0;
+  let lastDate = start;
+  
+  // Define precise divisors
+  const ONE_DAY_MS = 1000 * 60 * 60 * 24;
+  let periodDivisor = 1; // Default Daily
+  
+  // 365.25 days/year accounts for leap years on average
+  if (t.interestType === 'monthly') periodDivisor = 30.4375; // 365.25 / 12
+  if (t.interestType === 'yearly') periodDivisor = 365.25;
+
+  // 2. Iterate through timeline events (Reducing Balance Method)
+  for (const repayment of sortedRepayments) {
+    // Skip if repayment is before/on start date (treated as down payment or immediate correction)
+    if (repayment.date <= lastDate) {
+      currentBalance -= repayment.amount;
+      continue;
+    }
+
+    // If repayment is in the future relative to 'now', stop calculation at 'now'
+    if (repayment.date > now) break;
+
+    // Calculate interest for the period since last event
+    const days = (repayment.date.getTime() - lastDate.getTime()) / ONE_DAY_MS;
+    const periods = days / periodDivisor;
+    
+    // Only accrue interest if there is a positive balance
+    if (currentBalance > 0) {
+      accruedInterest += currentBalance * (t.interestRate / 100) * periods;
+    }
+
+    // Update balance and cursor
+    currentBalance -= repayment.amount;
+    lastDate = repayment.date;
   }
 
-  return t.principalAmount * (t.interestRate / 100) * periods;
+  // 3. Calculate final segment from last event until today
+  if (lastDate < now && currentBalance > 0) {
+    const days = (now.getTime() - lastDate.getTime()) / ONE_DAY_MS;
+    const periods = days / periodDivisor;
+    accruedInterest += currentBalance * (t.interestRate / 100) * periods;
+  }
+
+  return Math.max(0, accruedInterest);
 };
 
 export const getTotalPayable = (t: Transaction): number => {
@@ -48,11 +98,13 @@ export interface TrustBreakdown {
  * - Historical completion: Weight 20%
  */
 export const calculateTrustScore = (friendName: string, transactions: Transaction[]): number => {
-  const breakdown = getTrustBreakdown(friendName, transactions);
+  // We pass a default currency here as the score itself is currency agnostic, 
+  // but the breakdown function requires it.
+  const breakdown = getTrustBreakdown(friendName, transactions, ''); 
   return breakdown.score;
 };
 
-export const getTrustBreakdown = (friendName: string, transactions: Transaction[]): TrustBreakdown => {
+export const getTrustBreakdown = (friendName: string, transactions: Transaction[], currency: string = '₹'): TrustBreakdown => {
   const friendTx = transactions.filter(t => t.friendName.toLowerCase() === friendName.toLowerCase());
   if (friendTx.length === 0) {
     return { 
@@ -79,7 +131,7 @@ export const getTrustBreakdown = (friendName: string, transactions: Transaction[
     // Track History
     history.push({ 
       date: new Date(t.startDate).toLocaleDateString(), 
-      event: `Loan of ₹${t.principalAmount}`, 
+      event: `Loan of ${currency}${t.principalAmount}`, 
       status: 'Disbursed' 
     });
 
@@ -91,7 +143,7 @@ export const getTrustBreakdown = (friendName: string, transactions: Transaction[
       
       history.push({ 
         date: payDate.toLocaleDateString(), 
-        event: `Payment of ₹${r.amount}`, 
+        event: `Payment of ${currency}${r.amount}`, 
         status: isLate ? 'Late' : 'On-Time' 
       });
     });

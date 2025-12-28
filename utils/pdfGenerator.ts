@@ -2,27 +2,72 @@
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { Transaction } from '../types';
-import { getTrustBreakdown, getTotalPayable, calculateInterest } from './calculations';
+import { getTrustBreakdown, calculateInterest } from './calculations';
 
 const formatDate = (date: Date) => {
-  const d = date.getDate().toString().padStart(2, '0');
-  const m = (date.getMonth() + 1).toString().padStart(2, '0');
-  const y = date.getFullYear();
-  return `${d}/${m}/${y}`;
+  return date.toLocaleDateString('en-IN', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric'
+  }).toUpperCase();
 };
 
-export const generateStatementPDF = (friendName: string, allTransactions: Transaction[]) => {
+export const generateStatementPDF = (friendName: string, allTransactions: Transaction[], currency: string = '₹') => {
   const doc = new jsPDF();
-  const friendTx = allTransactions.filter(t => t.friendName.toLowerCase() === friendName.toLowerCase());
-  const breakdown = getTrustBreakdown(friendName, allTransactions);
+  const pageWidth = doc.internal.pageSize.width;
+  const pageHeight = doc.internal.pageSize.height;
+  
+  // Map symbols to ISO codes for safe PDF rendering (Standard PDF fonts don't support ₹)
+  const currencyMap: { [key: string]: string } = {
+    '₹': 'INR',
+    '$': 'USD',
+    '€': 'EUR',
+    '£': 'GBP',
+    '¥': 'JPY'
+  };
+  const displayCurrency = currencyMap[currency] || 'INR';
+  
+  // Cyberpunk Theme Palette
+  const colors = {
+    bg: [2, 6, 23] as [number, number, number], // Slate 950
+    card: [15, 23, 42] as [number, number, number], // Slate 900
+    text: [241, 245, 249] as [number, number, number], // Slate 100
+    subtext: [148, 163, 184] as [number, number, number], // Slate 400
+    emerald: [52, 211, 153] as [number, number, number], // Emerald 400
+    rose: [251, 113, 133] as [number, number, number], // Rose 400
+    border: [30, 41, 59] as [number, number, number], // Slate 800
+    grid: [30, 41, 59] as [number, number, number] // Faint Grid
+  };
 
-  // Financial aggregation
+  // 1. DRAW BACKGROUND & GRID
+  doc.setFillColor(...colors.bg);
+  doc.rect(0, 0, pageWidth, pageHeight, 'F');
+  
+  // Draw subtle grid pattern
+  doc.setDrawColor(...colors.grid);
+  doc.setLineWidth(0.05);
+  for (let x = 0; x <= pageWidth; x += 10) doc.line(x, 0, x, pageHeight);
+  for (let y = 0; y <= pageHeight; y += 10) doc.line(0, y, pageWidth, y);
+
+  // 2. WATERMARK
+  doc.setTextColor(30, 41, 59); // Very dark gray
+  doc.setFontSize(60);
+  doc.setFont('helvetica', 'bold');
+  const watermarkText = "INTERNAL // CONFIDENTIAL";
+  doc.saveGraphicsState();
+  doc.setGState(new doc.GState({ opacity: 0.1 }));
+  doc.text(watermarkText, pageWidth / 2, pageHeight / 2, { align: 'center', angle: 45 });
+  doc.restoreGraphicsState();
+
+  const friendTx = allTransactions.filter(t => t.friendName.toLowerCase() === friendName.toLowerCase());
+  const breakdown = getTrustBreakdown(friendName, allTransactions, currency);
+
+  // Financial Calculations
   let totalBorrowed = 0;
   let totalInterest = 0;
   let totalPaid = 0;
-
-  // Sort all events chronologically
-  const events: { date: Date; type: string; amount: number; note: string }[] = [];
+  
+  const events: { date: Date; type: string; amount: number; note: string; isCredit: boolean }[] = [];
 
   friendTx.forEach(t => {
     const interest = calculateInterest(t);
@@ -32,121 +77,212 @@ export const generateStatementPDF = (friendName: string, allTransactions: Transa
 
     events.push({
       date: new Date(t.startDate),
-      type: 'Loan Disbursed',
+      type: 'CONTRACT INITIATED',
       amount: t.principalAmount,
-      note: `Principal (Rate: ${t.interestRate}% ${t.interestType})`
+      note: `Principal (${t.interestRate}% ${t.interestType})`,
+      isCredit: false
     });
 
     if (interest > 0) {
       events.push({
         date: new Date(),
-        type: 'Interest Accrued',
+        type: 'INTEREST ACCRUED',
         amount: interest,
-        note: 'Based on current duration'
+        note: 'Calculated to date',
+        isCredit: false
       });
     }
 
     t.repayments.forEach(r => {
       events.push({
         date: new Date(r.date),
-        type: 'Repayment',
-        amount: -r.amount,
-        note: 'Payment received'
+        type: 'PAYMENT LOGGED',
+        amount: r.amount,
+        note: 'Funds Received',
+        isCredit: true
       });
     });
   });
 
   events.sort((a, b) => a.date.getTime() - b.date.getTime());
 
-  // PDF Content Construction
-  // Header
-  doc.setFillColor(15, 23, 42); // slate-900
-  doc.rect(0, 0, 210, 40, 'F');
-  doc.setTextColor(255, 255, 255);
-  doc.setFontSize(22);
+  // --- HEADER SECTION ---
+  
+  doc.setTextColor(...colors.text);
+  doc.setFontSize(24);
   doc.setFont('helvetica', 'bold');
-  doc.text("ABHI'S LEDGER", 14, 20);
+  if (doc.setCharSpace) doc.setCharSpace(0);
+  doc.text("LEDGER", 14, 25);
+  
+  // Neon Underline
+  doc.setDrawColor(...colors.emerald);
+  doc.setLineWidth(0.5);
+  doc.line(14, 30, 44, 30);
+
+  // Meta Info
   doc.setFontSize(10);
-  doc.setFont('helvetica', 'normal');
-  doc.text("OFFICIAL FINANCIAL DOSSIER", 14, 28);
-  doc.text(`Generated: ${formatDate(new Date())}`, 140, 28);
+  doc.setTextColor(...colors.subtext);
+  doc.text(`DATE: ${formatDate(new Date())}`, pageWidth - 14, 15, { align: 'right' });
+  doc.text(`REF: ${Math.random().toString(36).substr(2, 9).toUpperCase()}`, pageWidth - 14, 20, { align: 'right' });
 
-  // Profile Section
-  doc.setTextColor(15, 23, 42);
-  doc.setFontSize(14);
-  doc.setFont('helvetica', 'bold');
-  doc.text("Account Intelligence Summary", 14, 55);
+  // --- PROFILE CARD SECTION ---
+  const cardY = 40;
+  doc.setFillColor(...colors.card);
+  doc.setDrawColor(...colors.border);
+  doc.roundedRect(14, cardY, pageWidth - 28, 45, 3, 3, 'FD');
+
+  // Name & Identity - Moved to left (x=24)
+  doc.setTextColor(...colors.text);
+  doc.setFontSize(16);
+  doc.text(friendName.toUpperCase(), 24, cardY + 18);
   
-  doc.setFontSize(10);
+  doc.setFontSize(8);
   doc.setFont('helvetica', 'normal');
-  doc.text(`Client Identifier: ${friendName}`, 14, 65);
-  doc.text(`Current Neural Trust Score: ${breakdown.score}/100`, 14, 70);
-  
-  // Scoring Breakdown for PDF
-  const scoreY = 78;
-  doc.setFont('helvetica', 'bold');
-  doc.text("Scoring Factors:", 14, scoreY);
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(9);
-  breakdown.factors.forEach((f, i) => {
-    const color = f.impact === 'positive' ? [16, 185, 129] : f.impact === 'negative' ? [220, 38, 38] : [100, 116, 139];
-    doc.setTextColor(color[0], color[1], color[2]);
-    doc.text(`• ${f.label}: ${f.value}`, 18, scoreY + 6 + (i * 5));
-  });
+  doc.setTextColor(...colors.subtext);
+  doc.text('TARGET IDENTITY', 24, cardY + 10);
 
-  doc.setDrawColor(200, 200, 200);
-  const lineY = scoreY + 6 + (breakdown.factors.length * 5) + 5;
-  doc.line(14, lineY, 196, lineY);
-
-  // Summary Metrics
-  const netDue = (totalBorrowed + totalInterest) - totalPaid;
-  
-  autoTable(doc, {
-    startY: lineY + 10,
-    head: [['Total Principal', 'Interest Accrued', 'Total Settled', 'Current Exposure']],
-    body: [[
-      `INR ${totalBorrowed.toLocaleString()}`,
-      `INR ${totalInterest.toLocaleString()}`,
-      `INR ${totalPaid.toLocaleString()}`,
-      { content: `INR ${netDue.toLocaleString()}`, styles: { fontStyle: 'bold', textColor: netDue > 0 ? [220, 38, 38] : [16, 185, 129] } }
-    ]],
-    theme: 'plain',
-    headStyles: { fillColor: [241, 245, 249], textColor: [71, 85, 105], fontSize: 9 },
-    styles: { fontSize: 11 }
-  });
-
-  // Detailed Activity Table
-  doc.setTextColor(15, 23, 42);
+  // Trust Score Text - Moved to left (x=24)
+  const scoreColor = breakdown.score >= 50 ? colors.emerald : colors.rose;
+  doc.setTextColor(...scoreColor);
   doc.setFontSize(12);
+  doc.text(`${breakdown.score}/100 TRUST SCORE`, 24, cardY + 32);
+
+  // Net Outstanding
+  const netDue = (totalBorrowed + totalInterest) - totalPaid;
+  const summaryX = pageWidth - 20;
+  doc.setTextColor(...colors.subtext);
+  doc.setFontSize(8);
+  doc.text('NET OUTSTANDING', summaryX, cardY + 15, { align: 'right' });
+  doc.setFontSize(16);
   doc.setFont('helvetica', 'bold');
-  doc.text("Full Verification History", 14, (doc as any).lastAutoTable.finalY + 15);
+  doc.setTextColor(...(netDue > 0 ? colors.emerald : colors.subtext));
+  // Use displayCurrency (ISO code)
+  doc.text(`${displayCurrency} ${netDue.toLocaleString()}`, summaryX, cardY + 25, { align: 'right' });
+
+  // --- METRICS GRID ---
+  const gridY = 95;
+  const colWidth = (pageWidth - 28) / 3;
+  
+  const drawMetric = (label: string, value: string, x: number, accent: [number, number, number]) => {
+    doc.setFillColor(...colors.card);
+    doc.setDrawColor(...colors.border);
+    doc.roundedRect(x, gridY, colWidth - 4, 25, 2, 2, 'FD');
+    doc.setFontSize(7);
+    doc.setTextColor(...colors.subtext);
+    doc.text(label, x + 10, gridY + 10);
+    doc.setFontSize(11);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(...accent);
+    doc.text(value, x + 10, gridY + 19);
+  };
+
+  drawMetric('TOTAL PRINCIPAL', `${displayCurrency} ${totalBorrowed.toLocaleString()}`, 14, colors.text);
+  drawMetric('TOTAL REPAID', `${displayCurrency} ${totalPaid.toLocaleString()}`, 14 + colWidth, colors.emerald);
+  drawMetric('INTEREST ACCRUED', `${displayCurrency} ${totalInterest.toLocaleString()}`, 14 + (colWidth * 2), colors.rose);
+
+  // --- TRUST ANALYSIS SECTION ---
+  let currentY = 135;
+  
+  if (breakdown.factors.length > 0) {
+    doc.setFontSize(9);
+    doc.setTextColor(...colors.subtext);
+    if (doc.setCharSpace) doc.setCharSpace(1);
+    doc.text('TRUST ALGORITHM FACTORS', 14, currentY);
+    if (doc.setCharSpace) doc.setCharSpace(0);
+    currentY += 6;
+
+    breakdown.factors.forEach((factor) => {
+      const factorColor = factor.impact === 'positive' ? colors.emerald : 
+                         factor.impact === 'negative' ? colors.rose : colors.subtext;
+      
+      // Background for factor
+      doc.setFillColor(...colors.card);
+      doc.setDrawColor(...colors.border);
+      doc.roundedRect(14, currentY, pageWidth - 28, 12, 1, 1, 'FD');
+      
+      // Impact Indicator
+      doc.setFillColor(...factorColor);
+      doc.circle(20, currentY + 6, 2, 'F');
+      
+      // Label
+      doc.setFontSize(9);
+      doc.setTextColor(...colors.text);
+      doc.text(factor.label, 28, currentY + 7.5);
+      
+      // Value
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(...factorColor);
+      doc.text(factor.value, pageWidth - 20, currentY + 7.5, { align: 'right' });
+      doc.setFont('helvetica', 'normal'); // Reset font
+
+      currentY += 15;
+    });
+    
+    currentY += 5; // Spacing after section
+  }
+
+  // --- DATA TABLE ---
+  doc.setFontSize(10);
+  doc.setTextColor(...colors.text);
+  doc.text('VERIFICATION LOG', 14, currentY + 5);
 
   autoTable(doc, {
-    startY: (doc as any).lastAutoTable.finalY + 20,
-    head: [['Date', 'Description', 'Amount', 'Status']],
+    startY: currentY + 10,
+    head: [['DATE', 'OPERATION', 'NOTE', 'AMOUNT']],
     body: events.map(e => [
       formatDate(e.date),
       e.type,
-      `INR ${Math.abs(e.amount).toLocaleString()}`,
-      e.amount > 0 ? 'LIABILITY' : 'CREDIT'
+      e.note,
+      { 
+        content: `${displayCurrency} ${Math.abs(e.amount).toLocaleString()}`, 
+        styles: { 
+          textColor: e.isCredit ? colors.emerald : colors.text,
+          halign: 'right'
+        } 
+      }
     ]),
-    theme: 'striped',
-    headStyles: { fillColor: [15, 23, 42], textColor: [255, 255, 255] },
+    theme: 'grid',
+    styles: {
+      fillColor: colors.bg,
+      textColor: colors.subtext,
+      lineColor: colors.border,
+      lineWidth: 0.1,
+      font: 'helvetica',
+      fontSize: 9
+    },
+    headStyles: {
+      fillColor: colors.card,
+      textColor: colors.emerald,
+      fontStyle: 'bold',
+      lineWidth: 0.1,
+      lineColor: colors.emerald
+    },
+    alternateRowStyles: {
+      fillColor: [6, 12, 30] // Slightly lighter than bg
+    },
     columnStyles: {
-      2: { halign: 'right' },
-      3: { halign: 'right' }
+      3: { fontStyle: 'bold' }
+    },
+    // Hook to ensure dark background persists on multi-page reports
+    willDrawPage: (data) => {
+      if (data.pageNumber > 1) {
+        doc.setFillColor(...colors.bg);
+        doc.rect(0, 0, pageWidth, pageHeight, 'F');
+        // Redraw grid on new pages
+        doc.setDrawColor(...colors.grid);
+        doc.setLineWidth(0.05);
+        for (let x = 0; x <= pageWidth; x += 10) doc.line(x, 0, x, pageHeight);
+        for (let y = 0; y <= pageHeight; y += 10) doc.line(0, y, pageWidth, y);
+      }
+    },
+    // Footer for every page
+    didDrawPage: (data) => {
+      const str = `ENCRYPTED OFFLINE STORAGE // ${friendName.toUpperCase()} // PAGE ${doc.internal.getNumberOfPages()}`;
+      doc.setFontSize(7);
+      doc.setTextColor(...colors.subtext);
+      doc.text(str, 14, pageHeight - 10);
     }
   });
 
-  // Footer
-  const pageCount = (doc as any).internal.getNumberOfPages();
-  for(let i = 1; i <= pageCount; i++) {
-    doc.setPage(i);
-    doc.setFontSize(8);
-    doc.setTextColor(150);
-    doc.text("Private Ledger Data. No signature required.", 14, 285);
-    doc.text(`Page ${i} of ${pageCount}`, 180, 285);
-  }
-
-  doc.save(`${friendName.replace(/\s+/g, '_')}_Dossier.pdf`);
+  doc.save(`${friendName.replace(/\s+/g, '_')}_Secure_Report.pdf`);
 };

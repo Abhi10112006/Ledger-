@@ -9,9 +9,10 @@ interface Props {
   score: number;
   friendName?: string;
   allTransactions?: Transaction[];
+  currency: string;
 }
 
-const TrustScoreBadge: React.FC<Props> = ({ score, friendName, allTransactions = [] }) => {
+const TrustScoreBadge: React.FC<Props> = ({ score, friendName, allTransactions = [], currency }) => {
   const [showModal, setShowModal] = useState(false);
   const [mounted, setMounted] = useState(false);
 
@@ -29,7 +30,7 @@ const TrustScoreBadge: React.FC<Props> = ({ score, friendName, allTransactions =
   };
 
   const info = getInfo();
-  const breakdown = friendName ? getTrustBreakdown(friendName, allTransactions) : null;
+  const breakdown = friendName ? getTrustBreakdown(friendName, allTransactions, currency) : null;
 
   const handleClose = (e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
