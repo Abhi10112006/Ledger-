@@ -23,7 +23,8 @@ import {
   Sparkles,
   ArrowUpDown,
   Filter,
-  Globe
+  Globe,
+  MonitorDown
 } from 'lucide-react';
 import { Transaction, Repayment, InterestType } from './types';
 import { getSummaryStats, calculateTrustScore, getTotalPayable } from './utils/calculations';
@@ -57,6 +58,9 @@ const App: React.FC = () => {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [sortBy, setSortBy] = useState<SortOption>('recent');
   const [currency, setCurrency] = useState('₹');
+  
+  // Install Prompt State
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
 
   // Form States
   const [friendName, setFriendName] = useState('');
@@ -103,6 +107,18 @@ const App: React.FC = () => {
     if (!tourComplete) {
       setTimeout(() => setTourStep(0), 1500);
     }
+
+    // Capture install prompt
+    const handleBeforeInstallPrompt = (e: any) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+    };
+
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    };
   }, []);
 
   useEffect(() => {
@@ -114,6 +130,15 @@ const App: React.FC = () => {
   useEffect(() => {
     localStorage.setItem(CURRENCY_KEY, currency);
   }, [currency]);
+
+  const handleInstallClick = async () => {
+    if (!deferredPrompt) return;
+    deferredPrompt.prompt();
+    const { outcome } = await deferredPrompt.userChoice;
+    if (outcome === 'accepted') {
+      setDeferredPrompt(null);
+    }
+  };
 
   const toggleCurrency = () => {
     const currentIndex = CURRENCIES.indexOf(currency);
@@ -358,6 +383,11 @@ const App: React.FC = () => {
               <input type="file" className="hidden" accept=".json,application/json" onChange={handleImport} />
             </label>
             <button onClick={() => setIsLoggedIn(true)} className="w-full py-5 bg-white text-slate-950 rounded-2xl font-black text-xl hover:bg-slate-200 transition-all active:scale-95 transform">Fresh Ledger</button>
+            {deferredPrompt && (
+              <button onClick={handleInstallClick} className="w-full py-4 mt-2 bg-slate-800 text-slate-300 rounded-2xl font-bold flex items-center justify-center gap-2 hover:bg-slate-700 transition-colors">
+                <MonitorDown className="w-5 h-5" /> Install App
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -377,6 +407,15 @@ const App: React.FC = () => {
         </div>
         <div ref={headerActionsRef} className={`flex items-center gap-3 relative transition-all ${tourStep === 7 ? 'z-[70]' : ''}`}>
           
+          {deferredPrompt && (
+            <button 
+              onClick={handleInstallClick} 
+              className="px-3 py-2 text-[10px] font-black uppercase tracking-widest bg-emerald-600/20 text-emerald-400 border border-emerald-500/30 rounded-lg hover:bg-emerald-600 hover:text-white transition-all flex items-center gap-2"
+            >
+              <MonitorDown className="w-3.5 h-3.5" /> <span className="hidden sm:inline">Install</span>
+            </button>
+          )}
+
           <button 
             onClick={toggleCurrency} 
             className="p-2 text-slate-400 hover:text-emerald-400 transition-all hover:bg-slate-800/50 rounded-lg flex items-center justify-center font-mono font-bold text-lg w-10 h-10"
