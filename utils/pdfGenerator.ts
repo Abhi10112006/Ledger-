@@ -5,284 +5,279 @@ import { Transaction } from '../types';
 import { getTrustBreakdown, calculateInterest } from './calculations';
 
 const formatDate = (date: Date) => {
-  return date.toLocaleDateString('en-IN', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric'
-  }).toUpperCase();
+  try {
+    return date.toLocaleDateString('en-IN', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric'
+    }).toUpperCase();
+  } catch (e) {
+    return 'INVALID DATE';
+  }
 };
 
 export const generateStatementPDF = (friendName: string, allTransactions: Transaction[], currency: string = '₹') => {
-  const doc = new jsPDF();
-  const pageWidth = doc.internal.pageSize.width;
-  const pageHeight = doc.internal.pageSize.height;
-  
-  // Map symbols to ISO codes for safe PDF rendering (Standard PDF fonts don't support ₹)
-  const currencyMap: { [key: string]: string } = {
-    '₹': 'INR',
-    '$': 'USD',
-    '€': 'EUR',
-    '£': 'GBP',
-    '¥': 'JPY'
-  };
-  const displayCurrency = currencyMap[currency] || 'INR';
-  
-  // Cyberpunk Theme Palette
-  const colors = {
-    bg: [2, 6, 23] as [number, number, number], // Slate 950
-    card: [15, 23, 42] as [number, number, number], // Slate 900
-    text: [241, 245, 249] as [number, number, number], // Slate 100
-    subtext: [148, 163, 184] as [number, number, number], // Slate 400
-    emerald: [52, 211, 153] as [number, number, number], // Emerald 400
-    rose: [251, 113, 133] as [number, number, number], // Rose 400
-    border: [30, 41, 59] as [number, number, number], // Slate 800
-    grid: [30, 41, 59] as [number, number, number] // Faint Grid
-  };
+  try {
+    const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.width;
+    const pageHeight = doc.internal.pageSize.height;
+    
+    // Map symbols to ISO codes
+    const currencyMap: { [key: string]: string } = {
+      '₹': 'INR',
+      '$': 'USD',
+      '€': 'EUR',
+      '£': 'GBP',
+      '¥': 'JPY'
+    };
+    const displayCurrency = currencyMap[currency] || 'INR';
+    
+    // Theme Palette
+    const colors = {
+      bg: [2, 6, 23] as [number, number, number],
+      card: [15, 23, 42] as [number, number, number],
+      text: [241, 245, 249] as [number, number, number],
+      subtext: [148, 163, 184] as [number, number, number],
+      emerald: [52, 211, 153] as [number, number, number],
+      rose: [251, 113, 133] as [number, number, number],
+      border: [30, 41, 59] as [number, number, number],
+      grid: [30, 41, 59] as [number, number, number]
+    };
 
-  // 1. DRAW BACKGROUND & GRID
-  doc.setFillColor(...colors.bg);
-  doc.rect(0, 0, pageWidth, pageHeight, 'F');
-  
-  // Draw subtle grid pattern
-  doc.setDrawColor(...colors.grid);
-  doc.setLineWidth(0.05);
-  for (let x = 0; x <= pageWidth; x += 10) doc.line(x, 0, x, pageHeight);
-  for (let y = 0; y <= pageHeight; y += 10) doc.line(0, y, pageWidth, y);
+    // 1. BACKGROUND
+    doc.setFillColor(...colors.bg);
+    doc.rect(0, 0, pageWidth, pageHeight, 'F');
+    
+    // Grid
+    doc.setDrawColor(...colors.grid);
+    doc.setLineWidth(0.05);
+    for (let x = 0; x <= pageWidth; x += 10) doc.line(x, 0, x, pageHeight);
+    for (let y = 0; y <= pageHeight; y += 10) doc.line(0, y, pageWidth, y);
 
-  // 2. WATERMARK
-  doc.setTextColor(30, 41, 59); // Very dark gray
-  doc.setFontSize(60);
-  doc.setFont('helvetica', 'bold');
-  const watermarkText = "INTERNAL // CONFIDENTIAL";
-  doc.saveGraphicsState();
-  doc.setGState(new doc.GState({ opacity: 0.1 }));
-  doc.text(watermarkText, pageWidth / 2, pageHeight / 2, { align: 'center', angle: 45 });
-  doc.restoreGraphicsState();
+    // 2. WATERMARK
+    doc.setTextColor(30, 41, 59);
+    doc.setFontSize(60);
+    doc.setFont('helvetica', 'bold');
+    doc.saveGraphicsState();
+    doc.setGState(new doc.GState({ opacity: 0.1 }));
+    doc.text("INTERNAL // CONFIDENTIAL", pageWidth / 2, pageHeight / 2, { align: 'center', angle: 45 });
+    doc.restoreGraphicsState();
 
-  const friendTx = allTransactions.filter(t => t.friendName.toLowerCase() === friendName.toLowerCase());
-  const breakdown = getTrustBreakdown(friendName, allTransactions, currency);
+    const friendTx = allTransactions.filter(t => t.friendName.toLowerCase() === friendName.toLowerCase());
+    const breakdown = getTrustBreakdown(friendName, allTransactions, currency);
 
-  // Financial Calculations
-  let totalBorrowed = 0;
-  let totalInterest = 0;
-  let totalPaid = 0;
-  
-  const events: { date: Date; type: string; amount: number; note: string; isCredit: boolean }[] = [];
+    // Financial Calculations
+    let totalBorrowed = 0;
+    let totalInterest = 0;
+    let totalPaid = 0;
+    
+    const events: any[] = [];
 
-  friendTx.forEach(t => {
-    const interest = calculateInterest(t);
-    totalBorrowed += t.principalAmount;
-    totalInterest += interest;
-    totalPaid += t.paidAmount;
+    friendTx.forEach(t => {
+      const interest = calculateInterest(t);
+      totalBorrowed += t.principalAmount;
+      totalInterest += interest;
+      totalPaid += t.paidAmount;
 
-    events.push({
-      date: new Date(t.startDate),
-      type: 'CONTRACT INITIATED',
-      amount: t.principalAmount,
-      note: `Principal (${t.interestRate}% ${t.interestType})`,
-      isCredit: false
-    });
-
-    if (interest > 0) {
       events.push({
-        date: new Date(),
-        type: 'INTEREST ACCRUED',
-        amount: interest,
-        note: 'Calculated to date',
+        date: new Date(t.startDate),
+        type: 'CONTRACT INITIATED',
+        amount: t.principalAmount,
+        note: `Principal (${t.interestRate}% ${t.interestType})`,
         isCredit: false
       });
-    }
 
-    t.repayments.forEach(r => {
-      events.push({
-        date: new Date(r.date),
-        type: 'PAYMENT LOGGED',
-        amount: r.amount,
-        note: 'Funds Received',
-        isCredit: true
+      if (interest > 0) {
+        events.push({
+          date: new Date(),
+          type: 'INTEREST ACCRUED',
+          amount: interest,
+          note: 'Calculated to date',
+          isCredit: false
+        });
+      }
+
+      t.repayments.forEach(r => {
+        events.push({
+          date: new Date(r.date),
+          type: 'PAYMENT LOGGED',
+          amount: r.amount,
+          note: 'Funds Received',
+          isCredit: true
+        });
       });
     });
-  });
 
-  events.sort((a, b) => a.date.getTime() - b.date.getTime());
+    events.sort((a, b) => a.date.getTime() - b.date.getTime());
 
-  // --- HEADER SECTION ---
-  
-  doc.setTextColor(...colors.text);
-  doc.setFontSize(24);
-  doc.setFont('helvetica', 'bold');
-  if (doc.setCharSpace) doc.setCharSpace(0);
-  doc.text("LEDGER", 14, 25);
-  
-  // Neon Underline
-  doc.setDrawColor(...colors.emerald);
-  doc.setLineWidth(0.5);
-  doc.line(14, 30, 44, 30);
+    // --- HEADER ---
+    doc.setTextColor(...colors.text);
+    doc.setFontSize(24);
+    doc.setFont('helvetica', 'bold');
+    doc.text("LEDGER", 14, 25);
+    
+    doc.setDrawColor(...colors.emerald);
+    doc.setLineWidth(0.5);
+    doc.line(14, 30, 44, 30);
 
-  // Meta Info
-  doc.setFontSize(10);
-  doc.setTextColor(...colors.subtext);
-  doc.text(`DATE: ${formatDate(new Date())}`, pageWidth - 14, 15, { align: 'right' });
-  doc.text(`REF: ${Math.random().toString(36).substr(2, 9).toUpperCase()}`, pageWidth - 14, 20, { align: 'right' });
+    doc.setFontSize(10);
+    doc.setTextColor(...colors.subtext);
+    doc.text(`DATE: ${formatDate(new Date())}`, pageWidth - 14, 15, { align: 'right' });
 
-  // --- PROFILE CARD SECTION ---
-  const cardY = 40;
-  doc.setFillColor(...colors.card);
-  doc.setDrawColor(...colors.border);
-  doc.roundedRect(14, cardY, pageWidth - 28, 45, 3, 3, 'FD');
-
-  // Name & Identity - Moved to left (x=24)
-  doc.setTextColor(...colors.text);
-  doc.setFontSize(16);
-  doc.text(friendName.toUpperCase(), 24, cardY + 18);
-  
-  doc.setFontSize(8);
-  doc.setFont('helvetica', 'normal');
-  doc.setTextColor(...colors.subtext);
-  doc.text('TARGET IDENTITY', 24, cardY + 10);
-
-  // Trust Score Text - Moved to left (x=24)
-  const scoreColor = breakdown.score >= 50 ? colors.emerald : colors.rose;
-  doc.setTextColor(...scoreColor);
-  doc.setFontSize(12);
-  doc.text(`${breakdown.score}/100 TRUST SCORE`, 24, cardY + 32);
-
-  // Net Outstanding
-  const netDue = (totalBorrowed + totalInterest) - totalPaid;
-  const summaryX = pageWidth - 20;
-  doc.setTextColor(...colors.subtext);
-  doc.setFontSize(8);
-  doc.text('NET OUTSTANDING', summaryX, cardY + 15, { align: 'right' });
-  doc.setFontSize(16);
-  doc.setFont('helvetica', 'bold');
-  doc.setTextColor(...(netDue > 0 ? colors.emerald : colors.subtext));
-  // Use displayCurrency (ISO code)
-  doc.text(`${displayCurrency} ${netDue.toLocaleString()}`, summaryX, cardY + 25, { align: 'right' });
-
-  // --- METRICS GRID ---
-  const gridY = 95;
-  const colWidth = (pageWidth - 28) / 3;
-  
-  const drawMetric = (label: string, value: string, x: number, accent: [number, number, number]) => {
+    // --- PROFILE CARD ---
+    const cardY = 40;
     doc.setFillColor(...colors.card);
     doc.setDrawColor(...colors.border);
-    doc.roundedRect(x, gridY, colWidth - 4, 25, 2, 2, 'FD');
-    doc.setFontSize(7);
+    doc.roundedRect(14, cardY, pageWidth - 28, 45, 3, 3, 'FD');
+
+    doc.setTextColor(...colors.text);
+    doc.setFontSize(16);
+    doc.text(friendName.toUpperCase(), 24, cardY + 18);
+    
+    doc.setFontSize(8);
+    doc.setFont('helvetica', 'normal');
     doc.setTextColor(...colors.subtext);
-    doc.text(label, x + 10, gridY + 10);
-    doc.setFontSize(11);
+    doc.text('TARGET IDENTITY', 24, cardY + 10);
+
+    const scoreColor = breakdown.score >= 50 ? colors.emerald : colors.rose;
+    doc.setTextColor(...scoreColor);
+    doc.setFontSize(12);
+    doc.text(`${breakdown.score}/100 TRUST SCORE`, 24, cardY + 32);
+
+    const netDue = (totalBorrowed + totalInterest) - totalPaid;
+    const summaryX = pageWidth - 20;
+    doc.setTextColor(...colors.subtext);
+    doc.setFontSize(8);
+    doc.text('NET OUTSTANDING', summaryX, cardY + 15, { align: 'right' });
+    doc.setFontSize(16);
     doc.setFont('helvetica', 'bold');
-    doc.setTextColor(...accent);
-    doc.text(value, x + 10, gridY + 19);
-  };
+    doc.setTextColor(...(netDue > 0 ? colors.emerald : colors.subtext));
+    doc.text(`${displayCurrency} ${netDue.toLocaleString()}`, summaryX, cardY + 25, { align: 'right' });
 
-  drawMetric('TOTAL PRINCIPAL', `${displayCurrency} ${totalBorrowed.toLocaleString()}`, 14, colors.text);
-  drawMetric('TOTAL REPAID', `${displayCurrency} ${totalPaid.toLocaleString()}`, 14 + colWidth, colors.emerald);
-  drawMetric('INTEREST ACCRUED', `${displayCurrency} ${totalInterest.toLocaleString()}`, 14 + (colWidth * 2), colors.rose);
-
-  // --- TRUST ANALYSIS SECTION ---
-  let currentY = 135;
-  
-  if (breakdown.factors.length > 0) {
-    doc.setFontSize(9);
-    doc.setTextColor(...colors.subtext);
-    if (doc.setCharSpace) doc.setCharSpace(1);
-    doc.text('TRUST ALGORITHM FACTORS', 14, currentY);
-    if (doc.setCharSpace) doc.setCharSpace(0);
-    currentY += 6;
-
-    breakdown.factors.forEach((factor) => {
-      const factorColor = factor.impact === 'positive' ? colors.emerald : 
-                         factor.impact === 'negative' ? colors.rose : colors.subtext;
-      
-      // Background for factor
+    // --- METRICS ---
+    const gridY = 95;
+    const colWidth = (pageWidth - 28) / 3;
+    
+    const drawMetric = (label: string, value: string, x: number, accent: [number, number, number]) => {
       doc.setFillColor(...colors.card);
       doc.setDrawColor(...colors.border);
-      doc.roundedRect(14, currentY, pageWidth - 28, 12, 1, 1, 'FD');
-      
-      // Impact Indicator
-      doc.setFillColor(...factorColor);
-      doc.circle(20, currentY + 6, 2, 'F');
-      
-      // Label
-      doc.setFontSize(9);
-      doc.setTextColor(...colors.text);
-      doc.text(factor.label, 28, currentY + 7.5);
-      
-      // Value
-      doc.setFont('helvetica', 'bold');
-      doc.setTextColor(...factorColor);
-      doc.text(factor.value, pageWidth - 20, currentY + 7.5, { align: 'right' });
-      doc.setFont('helvetica', 'normal'); // Reset font
-
-      currentY += 15;
-    });
-    
-    currentY += 5; // Spacing after section
-  }
-
-  // --- DATA TABLE ---
-  doc.setFontSize(10);
-  doc.setTextColor(...colors.text);
-  doc.text('VERIFICATION LOG', 14, currentY + 5);
-
-  autoTable(doc, {
-    startY: currentY + 10,
-    head: [['DATE', 'OPERATION', 'NOTE', 'AMOUNT']],
-    body: events.map(e => [
-      formatDate(e.date),
-      e.type,
-      e.note,
-      { 
-        content: `${displayCurrency} ${Math.abs(e.amount).toLocaleString()}`, 
-        styles: { 
-          textColor: e.isCredit ? colors.emerald : colors.text,
-          halign: 'right'
-        } 
-      }
-    ]),
-    theme: 'grid',
-    styles: {
-      fillColor: colors.bg,
-      textColor: colors.subtext,
-      lineColor: colors.border,
-      lineWidth: 0.1,
-      font: 'helvetica',
-      fontSize: 9
-    },
-    headStyles: {
-      fillColor: colors.card,
-      textColor: colors.emerald,
-      fontStyle: 'bold',
-      lineWidth: 0.1,
-      lineColor: colors.emerald
-    },
-    alternateRowStyles: {
-      fillColor: [6, 12, 30] // Slightly lighter than bg
-    },
-    columnStyles: {
-      3: { fontStyle: 'bold' }
-    },
-    // Hook to ensure dark background persists on multi-page reports
-    willDrawPage: (data) => {
-      if (data.pageNumber > 1) {
-        doc.setFillColor(...colors.bg);
-        doc.rect(0, 0, pageWidth, pageHeight, 'F');
-        // Redraw grid on new pages
-        doc.setDrawColor(...colors.grid);
-        doc.setLineWidth(0.05);
-        for (let x = 0; x <= pageWidth; x += 10) doc.line(x, 0, x, pageHeight);
-        for (let y = 0; y <= pageHeight; y += 10) doc.line(0, y, pageWidth, y);
-      }
-    },
-    // Footer for every page
-    didDrawPage: (data) => {
-      const str = `ENCRYPTED OFFLINE STORAGE // ${friendName.toUpperCase()} // PAGE ${doc.internal.getNumberOfPages()}`;
+      doc.roundedRect(x, gridY, colWidth - 4, 25, 2, 2, 'FD');
       doc.setFontSize(7);
       doc.setTextColor(...colors.subtext);
-      doc.text(str, 14, pageHeight - 10);
-    }
-  });
+      doc.text(label, x + 10, gridY + 10);
+      doc.setFontSize(11);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(...accent);
+      doc.text(value, x + 10, gridY + 19);
+    };
 
-  doc.save(`${friendName.replace(/\s+/g, '_')}_Secure_Report.pdf`);
+    drawMetric('TOTAL PRINCIPAL', `${displayCurrency} ${totalBorrowed.toLocaleString()}`, 14, colors.text);
+    drawMetric('TOTAL REPAID', `${displayCurrency} ${totalPaid.toLocaleString()}`, 14 + colWidth, colors.emerald);
+    drawMetric('INTEREST ACCRUED', `${displayCurrency} ${totalInterest.toLocaleString()}`, 14 + (colWidth * 2), colors.rose);
+
+    let currentY = 135;
+
+    // --- TRUST FACTORS ---
+    if (breakdown.factors.length > 0) {
+      doc.setFontSize(9);
+      doc.setTextColor(...colors.subtext);
+      doc.text('TRUST ALGORITHM FACTORS', 14, currentY);
+      currentY += 6;
+
+      breakdown.factors.forEach((factor) => {
+        const factorColor = factor.impact === 'positive' ? colors.emerald : 
+                           factor.impact === 'negative' ? colors.rose : colors.subtext;
+        
+        doc.setFillColor(...colors.card);
+        doc.setDrawColor(...colors.border);
+        doc.roundedRect(14, currentY, pageWidth - 28, 12, 1, 1, 'FD');
+        
+        doc.setFillColor(...factorColor);
+        doc.circle(20, currentY + 6, 2, 'F');
+        
+        doc.setFontSize(9);
+        doc.setTextColor(...colors.text);
+        doc.text(factor.label, 28, currentY + 7.5);
+        
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(...factorColor);
+        doc.text(factor.value, pageWidth - 20, currentY + 7.5, { align: 'right' });
+        doc.setFont('helvetica', 'normal');
+
+        currentY += 15;
+      });
+      currentY += 5;
+    }
+
+    // --- AUTO TABLE ---
+    // Robustly resolve autoTable function for various ESM environments
+    // In some builds, it's the default export, in others it's the function itself.
+    let applyAutoTable = autoTable;
+    if (typeof applyAutoTable !== 'function') {
+      // @ts-ignore - Handle ESM default export quirk
+      applyAutoTable = (applyAutoTable as any).default;
+    }
+
+    if (typeof applyAutoTable === 'function') {
+      applyAutoTable(doc, {
+        startY: currentY + 10,
+        head: [['DATE', 'OPERATION', 'NOTE', 'AMOUNT']],
+        body: events.map(e => [
+          formatDate(e.date),
+          e.type,
+          e.note,
+          { 
+            content: `${displayCurrency} ${Math.abs(e.amount).toLocaleString()}`, 
+            styles: { 
+              textColor: e.isCredit ? colors.emerald : colors.text,
+              halign: 'right'
+            } 
+          }
+        ]),
+        theme: 'grid',
+        styles: {
+          fillColor: colors.bg,
+          textColor: colors.subtext,
+          lineColor: colors.border,
+          lineWidth: 0.1,
+          font: 'helvetica',
+          fontSize: 9
+        },
+        headStyles: {
+          fillColor: colors.card,
+          textColor: colors.emerald,
+          fontStyle: 'bold',
+          lineWidth: 0.1,
+          lineColor: colors.emerald
+        },
+        alternateRowStyles: {
+          fillColor: [6, 12, 30]
+        },
+        columnStyles: {
+          3: { fontStyle: 'bold' }
+        },
+        willDrawPage: (data: any) => {
+          if (data.pageNumber > 1) {
+            doc.setFillColor(...colors.bg);
+            doc.rect(0, 0, pageWidth, pageHeight, 'F');
+          }
+        },
+        didDrawPage: (data: any) => {
+          const str = `ENCRYPTED OFFLINE STORAGE // ${friendName.toUpperCase()} // PAGE ${doc.internal.getNumberOfPages()}`;
+          doc.setFontSize(7);
+          doc.setTextColor(...colors.subtext);
+          doc.text(str, 14, pageHeight - 10);
+        }
+      });
+    } else {
+      console.error("PDF AutoTable plugin failed to load.");
+      alert("PDF Module Error: AutoTable plugin not found. Please refresh.");
+    }
+
+    doc.save(`${friendName.replace(/\s+/g, '_')}_Secure_Report.pdf`);
+    
+  } catch (error) {
+    console.error("PDF Generation Failed:", error);
+    alert("Could not generate PDF. Please check console for details.");
+  }
 };
