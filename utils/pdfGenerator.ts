@@ -63,7 +63,11 @@ export const generateStatementPDF = (friendName: string, allTransactions: Transa
     doc.text("INTERNAL // CONFIDENTIAL", pageWidth / 2, pageHeight / 2, { align: 'center', angle: 45 });
     doc.restoreGraphicsState();
 
-    const friendTx = allTransactions.filter(t => t.friendName.toLowerCase() === friendName.toLowerCase());
+    // ROBUST FILTERING: Trim and normalize case to match allTransactions against the friendName header
+    const friendTx = allTransactions.filter(t => 
+        t.friendName.trim().toLowerCase() === friendName.trim().toLowerCase()
+    );
+    
     const breakdown = getTrustBreakdown(friendName, allTransactions, currency);
 
     // Financial Calculations

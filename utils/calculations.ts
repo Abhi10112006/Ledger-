@@ -105,7 +105,12 @@ export const calculateTrustScore = (friendName: string, transactions: Transactio
 };
 
 export const getTrustBreakdown = (friendName: string, transactions: Transaction[], currency: string = '₹'): TrustBreakdown => {
-  const friendTx = transactions.filter(t => t.friendName.toLowerCase() === friendName.toLowerCase());
+  // ROBUST FILTERING: Trim and lower case both to ensure matching happens 
+  // even if "Name " was saved but "Name" is displayed.
+  const friendTx = transactions.filter(t => 
+    t.friendName.trim().toLowerCase() === friendName.trim().toLowerCase()
+  );
+
   if (friendTx.length === 0) {
     return { 
       score: 50, 

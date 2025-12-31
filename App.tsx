@@ -190,7 +190,7 @@ const App: React.FC = () => {
     const numAmount = parseFloat(amount);
     setTransactions(prev => [{
       id: generateId(),
-      friendName,
+      friendName: friendName.trim(), // SANITIZATION: Prevents whitespace ghosts
       principalAmount: numAmount,
       paidAmount: 0,
       startDate: new Date(startDate).toISOString(),
