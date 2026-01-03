@@ -21,14 +21,8 @@
       "purpose": "maskable"
     },
     {
-      "src": "https://cdn-icons-png.flaticon.com/512/2910/2910768.png",
-      "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "monochrome"
-    },
-    {
-      "src": "data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%3E%3Cpath%20d%3D%22M12%201L3%205v6c0%205.55%203.84%2010.74%209%2012%205.16-1.26%209-6.45%209-12V5l-9-4zm-2%2016l-4-4%201.41-1.41L10%2014.17l6.59-6.59L18%209l-8%208z%22%20fill%3D%22black%22%2F%3E%3C%2Fsvg%3E",
-      "sizes": "512x512",
+      "src": "data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%3E%3Cpath%20d%3D%22M12%201L3%205v6c0%205.55%203.84%2010.74%209%2012%205.16-1.26%209-6.45%209-12V5l-9-4zm-2%2016l-4-4%201.41-1.41L10%2014.17l6.59-6.59L18%209l-8%208z%22%20fill%3D%22%23000000%22%2F%3E%3C%2Fsvg%3E",
+      "sizes": "any",
       "type": "image/svg+xml",
       "purpose": "monochrome"
     }
