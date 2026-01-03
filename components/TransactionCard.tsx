@@ -12,9 +12,18 @@ interface Props {
   onDelete: (id: string) => void;
   tourStep?: number;
   currency: string;
+  themeStyles: any; // Passed from parent
 }
 
-const TransactionCard: React.FC<Props> = ({ transaction, onAddPayment, onUpdateDueDate, onDelete, tourStep = -1, currency }) => {
+const TransactionCard: React.FC<Props> = ({ 
+  transaction, 
+  onAddPayment, 
+  onUpdateDueDate, 
+  onDelete, 
+  tourStep = -1, 
+  currency,
+  themeStyles
+}) => {
   const totalPayable = getTotalPayable(transaction);
   const interest = calculateInterest(transaction);
   const balance = Math.max(0, totalPayable - transaction.paidAmount);
@@ -38,10 +47,10 @@ const TransactionCard: React.FC<Props> = ({ transaction, onAddPayment, onUpdateD
   const highlightDueDate = tourStep === 5;
 
   return (
-    <div className={`glass rounded-[2rem] p-6 transition-all duration-500 relative group overflow-hidden ${transaction.isCompleted ? 'opacity-50 grayscale-[0.3]' : 'hover:border-emerald-500/40 shadow-xl shadow-slate-950/50'} ${highlightCard ? 'z-[60] border-emerald-400 ring-4 ring-emerald-500/60 bg-slate-900 shadow-[0_0_150px_rgba(16,185,129,0.6)] scale-[1.04]' : 'z-0'}`}>
+    <div className={`glass rounded-[2rem] p-6 transition-all duration-500 relative group overflow-hidden ${transaction.isCompleted ? 'opacity-50 grayscale-[0.3]' : 'hover:border-white/10 shadow-xl shadow-slate-950/50'} ${highlightCard ? `z-[60] ${themeStyles.border} ring-4 ${themeStyles.ring} bg-slate-900 shadow-[0_0_150px_rgba(0,0,0,0.6)] scale-[1.04]` : 'z-0'}`}>
       {/* Dynamic Glow Layer */}
       {!transaction.isCompleted && (
-        <div className="absolute -top-32 -right-32 w-64 h-64 bg-emerald-500/5 blur-[80px] rounded-full group-hover:bg-emerald-500/10 transition-colors duration-700 pointer-events-none"></div>
+        <div className={`absolute -top-32 -right-32 w-64 h-64 ${themeStyles.bg.replace('bg-', 'bg-')}/5 blur-[80px] rounded-full group-hover:${themeStyles.bg.replace('bg-', 'bg-')}/10 transition-colors duration-700 pointer-events-none`}></div>
       )}
 
       <div className="flex justify-between items-start mb-6">
@@ -80,14 +89,14 @@ const TransactionCard: React.FC<Props> = ({ transaction, onAddPayment, onUpdateD
         </div>
         <div className="space-y-1 text-right">
           <p className="text-slate-500 text-[9px] font-black uppercase tracking-[0.2em]">Balance</p>
-          <p className={`text-xl font-mono font-bold transition-colors ${transaction.isCompleted ? 'text-slate-500' : 'text-emerald-400'}`}>{currency}{balance.toLocaleString('en-IN')}</p>
+          <p className={`text-xl font-mono font-bold transition-colors ${transaction.isCompleted ? 'text-slate-500' : themeStyles.text}`}>{currency}{balance.toLocaleString('en-IN')}</p>
         </div>
       </div>
 
       {/* Modern Progress Tracking */}
       <div className="relative h-1.5 w-full bg-slate-900 rounded-full overflow-hidden mb-6 border border-white/5">
         <div 
-          className={`h-full transition-all duration-1000 cubic-bezier(0.4, 0, 0.2, 1) ${transaction.isCompleted ? 'bg-slate-700' : 'bg-gradient-to-r from-emerald-600 via-emerald-400 to-cyan-400'}`}
+          className={`h-full transition-all duration-1000 cubic-bezier(0.4, 0, 0.2, 1) ${transaction.isCompleted ? 'bg-slate-700' : `bg-gradient-to-r ${themeStyles.gradient}`}`}
           style={{ width: `${progress}%` }}
         ></div>
       </div>
@@ -104,7 +113,7 @@ const TransactionCard: React.FC<Props> = ({ transaction, onAddPayment, onUpdateD
         {!transaction.isCompleted && (
           <button 
             onClick={() => onAddPayment(transaction.id)}
-            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all duration-300 ${highlightPayment ? 'z-[65] bg-purple-600 text-white scale-110 shadow-2xl' : 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg shadow-emerald-500/20 active:scale-95'}`}
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all duration-300 ${highlightPayment ? 'z-[65] bg-purple-600 text-white scale-110 shadow-2xl' : `${themeStyles.bg} hover:brightness-110 text-slate-950 shadow-lg ${themeStyles.shadow} active:scale-95`}`}
           >
             <Plus className="w-3.5 h-3.5" /> Entry
           </button>

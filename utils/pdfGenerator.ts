@@ -1,7 +1,6 @@
-
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { Transaction } from '../types';
+import { Transaction, AppSettings } from '../types';
 import { getTrustBreakdown, calculateInterest } from './calculations';
 
 const formatDate = (date: Date) => {
@@ -16,7 +15,7 @@ const formatDate = (date: Date) => {
   }
 };
 
-export const generateStatementPDF = (friendName: string, allTransactions: Transaction[], currency: string = '₹') => {
+export const generateStatementPDF = (friendName: string, allTransactions: Transaction[], settings: AppSettings) => {
   try {
     const doc = new jsPDF();
     const pageWidth = doc.internal.pageSize.width;
@@ -30,7 +29,19 @@ export const generateStatementPDF = (friendName: string, allTransactions: Transa
       '£': 'GBP',
       '¥': 'JPY'
     };
-    const displayCurrency = currencyMap[currency] || 'INR';
+    const displayCurrency = currencyMap[settings.currency] || settings.currency;
+
+    // Theme Colors (Tailwind 500 shades)
+    const themes: Record<string, [number, number, number]> = {
+      emerald: [16, 185, 129],
+      violet: [139, 92, 246],
+      blue: [59, 130, 246],
+      rose: [244, 63, 94],
+      amber: [245, 158, 11]
+    };
+    
+    // Fallback to emerald if theme not found
+    const brandColor = themes[settings.themeColor] || themes.emerald;
     
     // Theme Palette
     const colors = {
@@ -38,10 +49,15 @@ export const generateStatementPDF = (friendName: string, allTransactions: Transa
       card: [15, 23, 42] as [number, number, number],
       text: [241, 245, 249] as [number, number, number],
       subtext: [148, 163, 184] as [number, number, number],
-      emerald: [52, 211, 153] as [number, number, number],
-      rose: [251, 113, 133] as [number, number, number],
       border: [30, 41, 59] as [number, number, number],
-      grid: [30, 41, 59] as [number, number, number]
+      grid: [30, 41, 59] as [number, number, number],
+      
+      // Dynamic Brand Color
+      brand: brandColor,
+      
+      // Semantic Colors (Fixed)
+      success: [16, 185, 129] as [number, number, number], // Emerald for money in
+      danger: [244, 63, 94] as [number, number, number],   // Rose for errors/debt
     };
 
     // 1. BACKGROUND
@@ -63,12 +79,12 @@ export const generateStatementPDF = (friendName: string, allTransactions: Transa
     doc.text("INTERNAL // CONFIDENTIAL", pageWidth / 2, pageHeight / 2, { align: 'center', angle: 45 });
     doc.restoreGraphicsState();
 
-    // ROBUST FILTERING: Trim and normalize case to match allTransactions against the friendName header
+    // ROBUST FILTERING
     const friendTx = allTransactions.filter(t => 
         t.friendName.trim().toLowerCase() === friendName.trim().toLowerCase()
     );
     
-    const breakdown = getTrustBreakdown(friendName, allTransactions, currency);
+    const breakdown = getTrustBreakdown(friendName, allTransactions, settings.currency);
 
     // Financial Calculations
     let totalBorrowed = 0;
@@ -118,11 +134,13 @@ export const generateStatementPDF = (friendName: string, allTransactions: Transa
     doc.setTextColor(...colors.text);
     doc.setFontSize(24);
     doc.setFont('helvetica', 'bold');
-    doc.text("LEDGER", 14, 25);
+    // Use User Name for Title
+    doc.text(settings.userName.toUpperCase(), 14, 25);
     
-    doc.setDrawColor(...colors.emerald);
+    doc.setDrawColor(...colors.brand);
     doc.setLineWidth(0.5);
-    doc.line(14, 30, 44, 30);
+    const titleWidth = doc.getTextWidth(settings.userName.toUpperCase());
+    doc.line(14, 30, 14 + titleWidth + 10, 30);
 
     doc.setFontSize(10);
     doc.setTextColor(...colors.subtext);
@@ -143,7 +161,7 @@ export const generateStatementPDF = (friendName: string, allTransactions: Transa
     doc.setTextColor(...colors.subtext);
     doc.text('TARGET IDENTITY', 24, cardY + 10);
 
-    const scoreColor = breakdown.score >= 50 ? colors.emerald : colors.rose;
+    const scoreColor = breakdown.score >= 50 ? colors.success : colors.danger;
     doc.setTextColor(...scoreColor);
     doc.setFontSize(12);
     doc.text(`${breakdown.score}/100 TRUST SCORE`, 24, cardY + 32);
@@ -155,7 +173,7 @@ export const generateStatementPDF = (friendName: string, allTransactions: Transa
     doc.text('NET OUTSTANDING', summaryX, cardY + 15, { align: 'right' });
     doc.setFontSize(16);
     doc.setFont('helvetica', 'bold');
-    doc.setTextColor(...(netDue > 0 ? colors.emerald : colors.subtext));
+    doc.setTextColor(...(netDue > 0 ? colors.brand : colors.subtext));
     doc.text(`${displayCurrency} ${netDue.toLocaleString()}`, summaryX, cardY + 25, { align: 'right' });
 
     // --- METRICS ---
@@ -176,8 +194,8 @@ export const generateStatementPDF = (friendName: string, allTransactions: Transa
     };
 
     drawMetric('TOTAL PRINCIPAL', `${displayCurrency} ${totalBorrowed.toLocaleString()}`, 14, colors.text);
-    drawMetric('TOTAL REPAID', `${displayCurrency} ${totalPaid.toLocaleString()}`, 14 + colWidth, colors.emerald);
-    drawMetric('INTEREST ACCRUED', `${displayCurrency} ${totalInterest.toLocaleString()}`, 14 + (colWidth * 2), colors.rose);
+    drawMetric('TOTAL REPAID', `${displayCurrency} ${totalPaid.toLocaleString()}`, 14 + colWidth, colors.success);
+    drawMetric('INTEREST ACCRUED', `${displayCurrency} ${totalInterest.toLocaleString()}`, 14 + (colWidth * 2), colors.danger);
 
     let currentY = 135;
 
@@ -189,8 +207,8 @@ export const generateStatementPDF = (friendName: string, allTransactions: Transa
       currentY += 6;
 
       breakdown.factors.forEach((factor) => {
-        const factorColor = factor.impact === 'positive' ? colors.emerald : 
-                           factor.impact === 'negative' ? colors.rose : colors.subtext;
+        const factorColor = factor.impact === 'positive' ? colors.success : 
+                           factor.impact === 'negative' ? colors.danger : colors.subtext;
         
         doc.setFillColor(...colors.card);
         doc.setDrawColor(...colors.border);
@@ -214,11 +232,9 @@ export const generateStatementPDF = (friendName: string, allTransactions: Transa
     }
 
     // --- AUTO TABLE ---
-    // Robustly resolve autoTable function for various ESM environments
-    // In some builds, it's the default export, in others it's the function itself.
     let applyAutoTable = autoTable;
     if (typeof applyAutoTable !== 'function') {
-      // @ts-ignore - Handle ESM default export quirk
+      // @ts-ignore
       applyAutoTable = (applyAutoTable as any).default;
     }
 
@@ -233,7 +249,7 @@ export const generateStatementPDF = (friendName: string, allTransactions: Transa
           { 
             content: `${displayCurrency} ${Math.abs(e.amount).toLocaleString()}`, 
             styles: { 
-              textColor: e.isCredit ? colors.emerald : colors.text,
+              textColor: e.isCredit ? colors.success : colors.text,
               halign: 'right'
             } 
           }
@@ -249,10 +265,10 @@ export const generateStatementPDF = (friendName: string, allTransactions: Transa
         },
         headStyles: {
           fillColor: colors.card,
-          textColor: colors.emerald,
+          textColor: colors.brand, // Use brand color for headers
           fontStyle: 'bold',
           lineWidth: 0.1,
-          lineColor: colors.emerald
+          lineColor: colors.brand // Use brand color for header lines
         },
         alternateRowStyles: {
           fillColor: [6, 12, 30]
@@ -267,7 +283,7 @@ export const generateStatementPDF = (friendName: string, allTransactions: Transa
           }
         },
         didDrawPage: (data: any) => {
-          const str = `ENCRYPTED OFFLINE STORAGE // ${friendName.toUpperCase()} // PAGE ${doc.internal.getNumberOfPages()}`;
+          const str = `ENCRYPTED OFFLINE STORAGE // ${settings.userName.toUpperCase()} // PAGE ${doc.internal.getNumberOfPages()}`;
           doc.setFontSize(7);
           doc.setTextColor(...colors.subtext);
           doc.text(str, 14, pageHeight - 10);

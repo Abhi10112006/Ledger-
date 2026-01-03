@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { 
   Plus, 
@@ -24,21 +23,86 @@ import {
   ArrowUpDown,
   Filter,
   Globe,
-  MonitorDown
+  MonitorDown,
+  Settings,
+  Palette,
+  Layout,
+  Type
 } from 'lucide-react';
-import { Transaction, Repayment, InterestType } from './types';
+import { Transaction, Repayment, InterestType, AppSettings, ThemeColor, BackgroundType } from './types';
 import { getSummaryStats, calculateTrustScore, getTotalPayable } from './utils/calculations';
 import { generateStatementPDF } from './utils/pdfGenerator';
 import TransactionCard from './components/TransactionCard';
 import TrustScoreBadge from './components/TrustScoreBadge';
 
 const STORAGE_KEY = 'abhi_ledger_session';
+const SETTINGS_KEY = 'abhi_ledger_settings_v1';
 const TOUR_KEY = 'abhi_ledger_tour_complete_v8';
-const CURRENCY_KEY = 'abhi_ledger_currency';
 
 type SortOption = 'name' | 'exposure' | 'trust' | 'recent';
 
 const CURRENCIES = ['₹', '$', '€', '£', '¥'];
+
+// --- THEME CONFIGURATION ---
+const THEMES = {
+  emerald: {
+    name: 'Cyber Emerald',
+    bg: 'bg-emerald-500',
+    text: 'text-emerald-400',
+    border: 'border-emerald-500/30',
+    ring: 'ring-emerald-500/30',
+    shadow: 'shadow-emerald-500/20',
+    gradient: 'from-emerald-600 via-emerald-400 to-teal-400',
+    hex: '#10b981'
+  },
+  violet: {
+    name: 'Neon Violet',
+    bg: 'bg-violet-500',
+    text: 'text-violet-400',
+    border: 'border-violet-500/30',
+    ring: 'ring-violet-500/30',
+    shadow: 'shadow-violet-500/20',
+    gradient: 'from-violet-600 via-violet-400 to-fuchsia-400',
+    hex: '#8b5cf6'
+  },
+  blue: {
+    name: 'Tron Blue',
+    bg: 'bg-blue-500',
+    text: 'text-blue-400',
+    border: 'border-blue-500/30',
+    ring: 'ring-blue-500/30',
+    shadow: 'shadow-blue-500/20',
+    gradient: 'from-blue-600 via-blue-400 to-cyan-400',
+    hex: '#3b82f6'
+  },
+  rose: {
+    name: 'Laser Rose',
+    bg: 'bg-rose-500',
+    text: 'text-rose-400',
+    border: 'border-rose-500/30',
+    ring: 'ring-rose-500/30',
+    shadow: 'shadow-rose-500/20',
+    gradient: 'from-rose-600 via-rose-400 to-pink-400',
+    hex: '#f43f5e'
+  },
+  amber: {
+    name: 'Solar Amber',
+    bg: 'bg-amber-500',
+    text: 'text-amber-400',
+    border: 'border-amber-500/30',
+    ring: 'ring-amber-500/30',
+    shadow: 'shadow-amber-500/20',
+    gradient: 'from-amber-600 via-amber-400 to-orange-400',
+    hex: '#f59e0b'
+  }
+};
+
+const DEFAULT_SETTINGS: AppSettings = {
+  userName: "Abhi's Ledger",
+  themeColor: 'emerald',
+  background: 'solid',
+  currency: '₹'
+};
 
 const generateId = () => {
   if (typeof crypto !== 'undefined' && crypto.randomUUID) {
@@ -48,16 +112,20 @@ const generateId = () => {
 };
 
 const App: React.FC = () => {
+  // Data State
   const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [settings, setSettings] = useState<AppSettings>(DEFAULT_SETTINGS);
+  
+  // UI State
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isEditDateModalOpen, setIsEditDateModalOpen] = useState(false);
+  const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
   const [tourStep, setTourStep] = useState<number>(-1);
   const [activeTxId, setActiveTxId] = useState<string | null>(null);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [sortBy, setSortBy] = useState<SortOption>('recent');
-  const [currency, setCurrency] = useState('₹');
   
   // Install Prompt State
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
@@ -76,6 +144,9 @@ const App: React.FC = () => {
   const [paymentDate, setPaymentDate] = useState(new Date().toISOString().split('T')[0]);
   const [newDueDate, setNewDueDate] = useState('');
 
+  // Derived Theme State
+  const activeTheme = THEMES[settings.themeColor];
+
   // Refs for Tour Highlighting
   const statsRef = useRef<HTMLDivElement>(null);
   const addBtnRef = useRef<HTMLButtonElement>(null);
@@ -85,8 +156,8 @@ const App: React.FC = () => {
 
   useEffect(() => {
     const saved = localStorage.getItem(STORAGE_KEY);
+    const savedSettings = localStorage.getItem(SETTINGS_KEY);
     const tourComplete = localStorage.getItem(TOUR_KEY);
-    const savedCurrency = localStorage.getItem(CURRENCY_KEY);
     
     if (saved) {
       try {
@@ -100,15 +171,16 @@ const App: React.FC = () => {
       }
     }
 
-    if (savedCurrency) {
-      setCurrency(savedCurrency);
+    if (savedSettings) {
+      try {
+        setSettings({ ...DEFAULT_SETTINGS, ...JSON.parse(savedSettings) });
+      } catch (e) { console.error("Failed settings load", e); }
     }
 
     if (!tourComplete) {
       setTimeout(() => setTourStep(0), 1500);
     }
 
-    // Capture install prompt
     const handleBeforeInstallPrompt = (e: any) => {
       e.preventDefault();
       setDeferredPrompt(e);
@@ -128,8 +200,8 @@ const App: React.FC = () => {
   }, [transactions, isLoggedIn]);
 
   useEffect(() => {
-    localStorage.setItem(CURRENCY_KEY, currency);
-  }, [currency]);
+    localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+  }, [settings]);
 
   const handleInstallClick = async () => {
     if (!deferredPrompt) return;
@@ -140,10 +212,8 @@ const App: React.FC = () => {
     }
   };
 
-  const toggleCurrency = () => {
-    const currentIndex = CURRENCIES.indexOf(currency);
-    const nextIndex = (currentIndex + 1) % CURRENCIES.length;
-    setCurrency(CURRENCIES[nextIndex]);
+  const updateSetting = (key: keyof AppSettings, value: any) => {
+    setSettings(prev => ({ ...prev, [key]: value }));
   };
 
   const completeTour = () => {
@@ -320,7 +390,7 @@ const App: React.FC = () => {
     { 
       title: "1. Monitor Exposure", 
       desc: "The Dashboard tracks your money real-time. 'Pending' is the capital currently in the wild. 'Returned' is what's safely back in your pocket.", 
-      icon: <TrendingUp className="text-emerald-400" />,
+      icon: <TrendingUp className={activeTheme.text} />,
       pos: 'bottom'
     },
     { 
@@ -331,7 +401,7 @@ const App: React.FC = () => {
     },
     { 
       title: "3. Log Installments", 
-      desc: "When they pay you back partially, use the 'Log Payment' button on the card. It's the purple button we're highlighting now!", 
+      desc: "When they pay you back partially, use the 'Log Payment' button on the card. It's the large button we're highlighting now!", 
       icon: <CreditCard className="text-purple-400" />,
       pos: 'top' 
     },
@@ -355,7 +425,7 @@ const App: React.FC = () => {
     },
     { 
       title: "7. Save Your Data", 
-      desc: "Final step: Since this is offline, click the Download icon at the top to save a backup to your device. Look for the blinking green icon!", 
+      desc: "Final step: Since this is offline, click the Download icon at the top to save a backup to your device. Look for the blinking icon!", 
       icon: <Download className="text-amber-400" />,
       pos: 'bottom'
     }
@@ -363,22 +433,26 @@ const App: React.FC = () => {
 
   if (!isLoggedIn) {
     return (
-      <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center p-6 text-center text-slate-100">
-        <div className="w-full max-w-md space-y-8 animate-in fade-in zoom-in duration-700">
+      <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center p-6 text-center text-slate-100 relative overflow-hidden">
+        {/* Animated Background Mesh */}
+        <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px] pointer-events-none"></div>
+        <div className="absolute top-0 left-0 w-full h-full bg-slate-950/80 pointer-events-none"></div>
+
+        <div className="w-full max-w-md space-y-8 animate-in fade-in zoom-in duration-700 relative z-10">
           <div className="space-y-4">
             <div className="flex justify-center">
-              <div className="w-24 h-24 bg-emerald-500/10 rounded-[2rem] flex items-center justify-center border border-emerald-500/20 shadow-[0_0_40px_rgba(16,185,129,0.1)]">
-                <ShieldCheck className="w-12 h-12 text-emerald-400" />
+              <div className="w-24 h-24 bg-slate-900 rounded-[2rem] flex items-center justify-center border border-white/10 shadow-[0_0_40px_rgba(255,255,255,0.05)]">
+                <ShieldCheck className="w-12 h-12 text-slate-200" />
               </div>
             </div>
             <h1 className="text-5xl font-black tracking-tighter">
-              Abhi's <span className="text-emerald-400">Ledger</span>
+              {settings.userName.split(' ')[0] || "Abhi's"} <span className={activeTheme.text}>Ledger</span>
             </h1>
             <p className="text-slate-400 text-lg font-medium leading-relaxed">The elite offline debt tracking engine.</p>
           </div>
           <div className="grid grid-cols-1 gap-4 pt-4">
             <label className="flex flex-col items-center justify-center w-full h-44 border-2 border-dashed border-slate-800 rounded-3xl bg-slate-900/40 hover:bg-slate-900/60 transition-all cursor-pointer group">
-              <Upload className="w-10 h-10 text-emerald-500 mb-3 group-hover:scale-110 transition-transform" />
+              <Upload className={`w-10 h-10 ${activeTheme.text} mb-3 group-hover:scale-110 transition-transform`} />
               <span className="text-slate-300 font-bold">Restore Backup</span>
               <input type="file" className="hidden" accept=".json,application/json" onChange={handleImport} />
             </label>
@@ -396,32 +470,42 @@ const App: React.FC = () => {
 
   const currentStep = tourStep >= 0 ? tourSteps[tourStep] : null;
 
+  // Background Styles Logic
+  const getBackgroundClass = () => {
+    switch(settings.background) {
+      case 'nebula': return 'bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950';
+      case 'grid': return 'bg-[linear-gradient(to_right,#80808008_1px,transparent_1px),linear-gradient(to_bottom,#80808008_1px,transparent_1px)] bg-[size:24px_24px] bg-slate-950';
+      default: return 'bg-slate-950';
+    }
+  };
+
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 pb-24 selection:bg-emerald-500/30 font-inter">
+    <div className={`min-h-screen text-slate-100 pb-24 selection:bg-emerald-500/30 font-inter ${getBackgroundClass()}`}>
+       {/* Nebula Ambient Glow */}
+       {settings.background === 'nebula' && (
+         <div className={`fixed top-0 left-0 right-0 h-[50vh] ${activeTheme.bg}/10 blur-[120px] pointer-events-none rounded-b-full`}></div>
+       )}
+
       {/* Navigation */}
-      <nav className={`sticky top-0 px-6 py-4 flex justify-between items-center glass border-b border-slate-800/30 transition-all duration-500 ${tourStep === 7 ? 'z-[60] border-emerald-500/40' : 'z-40'}`}>
+      <nav className={`sticky top-0 px-6 py-4 flex justify-between items-center glass border-b border-slate-800/30 transition-all duration-500 ${tourStep === 7 ? `z-[60] ${activeTheme.border}` : 'z-40'}`}>
         <div className="flex items-center gap-3">
-          <Zap className="w-6 h-6 text-emerald-400 fill-emerald-400/20" />
-          <h1 className="font-bold text-xl tracking-tight hidden sm:block">Abhi's Ledger</h1>
-          <h1 className="font-bold text-xl tracking-tight sm:hidden">AL</h1>
+          <Zap className={`w-6 h-6 ${activeTheme.text}`} />
+          <h1 className="font-bold text-xl tracking-tight hidden sm:block">{settings.userName}</h1>
+          <h1 className="font-bold text-xl tracking-tight sm:hidden">{settings.userName.split(' ')[0]}</h1>
         </div>
         <div ref={headerActionsRef} className={`flex items-center gap-3 relative transition-all ${tourStep === 7 ? 'z-[70]' : ''}`}>
           
           {deferredPrompt && (
             <button 
               onClick={handleInstallClick} 
-              className="px-3 py-2 text-[10px] font-black uppercase tracking-widest bg-emerald-600/20 text-emerald-400 border border-emerald-500/30 rounded-lg hover:bg-emerald-600 hover:text-white transition-all flex items-center gap-2"
+              className={`px-3 py-2 text-[10px] font-black uppercase tracking-widest ${activeTheme.border} rounded-lg hover:bg-white/5 transition-all flex items-center gap-2 ${activeTheme.text}`}
             >
               <MonitorDown className="w-3.5 h-3.5" /> <span className="hidden sm:inline">Install</span>
             </button>
           )}
 
-          <button 
-            onClick={toggleCurrency} 
-            className="p-2 text-slate-400 hover:text-emerald-400 transition-all hover:bg-slate-800/50 rounded-lg flex items-center justify-center font-mono font-bold text-lg w-10 h-10"
-            title="Toggle Currency"
-          >
-            {currency}
+          <button onClick={() => setIsSettingsModalOpen(true)} className={`p-2 text-slate-400 hover:${activeTheme.text} transition-all hover:bg-slate-800/50 rounded-lg`}>
+            <Settings className="w-5 h-5" />
           </button>
           
           <div className="h-6 w-px bg-slate-800 mx-1"></div>
@@ -430,7 +514,7 @@ const App: React.FC = () => {
           <button 
             ref={exportBtnRef} 
             onClick={handleExport} 
-            className={`p-2 transition-all rounded-lg duration-500 ${tourStep === 7 ? 'z-[80] bg-emerald-500 text-slate-950 scale-125 shadow-[0_0_50px_rgba(16,185,129,1)] ring-4 ring-emerald-500/40 animate-pulse' : 'text-slate-400 hover:text-emerald-400 hover:bg-slate-800/50'}`} 
+            className={`p-2 transition-all rounded-lg duration-500 ${tourStep === 7 ? `z-[80] ${activeTheme.bg} text-slate-950 scale-125 shadow-[0_0_50px_rgba(255,255,255,0.3)] ring-4 ${activeTheme.ring} animate-pulse` : `text-slate-400 hover:${activeTheme.text} hover:bg-slate-800/50`}`} 
             title="Save Backup to Device"
           >
             <Download className="w-5 h-5" />
@@ -440,9 +524,9 @@ const App: React.FC = () => {
       </nav>
 
       <main ref={mainAreaRef} className="max-w-4xl mx-auto px-6 space-y-8 pt-8 relative">
-        <div ref={statsRef} className={`grid grid-cols-2 gap-4 sm:gap-6 relative transition-all duration-300 ${tourStep === 1 ? 'z-[60] scale-105 ring-4 ring-emerald-500/30 ring-offset-8 ring-offset-slate-950 rounded-3xl' : ''}`}>
-          <MinimalStatCard label="PENDING" value={`${currency}${stats.pending.toLocaleString('en-IN')}`} icon={<TrendingUp className="w-4 h-4" />} accent="text-emerald-400" subtext={`${stats.activeCount} active`} />
-          <MinimalStatCard label="RETURNED" value={`${currency}${stats.received.toLocaleString('en-IN')}`} icon={<CheckCircle2 className="w-4 h-4" />} accent="text-slate-300" subtext={`${stats.overdueCount} overdue`} />
+        <div ref={statsRef} className={`grid grid-cols-2 gap-4 sm:gap-6 relative transition-all duration-300 ${tourStep === 1 ? `z-[60] scale-105 ring-4 ${activeTheme.ring} ring-offset-8 ring-offset-slate-950 rounded-3xl` : ''}`}>
+          <MinimalStatCard label="PENDING" value={`${settings.currency}${stats.pending.toLocaleString('en-IN')}`} icon={<TrendingUp className="w-4 h-4" />} accent={activeTheme.text} subtext={`${stats.activeCount} active`} />
+          <MinimalStatCard label="RETURNED" value={`${settings.currency}${stats.received.toLocaleString('en-IN')}`} icon={<CheckCircle2 className="w-4 h-4" />} accent="text-slate-300" subtext={`${stats.overdueCount} overdue`} />
         </div>
 
         <div className="space-y-6">
@@ -458,13 +542,13 @@ const App: React.FC = () => {
                   <button
                     key={opt}
                     onClick={() => setSortBy(opt)}
-                    className={`px-3 py-1.5 text-[9px] font-black uppercase tracking-wider rounded-lg transition-all ${sortBy === opt ? 'bg-emerald-500 text-slate-950 shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}
+                    className={`px-3 py-1.5 text-[9px] font-black uppercase tracking-wider rounded-lg transition-all ${sortBy === opt ? `${activeTheme.bg} text-slate-950 shadow-lg` : 'text-slate-500 hover:text-slate-300'}`}
                   >
                     {opt}
                   </button>
                 ))}
               </div>
-              <button onClick={() => setIsModalOpen(true)} className="bg-emerald-600/10 border border-emerald-500/20 text-emerald-400 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] hover:bg-emerald-600 hover:text-white transition-all flex items-center gap-2 group whitespace-nowrap shrink-0">
+              <button onClick={() => setIsModalOpen(true)} className={`border ${activeTheme.border} ${activeTheme.text} px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] hover:${activeTheme.bg} hover:text-slate-950 transition-all flex items-center gap-2 group whitespace-nowrap shrink-0`}>
                 <PlusCircle className="w-4 h-4 group-hover:rotate-90 transition-transform" /> <span className="hidden sm:inline">+ New Deal</span><span className="sm:hidden">New</span>
               </button>
             </div>
@@ -478,7 +562,7 @@ const App: React.FC = () => {
                   <div className="flex items-center justify-between px-4">
                     <div className="flex items-center gap-4">
                       <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-slate-800 to-slate-900 border border-white/5 flex items-center justify-center shadow-xl">
-                        <span className="text-xl font-black text-emerald-400">{account.name.charAt(0).toUpperCase()}</span>
+                        <span className={`text-xl font-black ${activeTheme.text}`}>{account.name.charAt(0).toUpperCase()}</span>
                       </div>
                       <div>
                         <h3 className="text-xl font-black tracking-tight text-white">{account.name}</h3>
@@ -487,7 +571,7 @@ const App: React.FC = () => {
                             score={account.trustScore} 
                             friendName={account.name} 
                             allTransactions={transactions} 
-                            currency={currency}
+                            currency={settings.currency}
                           />
                           <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">
                             {account.transactions.length} Contracts
@@ -499,17 +583,17 @@ const App: React.FC = () => {
                     <div className="flex items-center gap-5">
                        {/* PDF Button - Account Level */}
                       <button 
-                        onClick={() => generateStatementPDF(account.name, transactions, currency)}
-                        className={`p-3 rounded-xl bg-slate-800/50 border border-slate-700 hover:border-emerald-500/50 hover:bg-emerald-500/10 transition-all group ${tourStep === 6 && accIdx === 0 ? 'z-[65] ring-4 ring-rose-500/60 bg-rose-500/10 border-rose-500' : ''}`}
+                        onClick={() => generateStatementPDF(account.name, transactions, settings)}
+                        className={`p-3 rounded-xl bg-slate-800/50 border border-slate-700 hover:${activeTheme.border} hover:${activeTheme.bg.replace('bg-', 'bg-')}/10 transition-all group ${tourStep === 6 && accIdx === 0 ? 'z-[65] ring-4 ring-rose-500/60 bg-rose-500/10 border-rose-500' : ''}`}
                         title="Generate Statement"
                       >
-                        <FileText className={`w-5 h-5 ${tourStep === 6 && accIdx === 0 ? 'text-rose-500' : 'text-slate-400 group-hover:text-emerald-400'}`} />
+                        <FileText className={`w-5 h-5 ${tourStep === 6 && accIdx === 0 ? 'text-rose-500' : `text-slate-400 group-hover:${activeTheme.text}`}`} />
                       </button>
 
                       <div className="text-right hidden sm:block">
                         <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] mb-1">Total Liability</p>
-                        <p className={`text-2xl font-mono font-black ${account.totalExposure > 0 ? 'text-emerald-400' : 'text-slate-600'}`}>
-                          {currency}{account.totalExposure.toLocaleString('en-IN')}
+                        <p className={`text-2xl font-mono font-black ${account.totalExposure > 0 ? activeTheme.text : 'text-slate-600'}`}>
+                          {settings.currency}{account.totalExposure.toLocaleString('en-IN')}
                         </p>
                       </div>
                     </div>
@@ -529,7 +613,8 @@ const App: React.FC = () => {
                         onUpdateDueDate={(id) => { if(tx.id === 'sim-tx') return; setActiveTxId(id); const t = transactions.find(x => x.id === id); if (t) setNewDueDate(t.returnDate.split('T')[0]); setIsEditDateModalOpen(true); }}
                         onDelete={(id) => { if(tx.id === 'sim-tx') return; setActiveTxId(id); setIsDeleteModalOpen(true); }}
                         tourStep={(accIdx === 0 && txIdx === 0) ? tourStep : -1}
-                        currency={currency}
+                        currency={settings.currency}
+                        themeStyles={activeTheme}
                       />
                     ))}
                   </div>
@@ -540,14 +625,14 @@ const App: React.FC = () => {
                 <Cpu className="w-10 h-10 text-slate-700 mx-auto mb-4" />
                 <h3 className="text-xl font-bold text-slate-300 mb-2">No Profiles Detected</h3>
                 <p className="text-slate-500 text-sm mb-6">Initiate a new contract to build your intelligence database.</p>
-                <button onClick={() => setIsModalOpen(true)} className="px-8 py-3 bg-emerald-600 text-white rounded-xl font-bold hover:bg-emerald-500 transition-all">Start Now</button>
+                <button onClick={() => setIsModalOpen(true)} className={`px-8 py-3 ${activeTheme.bg} text-slate-950 rounded-xl font-bold hover:brightness-110 transition-all`}>Start Now</button>
               </div>
             )}
           </div>
         </div>
       </main>
 
-      <button ref={addBtnRef} onClick={() => setIsModalOpen(true)} className={`fixed bottom-8 right-8 w-18 h-18 bg-emerald-500 hover:bg-emerald-400 text-slate-950 rounded-[2rem] flex items-center justify-center shadow-2xl active:scale-90 transition-all group ${tourStep === 2 ? 'z-[60] ring-8 ring-emerald-500/30 scale-110' : 'z-30'}`}>
+      <button ref={addBtnRef} onClick={() => setIsModalOpen(true)} className={`fixed bottom-8 right-8 w-18 h-18 ${activeTheme.bg} hover:brightness-110 text-slate-950 rounded-[2rem] flex items-center justify-center shadow-2xl active:scale-90 transition-all group ${tourStep === 2 ? `z-[60] ring-8 ${activeTheme.ring} scale-110` : 'z-30'}`}>
         <Plus className="w-10 h-10 group-hover:rotate-90 transition-transform duration-300" />
       </button>
 
@@ -561,14 +646,14 @@ const App: React.FC = () => {
             currentStep.pos === 'bottom' ? 'mt-auto mb-20' : 
             'm-auto'
           }`} style={{ zIndex: 70 }}>
-            <div className="glass rounded-[2.5rem] overflow-hidden border border-emerald-500/60 shadow-[0_40px_100px_rgba(0,0,0,1)] flex flex-col">
+            <div className={`glass rounded-[2.5rem] overflow-hidden border ${activeTheme.border} shadow-[0_40px_100px_rgba(0,0,0,1)] flex flex-col`}>
               <div className="p-8 space-y-6 bg-slate-900/95 backdrop-blur-md">
                 <div className="flex items-center gap-4">
                   <div className="w-10 h-10 bg-slate-950 rounded-xl flex items-center justify-center border border-white/10 shadow-inner">
                     {currentStep.icon}
                   </div>
                   <div>
-                    <div className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-400 mb-1">Briefing {tourStep + 1}/8</div>
+                    <div className={`text-[10px] font-black uppercase tracking-[0.2em] ${activeTheme.text} mb-1`}>Briefing {tourStep + 1}/8</div>
                     <h3 className="text-xl font-black leading-tight text-white">{currentStep.title}</h3>
                   </div>
                 </div>
@@ -579,7 +664,7 @@ const App: React.FC = () => {
                   <button onClick={completeTour} className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 hover:text-rose-400 transition-colors">Skip Tour</button>
                   <button 
                     onClick={() => tourStep < tourSteps.length - 1 ? setTourStep(tourStep + 1) : completeTour()}
-                    className="px-6 py-3 bg-emerald-600 text-white rounded-xl text-xs font-black uppercase tracking-widest flex items-center gap-2 group shadow-2xl shadow-emerald-500/20"
+                    className={`px-6 py-3 ${activeTheme.bg} text-slate-950 rounded-xl text-xs font-black uppercase tracking-widest flex items-center gap-2 group shadow-2xl ${activeTheme.shadow}`}
                   >
                     {tourStep < tourSteps.length - 1 ? 'Next Phase' : 'Activate Ledger'} <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                   </button>
@@ -590,8 +675,8 @@ const App: React.FC = () => {
             {tourStep === 7 && (
               <div className="fixed top-24 right-10 animate-bounce pointer-events-none" style={{ zIndex: 80 }}>
                 <div className="flex flex-col items-center gap-2">
-                  <div className="w-1 bg-gradient-to-t from-emerald-500 to-transparent h-12"></div>
-                  <Target className="w-10 h-10 text-emerald-400 drop-shadow-[0_0_20px_rgba(16,185,129,1)]" />
+                  <div className={`w-1 bg-gradient-to-t ${activeTheme.gradient} to-transparent h-12`}></div>
+                  <Target className={`w-10 h-10 ${activeTheme.text} drop-shadow-[0_0_20px_rgba(255,255,255,0.2)]`} />
                 </div>
               </div>
             )}
@@ -599,12 +684,116 @@ const App: React.FC = () => {
         </div>
       )}
 
-      {/* Modals */}
+      {/* NEW SETTINGS MODAL */}
+      {isSettingsModalOpen && (
+        <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">
+          <div className="glass w-full max-w-lg rounded-[2.5rem] animate-in zoom-in-95 duration-200 shadow-[0_0_100px_rgba(0,0,0,0.8)] overflow-hidden">
+            <div className="p-6 border-b border-slate-800 flex justify-between items-center bg-slate-900/40">
+              <h2 className="text-xl font-black flex items-center gap-3"><Settings className={`${activeTheme.text} w-5 h-5`} /> Personalization</h2>
+              <button onClick={() => setIsSettingsModalOpen(false)} className="p-2 hover:bg-slate-800 rounded-full text-slate-400 transition-colors"><X className="w-5 h-5" /></button>
+            </div>
+            
+            <div className="p-6 space-y-8 max-h-[75vh] overflow-y-auto">
+              
+              {/* Identity Section */}
+              <div className="space-y-4">
+                <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-500">
+                  <Type className="w-3 h-3" /> Identity
+                </div>
+                <div className="space-y-3">
+                  <label className="text-xs text-slate-400 font-medium">Ledger Name</label>
+                  <input 
+                    type="text" 
+                    value={settings.userName}
+                    onChange={(e) => updateSetting('userName', e.target.value)}
+                    className="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-3 text-slate-100 placeholder-slate-600 focus:outline-none focus:border-slate-600 transition-colors"
+                  />
+                </div>
+                 <div className="space-y-3">
+                  <label className="text-xs text-slate-400 font-medium">Global Currency</label>
+                  <div className="flex gap-2">
+                    {CURRENCIES.map(c => (
+                      <button
+                        key={c}
+                        onClick={() => updateSetting('currency', c)}
+                        className={`w-10 h-10 rounded-lg font-mono font-bold flex items-center justify-center transition-all ${settings.currency === c ? `${activeTheme.bg} text-slate-950` : 'bg-slate-900 text-slate-400 hover:bg-slate-800'}`}
+                      >
+                        {c}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* Theme Section */}
+              <div className="space-y-4">
+                <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-500">
+                  <Palette className="w-3 h-3" /> System Accent
+                </div>
+                <div className="grid grid-cols-5 gap-3">
+                  {(Object.keys(THEMES) as ThemeColor[]).map((t) => (
+                    <button
+                      key={t}
+                      onClick={() => updateSetting('themeColor', t)}
+                      className={`aspect-square rounded-2xl flex items-center justify-center transition-all border-2 ${settings.themeColor === t ? 'border-white scale-110 shadow-xl' : 'border-transparent opacity-60 hover:opacity-100 hover:scale-105'}`}
+                      style={{ backgroundColor: THEMES[t].hex }}
+                      title={THEMES[t].name}
+                    >
+                      {settings.themeColor === t && <CheckCircle2 className="w-5 h-5 text-slate-950" />}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Background Section */}
+              <div className="space-y-4">
+                <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-500">
+                  <Layout className="w-3 h-3" /> Visual Environment
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <button 
+                    onClick={() => updateSetting('background', 'solid')}
+                    className={`p-3 rounded-xl border transition-all text-left ${settings.background === 'solid' ? `${activeTheme.border} bg-slate-800` : 'border-slate-800 bg-slate-900 hover:bg-slate-800'}`}
+                  >
+                    <div className="w-full h-12 bg-slate-950 rounded-lg mb-2 border border-slate-700"></div>
+                    <div className="text-xs font-bold text-slate-200">Deep Space</div>
+                    <div className="text-[10px] text-slate-500">Minimalist Solid</div>
+                  </button>
+
+                  <button 
+                    onClick={() => updateSetting('background', 'nebula')}
+                    className={`p-3 rounded-xl border transition-all text-left ${settings.background === 'nebula' ? `${activeTheme.border} bg-slate-800` : 'border-slate-800 bg-slate-900 hover:bg-slate-800'}`}
+                  >
+                    <div className={`w-full h-12 rounded-lg mb-2 border border-slate-700 overflow-hidden relative`}>
+                       <div className={`absolute top-0 left-0 w-full h-full bg-slate-950`}></div>
+                       <div className={`absolute top-0 left-0 w-full h-full ${activeTheme.bg}/40 blur-xl`}></div>
+                    </div>
+                    <div className="text-xs font-bold text-slate-200">Nebula</div>
+                    <div className="text-[10px] text-slate-500">Ambient Gradient</div>
+                  </button>
+
+                  <button 
+                    onClick={() => updateSetting('background', 'grid')}
+                    className={`p-3 rounded-xl border transition-all text-left ${settings.background === 'grid' ? `${activeTheme.border} bg-slate-800` : 'border-slate-800 bg-slate-900 hover:bg-slate-800'}`}
+                  >
+                     <div className="w-full h-12 bg-[linear-gradient(to_right,#80808050_1px,transparent_1px),linear-gradient(to_bottom,#80808050_1px,transparent_1px)] bg-[size:10px_10px] bg-slate-950 rounded-lg mb-2 border border-slate-700"></div>
+                    <div className="text-xs font-bold text-slate-200">Cyber Grid</div>
+                    <div className="text-[10px] text-slate-500">Tech Pattern</div>
+                  </button>
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* CREATE DEAL MODAL */}
       {isModalOpen && (
         <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">
           <div className="glass w-full max-w-lg rounded-[2.5rem] animate-in zoom-in-95 duration-200 shadow-[0_0_100px_rgba(0,0,0,0.8)]">
             <div className="p-8 border-b border-slate-800 flex justify-between items-center bg-slate-900/40">
-              <h2 className="text-2xl font-black flex items-center gap-3"><PlusCircle className="text-emerald-500 w-7 h-7" /> New Deal</h2>
+              <h2 className="text-2xl font-black flex items-center gap-3"><PlusCircle className={`${activeTheme.text} w-7 h-7`} /> New Deal</h2>
               <button onClick={() => setIsModalOpen(false)} className="p-2 hover:bg-slate-800 rounded-full text-slate-400 transition-colors"><X /></button>
             </div>
             <form onSubmit={handleAddLoan} className="p-8 space-y-6">
@@ -614,7 +803,7 @@ const App: React.FC = () => {
                   <input required autoFocus placeholder="Name" value={friendName} onChange={e => setFriendName(e.target.value)} className="w-full bg-slate-900 border border-slate-800 rounded-xl px-5 py-4 text-slate-100 placeholder-slate-700" />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-[10px] font-black text-slate-500 ml-1">Principal ({currency})</label>
+                  <label className="text-[10px] font-black text-slate-500 ml-1">Principal ({settings.currency})</label>
                   <input required type="number" value={amount} onChange={e => setAmount(e.target.value)} className="w-full bg-slate-900 border border-slate-800 rounded-xl px-5 py-4 text-slate-100" />
                 </div>
               </div>
@@ -640,7 +829,7 @@ const App: React.FC = () => {
                   </select>
                 </div>
               </div>
-              <button className="w-full py-5 bg-emerald-600 text-white rounded-2xl font-black uppercase tracking-widest shadow-xl shadow-emerald-500/20 active:scale-[0.98] transition-transform">Save Deal</button>
+              <button className={`w-full py-5 ${activeTheme.bg} text-slate-950 rounded-2xl font-black uppercase tracking-widest shadow-xl ${activeTheme.shadow} active:scale-[0.98] transition-transform`}>Save Deal</button>
             </form>
           </div>
         </div>
@@ -651,9 +840,9 @@ const App: React.FC = () => {
           <div className="glass w-full max-w-sm rounded-[2.5rem] p-8 animate-in zoom-in-95 duration-200">
             <div className="flex justify-between items-center mb-6"><h2 className="text-xl font-black">Log Payment</h2><button onClick={() => setIsPaymentModalOpen(false)} className="text-slate-400"><X /></button></div>
             <form onSubmit={handleAddPayment} className="space-y-6">
-              <div className="relative"><span className="absolute left-5 top-1/2 -translate-y-1/2 text-emerald-500 font-bold text-2xl">{currency}</span><input required autoFocus type="number" value={paymentAmount} onChange={e => setPaymentAmount(e.target.value)} className="w-full bg-slate-900 border border-slate-800 rounded-2xl pl-12 pr-5 py-5 text-3xl font-mono font-bold text-emerald-400 text-center" /></div>
+              <div className="relative"><span className={`absolute left-5 top-1/2 -translate-y-1/2 ${activeTheme.text} font-bold text-2xl`}>{settings.currency}</span><input required autoFocus type="number" value={paymentAmount} onChange={e => setPaymentAmount(e.target.value)} className={`w-full bg-slate-900 border border-slate-800 rounded-2xl pl-12 pr-5 py-5 text-3xl font-mono font-bold ${activeTheme.text} text-center`} /></div>
               <input required type="date" value={paymentDate} onChange={e => setPaymentDate(e.target.value)} className="w-full bg-slate-900 border border-slate-800 rounded-xl px-5 py-4 text-slate-100 text-center font-mono" />
-              <button className="w-full py-5 bg-emerald-600 text-white rounded-2xl font-black shadow-lg">Save Payment</button>
+              <button className={`w-full py-5 ${activeTheme.bg} text-slate-950 rounded-2xl font-black shadow-lg`}>Save Payment</button>
             </form>
           </div>
         </div>

@@ -32,3 +32,13 @@ export interface SummaryStats {
   activeCount: number;
   overdueCount: number;
 }
+
+export type ThemeColor = 'emerald' | 'violet' | 'blue' | 'rose' | 'amber';
+export type BackgroundType = 'solid' | 'nebula' | 'grid';
+
+export interface AppSettings {
+  userName: string;
+  themeColor: ThemeColor;
+  background: BackgroundType;
+  currency: string;
+}
