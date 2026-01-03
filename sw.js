@@ -1,5 +1,5 @@
 
-const CACHE_NAME = 'abhi-ledger-v7-stable-fixes';
+const CACHE_NAME = 'abhi-ledger-v8-themed-icons';
 
 // EXACT MATCH URLs from index.html
 // If these strings don't match index.html exactly, the browser treats them as different files.

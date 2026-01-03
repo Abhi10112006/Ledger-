@@ -1,3 +1,4 @@
+
 # Abhi's Ledger // DEBT INTELLIGENCE SYSTEM
 
 **Abhi's Ledger** is a high-performance, offline-first financial tracking application designed for personal lending. It combines professional-grade interest calculations with a "Cyberpunk" aesthetic interface to manage debts, track trust scores, and generate formal PDF reports.
@@ -5,10 +6,11 @@
 ## 🚀 Core Capabilities
 
 *   **100% Offline Architecture**: All data resides in your browser's LocalStorage. No servers, no tracking.
-*   **Neural Trust Scoring**: An algorithm that rates borrowers from 0-100 based on repayment behavior.
+*   **Neural Trust Scoring**: An algorithm that rates borrowers from 0-100 based on repayment behavior with a detailed **Audit Modal**.
 *   **Dynamic Interest Engine**: Supports Fixed, Daily, Monthly, and Yearly compound-style logic using the **Reducing Balance Method**.
-*   **Forensic PDF Reports**: Generate professional "Confidential" dossiers for any client.
-*   **JSON Portability**: Full backup and restore functionality via encrypted-like JSON files.
+*   **Forensic PDF Reports**: Generate professional "Confidential" dossiers for any client, now with robust ESM compatibility.
+*   **PWA Enhanced**: Supports Android 13+ **Themed Icons** (Monochrome) and Adaptive Shapes (Maskable) for a native OS feel.
+*   **Data Integrity**: Robust whitespace trimming and case-insensitive matching ensure all transactions link to the correct profile.
 
 ---
 
@@ -40,7 +42,7 @@ A contract is only marked as **SETTLED** (Completed) when:
 
 ## 🛡️ Trust Score Algorithm (0 - 100)
 
-The "Target Identity" score helps you assess risk at a glance.
+The "Target Identity" score helps you assess risk at a glance. **Click the Score Badge** to open the Trust Briefing Modal.
 
 *   **Baseline**: Everyone starts at **50/100**.
 *   **Positive Factors (+)**:
@@ -63,9 +65,7 @@ The "Target Identity" score helps you assess risk at a glance.
 
 ### 1. Creating a Deal
 Click the **+ Button** at the bottom right. Enter the Principal, Start Date, and Return Date.
-*   **Interest Type**:
-    *   *Fixed*: Flat % fee (e.g., 5% of 1000 = 50 total interest forever).
-    *   *Time-based (Daily/Monthly/Yearly)*: Accumulates over time based on the outstanding balance.
+*   *Input Sanitization*: The app automatically trims extra spaces from names to prevent duplicate profiles (e.g., "Rahul" vs "Rahul ").
 
 ### 2. Logging Payments
 Click **"Entry"** (Purple/Green button) on a transaction card.
@@ -85,14 +85,21 @@ Click the **Date Button** (e.g., "24 Oct") on the transaction card.
 ### 5. PDF Generation
 Click the **File Icon** next to a Client's Total Liability in the account header.
 *   Generates a "Secure Report" containing the full ledger, trust breakdown, and verification logs.
-*   Renders currencies (₹, $, etc.) as ISO codes (INR, USD) to ensure font compatibility.
+*   **Compatibility**: Now supports various ESM environments (like esm.sh) for reliable generation.
+
+### 6. Interactive Features
+*   **Sort Options**: Sort profiles by Name, Exposure (Total Debt), Trust Score, or Recent Activity.
+*   **Currency Toggle**: Switch between ₹, $, €, £, ¥ instantly.
+*   **Onboarding Tour**: An 8-step interactive guide explains every feature to new users.
 
 ---
 
 ## 🛠️ Technical Specs
 
 *   **Framework**: React 18+ (TypeScript)
-*   **Styling**: Tailwind CSS
+*   **Styling**: Tailwind CSS 3.4
 *   **Icons**: Lucide React
-*   **PDF Engine**: jsPDF + AutoTable
+*   **PDF Engine**: jsPDF + AutoTable (Optimized for ESM)
+*   **PWA**: Service Worker with Stale-While-Revalidate caching strategy.
+*   **Manifest**: Supports `monochrome` (Themed) and `maskable` icons.
 *   **Persistence**: `localStorage` (Key: `abhi_ledger_session`)
