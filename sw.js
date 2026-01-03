@@ -1,5 +1,5 @@
 
-const CACHE_NAME = 'abhi-ledger-v11-svg-any';
+const CACHE_NAME = 'abhi-ledger-v12-monochrome-file';
 
 // EXACT MATCH URLs from index.html
 // If these strings don't match index.html exactly, the browser treats them as different files.
@@ -7,6 +7,7 @@ const PRECACHE_ASSETS = [
   './',
   './index.html',
   './manifest.json',
+  './monochrome.svg',
   // Local Code (The App Logic)
   './index.tsx',
   './App.tsx',
