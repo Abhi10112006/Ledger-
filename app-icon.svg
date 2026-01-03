@@ -1,17 +1,46 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
   <defs>
-    <linearGradient id="g1" x1="0%" y1="0%" x2="100%" y2="100%">
+    <linearGradient id="grad1" x1="0%" y1="0%" x2="100%" y2="100%">
       <stop offset="0%" stop-color="#10b981" />
-      <stop offset="100%" stop-color="#3b82f6" />
+      <stop offset="50%" stop-color="#3b82f6" />
+      <stop offset="100%" stop-color="#6366f1" />
     </linearGradient>
-    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
-      <feGaussianBlur stdDeviation="8" result="blur" />
-      <feComposite in="SourceGraphic" in2="blur" operator="over" />
+    <linearGradient id="grad2" x1="100%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#0f172a" stop-opacity="0.8"/>
+      <stop offset="100%" stop-color="#1e293b" stop-opacity="0.2"/>
+    </linearGradient>
+    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="16" result="blur"/>
+      <feComposite in="SourceGraphic" in2="blur" operator="over"/>
     </filter>
   </defs>
-  <rect width="512" height="512" rx="112" fill="#020617" />
-  <path d="M256 64 C256 64 64 106 64 256 C64 406 256 468 256 468 C256 468 448 406 448 256 C448 106 256 64 256 64 Z" fill="#0f172a" stroke="url(#g1)" stroke-width="24" stroke-linejoin="round"/>
-  <g filter="url(#glow)">
-    <path d="M160 256 L230 326 L352 186" fill="none" stroke="#f8fafc" stroke-width="48" stroke-linecap="round" stroke-linejoin="round"/>
+  
+  <!-- Background -->
+  <rect width="512" height="512" rx="128" fill="#020617"/>
+  
+  <!-- Central Graphic Group -->
+  <g transform="translate(256 266)" filter="url(#glow)">
+    
+    <!-- Outer Hexagon Structure -->
+    <path d="M0 -120 L104 -60 L104 60 L0 120 L-104 60 L-104 -60 Z" 
+          fill="none" 
+          stroke="url(#grad1)" 
+          stroke-width="24" 
+          stroke-linejoin="round"
+          stroke-linecap="round"/>
+
+    <!-- Inner Data Cube Faces -->
+    <!-- Top Face -->
+    <path d="M0 -120 L104 -60 L0 0 L-104 -60 Z" fill="url(#grad2)"/>
+    
+    <!-- Y-Axis Connection (The 'Ledger' Spine) -->
+    <path d="M0 0 L0 120" stroke="url(#grad1)" stroke-width="24" stroke-linecap="round"/>
+    <path d="M0 0 L104 -60" stroke="url(#grad1)" stroke-width="8" stroke-opacity="0.5"/>
+    <path d="M0 0 L-104 -60" stroke="url(#grad1)" stroke-width="8" stroke-opacity="0.5"/>
+
+    <!-- Floating Data Nodes -->
+    <circle cx="0" cy="-60" r="16" fill="#f8fafc"/>
+    <circle cx="0" cy="60" r="12" fill="#10b981"/>
+    
   </g>
 </svg>

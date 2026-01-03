@@ -1,5 +1,5 @@
 
-const CACHE_NAME = 'abhi-ledger-v16-new-icons';
+const CACHE_NAME = 'abhi-ledger-v17-modern-icon';
 
 // EXACT MATCH URLs from index.html
 // If these strings don't match index.html exactly, the browser treats them as different files.
@@ -8,7 +8,7 @@ const PRECACHE_ASSETS = [
   './index.html',
   './manifest.json',
   './app-icon.svg',
-  './icon-v3.svg',
+  './icon-v4.svg',
   // Local Code (The App Logic)
   './index.tsx',
   './App.tsx',

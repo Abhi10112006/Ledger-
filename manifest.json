@@ -1,4 +1,3 @@
-
 {
   "name": "Abhi's Ledger",
   "short_name": "Ledger",
@@ -21,7 +20,7 @@
       "purpose": "maskable"
     },
     {
-      "src": "./icon-v3.svg",
+      "src": "./icon-v4.svg",
       "sizes": "512x512",
       "type": "image/svg+xml",
       "purpose": "monochrome"
