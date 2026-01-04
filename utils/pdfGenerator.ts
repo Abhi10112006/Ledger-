@@ -1,3 +1,4 @@
+
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { Transaction, AppSettings } from '../types';
@@ -31,53 +32,41 @@ export const generateStatementPDF = (friendName: string, allTransactions: Transa
     };
     const displayCurrency = currencyMap[settings.currency] || settings.currency;
 
-    // Theme Colors (Tailwind 500 shades)
-    const themes: Record<string, [number, number, number]> = {
-      emerald: [16, 185, 129],
-      violet: [139, 92, 246],
-      blue: [59, 130, 246],
-      rose: [244, 63, 94],
-      amber: [245, 158, 11]
-    };
-    
-    // Fallback to emerald if theme not found
-    const brandColor = themes[settings.themeColor] || themes.emerald;
-    
-    // Theme Palette
+    // AGENCY STYLE CONFIG
     const colors = {
-      bg: [2, 6, 23] as [number, number, number],
-      card: [15, 23, 42] as [number, number, number],
-      text: [241, 245, 249] as [number, number, number],
-      subtext: [148, 163, 184] as [number, number, number],
-      border: [30, 41, 59] as [number, number, number],
-      grid: [30, 41, 59] as [number, number, number],
-      
-      // Dynamic Brand Color
-      brand: brandColor,
-      
-      // Semantic Colors (Fixed)
-      success: [16, 185, 129] as [number, number, number], // Emerald for money in
-      danger: [244, 63, 94] as [number, number, number],   // Rose for errors/debt
+      bg: [255, 255, 255] as [number, number, number], // Paper White
+      ink: [20, 20, 20] as [number, number, number],   // Typing Black
+      stamp: [185, 28, 28] as [number, number, number], // Red Stamp
+      grid: [220, 220, 220] as [number, number, number] // Faint Guide Lines
     };
 
-    // 1. BACKGROUND
+    // 1. BACKGROUND PAPER
     doc.setFillColor(...colors.bg);
     doc.rect(0, 0, pageWidth, pageHeight, 'F');
     
-    // Grid
+    // 2. HEADER SCAN LINES (CRT Effect)
     doc.setDrawColor(...colors.grid);
-    doc.setLineWidth(0.05);
-    for (let x = 0; x <= pageWidth; x += 10) doc.line(x, 0, x, pageHeight);
-    for (let y = 0; y <= pageHeight; y += 10) doc.line(0, y, pageWidth, y);
+    doc.setLineWidth(0.1);
+    for (let y = 0; y < 45; y += 1.5) {
+        doc.line(0, y, pageWidth, y);
+    }
 
-    // 2. WATERMARK
-    doc.setTextColor(30, 41, 59);
-    doc.setFontSize(60);
-    doc.setFont('helvetica', 'bold');
-    doc.saveGraphicsState();
-    doc.setGState(new doc.GState({ opacity: 0.1 }));
-    doc.text("INTERNAL // CONFIDENTIAL", pageWidth / 2, pageHeight / 2, { align: 'center', angle: 45 });
-    doc.restoreGraphicsState();
+    // 3. "CONFIDENTIAL" STAMP (Tilted Text in Box)
+    doc.setTextColor(...colors.stamp);
+    doc.setDrawColor(...colors.stamp);
+    doc.setLineWidth(0.8);
+    
+    // Draw the frame
+    doc.roundedRect(pageWidth - 70, 10, 55, 25, 1, 1, 'S');
+    
+    // Draw Tilted Text
+    doc.setFont('courier', 'bold');
+    doc.setFontSize(18);
+    const stampX = pageWidth - 42.5; // Center of box roughly
+    doc.text("TOP SECRET", stampX, 22, { align: 'center', angle: -10 });
+    
+    doc.setFontSize(8);
+    doc.text("EYES ONLY // NO COPY", stampX, 30, { align: 'center', angle: -10 });
 
     // ROBUST FILTERING
     const friendTx = allTransactions.filter(t => 
@@ -101,18 +90,18 @@ export const generateStatementPDF = (friendName: string, allTransactions: Transa
 
       events.push({
         date: new Date(t.startDate),
-        type: 'CONTRACT INITIATED',
+        type: 'INITIATION',
         amount: t.principalAmount,
-        note: `Principal (${t.interestRate}% ${t.interestType})`,
+        note: `Principal (${t.interestRate}%)`,
         isCredit: false
       });
 
       if (interest > 0) {
         events.push({
           date: new Date(),
-          type: 'INTEREST ACCRUED',
+          type: 'INTEREST',
           amount: interest,
-          note: 'Calculated to date',
+          note: 'Accrued to date',
           isCredit: false
         });
       }
@@ -120,9 +109,9 @@ export const generateStatementPDF = (friendName: string, allTransactions: Transa
       t.repayments.forEach(r => {
         events.push({
           date: new Date(r.date),
-          type: 'PAYMENT LOGGED',
+          type: 'PAYMENT',
           amount: r.amount,
-          note: 'Funds Received',
+          note: 'Funds Logged',
           isCredit: true
         });
       });
@@ -130,106 +119,54 @@ export const generateStatementPDF = (friendName: string, allTransactions: Transa
 
     events.sort((a, b) => a.date.getTime() - b.date.getTime());
 
-    // --- HEADER ---
-    doc.setTextColor(...colors.text);
-    doc.setFontSize(24);
-    doc.setFont('helvetica', 'bold');
-    // Use User Name for Title
-    doc.text(settings.userName.toUpperCase(), 14, 25);
+    // --- HEADER INFO ---
+    doc.setTextColor(...colors.ink);
+    doc.setFont('courier', 'bold');
+    doc.setFontSize(22);
+    doc.text("AGENCY DOSSIER", 14, 20);
     
-    doc.setDrawColor(...colors.brand);
-    doc.setLineWidth(0.5);
-    const titleWidth = doc.getTextWidth(settings.userName.toUpperCase());
-    doc.line(14, 30, 14 + titleWidth + 10, 30);
-
     doc.setFontSize(10);
-    doc.setTextColor(...colors.subtext);
-    doc.text(`DATE: ${formatDate(new Date())}`, pageWidth - 14, 15, { align: 'right' });
+    doc.setFont('courier', 'normal');
+    // Monospace alignment
+    doc.text(`SUBJECT  : ${friendName.toUpperCase()}`, 14, 30);
+    doc.text(`HANDLER  : ${settings.userName.toUpperCase()}`, 14, 35);
+    doc.text(`DATE     : ${formatDate(new Date())}`, 14, 40);
 
-    // --- PROFILE CARD ---
-    const cardY = 40;
-    doc.setFillColor(...colors.card);
-    doc.setDrawColor(...colors.border);
-    doc.roundedRect(14, cardY, pageWidth - 28, 45, 3, 3, 'FD');
-
-    doc.setTextColor(...colors.text);
-    doc.setFontSize(16);
-    doc.text(friendName.toUpperCase(), 24, cardY + 18);
+    // --- SUMMARY GRID (Typewriter Style) ---
+    const startY = 50;
+    doc.setDrawColor(0, 0, 0);
+    doc.setLineWidth(0.2);
     
-    doc.setFontSize(8);
-    doc.setFont('helvetica', 'normal');
-    doc.setTextColor(...colors.subtext);
-    doc.text('TARGET IDENTITY', 24, cardY + 10);
-
-    const scoreColor = breakdown.score >= 50 ? colors.success : colors.danger;
-    doc.setTextColor(...scoreColor);
-    doc.setFontSize(12);
-    doc.text(`${breakdown.score}/100 TRUST SCORE`, 24, cardY + 32);
-
+    // Top Bar
+    doc.line(14, startY, pageWidth - 14, startY); 
+    
+    doc.setFontSize(9);
+    // Column 1
+    doc.text("TRUST RATING", 14, startY + 8);
+    doc.setFont('courier', 'bold');
+    doc.text(`${breakdown.score}/100`, 14, startY + 14);
+    
+    // Column 2
+    doc.setFont('courier', 'normal');
+    doc.text("NET LIABILITY", 60, startY + 8);
     const netDue = (totalBorrowed + totalInterest) - totalPaid;
-    const summaryX = pageWidth - 20;
-    doc.setTextColor(...colors.subtext);
-    doc.setFontSize(8);
-    doc.text('NET OUTSTANDING', summaryX, cardY + 15, { align: 'right' });
-    doc.setFontSize(16);
-    doc.setFont('helvetica', 'bold');
-    doc.setTextColor(...(netDue > 0 ? colors.brand : colors.subtext));
-    doc.text(`${displayCurrency} ${netDue.toLocaleString()}`, summaryX, cardY + 25, { align: 'right' });
+    doc.setFont('courier', 'bold');
+    doc.text(`${displayCurrency} ${netDue.toLocaleString()}`, 60, startY + 14);
 
-    // --- METRICS ---
-    const gridY = 95;
-    const colWidth = (pageWidth - 28) / 3;
-    
-    const drawMetric = (label: string, value: string, x: number, accent: [number, number, number]) => {
-      doc.setFillColor(...colors.card);
-      doc.setDrawColor(...colors.border);
-      doc.roundedRect(x, gridY, colWidth - 4, 25, 2, 2, 'FD');
-      doc.setFontSize(7);
-      doc.setTextColor(...colors.subtext);
-      doc.text(label, x + 10, gridY + 10);
-      doc.setFontSize(11);
-      doc.setFont('helvetica', 'bold');
-      doc.setTextColor(...accent);
-      doc.text(value, x + 10, gridY + 19);
+    // Column 3
+    doc.setFont('courier', 'normal');
+    doc.text("STATUS", 120, startY + 8);
+    doc.setFont('courier', 'bold');
+    doc.text(netDue > 0 ? "ACTIVE / UNRESOLVED" : "CLEARED", 120, startY + 14);
+
+    // Bottom Bar
+    doc.line(14, startY + 18, pageWidth - 14, startY + 18);
+
+    // --- REDACTED FOOTER HELPER ---
+    const drawRedacted = (x: number, y: number, w: number) => {
+      doc.setFillColor(10, 10, 10);
+      doc.rect(x, y, w, 3.5, 'F');
     };
-
-    drawMetric('TOTAL PRINCIPAL', `${displayCurrency} ${totalBorrowed.toLocaleString()}`, 14, colors.text);
-    drawMetric('TOTAL REPAID', `${displayCurrency} ${totalPaid.toLocaleString()}`, 14 + colWidth, colors.success);
-    drawMetric('INTEREST ACCRUED', `${displayCurrency} ${totalInterest.toLocaleString()}`, 14 + (colWidth * 2), colors.danger);
-
-    let currentY = 135;
-
-    // --- TRUST FACTORS ---
-    if (breakdown.factors.length > 0) {
-      doc.setFontSize(9);
-      doc.setTextColor(...colors.subtext);
-      doc.text('TRUST ALGORITHM FACTORS', 14, currentY);
-      currentY += 6;
-
-      breakdown.factors.forEach((factor) => {
-        const factorColor = factor.impact === 'positive' ? colors.success : 
-                           factor.impact === 'negative' ? colors.danger : colors.subtext;
-        
-        doc.setFillColor(...colors.card);
-        doc.setDrawColor(...colors.border);
-        doc.roundedRect(14, currentY, pageWidth - 28, 12, 1, 1, 'FD');
-        
-        doc.setFillColor(...factorColor);
-        doc.circle(20, currentY + 6, 2, 'F');
-        
-        doc.setFontSize(9);
-        doc.setTextColor(...colors.text);
-        doc.text(factor.label, 28, currentY + 7.5);
-        
-        doc.setFont('helvetica', 'bold');
-        doc.setTextColor(...factorColor);
-        doc.text(factor.value, pageWidth - 20, currentY + 7.5, { align: 'right' });
-        doc.setFont('helvetica', 'normal');
-
-        currentY += 15;
-      });
-      currentY += 5;
-    }
 
     // --- AUTO TABLE ---
     let applyAutoTable = autoTable;
@@ -240,61 +177,66 @@ export const generateStatementPDF = (friendName: string, allTransactions: Transa
 
     if (typeof applyAutoTable === 'function') {
       applyAutoTable(doc, {
-        startY: currentY + 10,
-        head: [['DATE', 'OPERATION', 'NOTE', 'AMOUNT']],
+        startY: startY + 25,
+        head: [['DATE', 'OPERATION', 'DETAILS', 'AMOUNT']],
         body: events.map(e => [
           formatDate(e.date),
           e.type,
           e.note,
-          { 
-            content: `${displayCurrency} ${Math.abs(e.amount).toLocaleString()}`, 
-            styles: { 
-              textColor: e.isCredit ? colors.success : colors.text,
-              halign: 'right'
-            } 
-          }
+          `${e.isCredit ? '-' : '+'} ${Math.abs(e.amount).toLocaleString()}`
         ]),
-        theme: 'grid',
+        theme: 'plain', // Minimalist layout
         styles: {
-          fillColor: colors.bg,
-          textColor: colors.subtext,
-          lineColor: colors.border,
+          font: 'courier',
+          fontSize: 9,
+          textColor: colors.ink,
+          cellPadding: 3,
           lineWidth: 0.1,
-          font: 'helvetica',
-          fontSize: 9
+          lineColor: colors.ink,
+          overflow: 'linebreak'
         },
         headStyles: {
-          fillColor: colors.card,
-          textColor: colors.brand, // Use brand color for headers
+          fillColor: [230, 230, 230], // Light Gray Header
+          textColor: colors.ink,
           fontStyle: 'bold',
           lineWidth: 0.1,
-          lineColor: colors.brand // Use brand color for header lines
-        },
-        alternateRowStyles: {
-          fillColor: [6, 12, 30]
+          lineColor: colors.ink
         },
         columnStyles: {
-          3: { fontStyle: 'bold' }
-        },
-        willDrawPage: (data: any) => {
-          if (data.pageNumber > 1) {
-            doc.setFillColor(...colors.bg);
-            doc.rect(0, 0, pageWidth, pageHeight, 'F');
-          }
+          3: { halign: 'right', fontStyle: 'bold' }
         },
         didDrawPage: (data: any) => {
-          const str = `ENCRYPTED OFFLINE STORAGE // ${settings.userName.toUpperCase()} // PAGE ${doc.internal.getNumberOfPages()}`;
-          doc.setFontSize(7);
-          doc.setTextColor(...colors.subtext);
-          doc.text(str, 14, pageHeight - 10);
+            const footerY = pageHeight - 15;
+            
+            // Footer Line
+            doc.setLineWidth(0.1);
+            doc.line(14, footerY - 5, pageWidth - 14, footerY - 5);
+            
+            doc.setFontSize(8);
+            doc.setFont('courier', 'normal');
+            doc.setTextColor(...colors.ink);
+
+            // Redacted Info Blocks
+            doc.text("CLEARANCE:", 14, footerY);
+            drawRedacted(35, footerY - 3, 25); // Black Bar 1
+            
+            doc.text("ORIGIN:", 70, footerY);
+            drawRedacted(85, footerY - 3, 30); // Black Bar 2
+
+            doc.text("AUTH:", 125, footerY);
+            drawRedacted(135, footerY - 3, 20); // Black Bar 3
+            
+            // Page Number
+            doc.text(`PG ${doc.internal.getNumberOfPages()}`, pageWidth - 25, footerY);
+            
+            // Bottom disclaimer
+            doc.setFontSize(6);
+            doc.text("WARNING: UNAUTHORIZED ACCESS IS A FEDERAL OFFENSE. DESTROY AFTER READING.", pageWidth / 2, pageHeight - 5, { align: 'center' });
         }
       });
-    } else {
-      console.error("PDF AutoTable plugin failed to load.");
-      alert("PDF Module Error: AutoTable plugin not found. Please refresh.");
     }
 
-    doc.save(`${friendName.replace(/\s+/g, '_')}_Secure_Report.pdf`);
+    doc.save(`DOSSIER_${friendName.replace(/\s+/g, '_').toUpperCase()}.pdf`);
     
   } catch (error) {
     console.error("PDF Generation Failed:", error);

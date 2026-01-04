@@ -12,7 +12,8 @@ interface Props {
   onDelete: (id: string) => void;
   tourStep?: number;
   currency: string;
-  themeStyles: any; // Passed from parent
+  themeStyles: any;
+  isFirstCard?: boolean; // New prop for targeting tour elements
 }
 
 const TransactionCard: React.FC<Props> = ({ 
@@ -22,7 +23,8 @@ const TransactionCard: React.FC<Props> = ({
   onDelete, 
   tourStep = -1, 
   currency,
-  themeStyles
+  themeStyles,
+  isFirstCard = false
 }) => {
   const totalPayable = getTotalPayable(transaction);
   const interest = calculateInterest(transaction);
@@ -39,15 +41,14 @@ const TransactionCard: React.FC<Props> = ({
     onDelete(transaction.id);
   };
 
-  // Improved Layering for Tour Steps
-  const isTourActive = tourStep >= 3 && tourStep <= 6;
-  const highlightCard = isTourActive;
-
   const highlightPayment = tourStep === 3;
   const highlightDueDate = tourStep === 5;
 
   return (
-    <div className={`glass rounded-[2rem] p-6 transition-all duration-500 relative group overflow-hidden ${transaction.isCompleted ? 'opacity-50 grayscale-[0.3]' : 'hover:border-white/10 shadow-xl shadow-slate-950/50'} ${highlightCard ? `z-[60] ${themeStyles.border} ring-4 ${themeStyles.ring} bg-slate-900 shadow-[0_0_150px_rgba(0,0,0,0.6)] scale-[1.04]` : 'z-0'}`}>
+    <div 
+      className={`glass transition-all duration-500 relative group overflow-hidden ${transaction.isCompleted ? 'opacity-50 grayscale-[0.3]' : 'hover:border-white/10 shadow-xl shadow-slate-950/50'}`}
+      style={{ borderRadius: 'var(--app-radius)', padding: 'var(--app-padding)' }}
+    >
       {/* Dynamic Glow Layer */}
       {!transaction.isCompleted && (
         <div className={`absolute -top-32 -right-32 w-64 h-64 ${themeStyles.bg.replace('bg-', 'bg-')}/5 blur-[80px] rounded-full group-hover:${themeStyles.bg.replace('bg-', 'bg-')}/10 transition-colors duration-700 pointer-events-none`}></div>
@@ -103,6 +104,7 @@ const TransactionCard: React.FC<Props> = ({
 
       <div className="flex items-center justify-between gap-3">
         <button 
+          id={isFirstCard ? "tour-date" : undefined}
           onClick={() => onUpdateDueDate(transaction.id)}
           className={`flex items-center gap-2 text-[10px] font-black uppercase tracking-widest transition-all p-2 rounded-xl border border-transparent ${highlightDueDate ? 'z-[65] bg-blue-600 text-white scale-110 shadow-2xl shadow-blue-500/40' : 'text-slate-500 hover:text-slate-300 hover:bg-white/5'}`}
         >
@@ -112,6 +114,7 @@ const TransactionCard: React.FC<Props> = ({
         
         {!transaction.isCompleted && (
           <button 
+            id={isFirstCard ? "tour-entry" : undefined}
             onClick={() => onAddPayment(transaction.id)}
             className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all duration-300 ${highlightPayment ? 'z-[65] bg-purple-600 text-white scale-110 shadow-2xl' : `${themeStyles.bg} hover:brightness-110 text-slate-950 shadow-lg ${themeStyles.shadow} active:scale-95`}`}
           >

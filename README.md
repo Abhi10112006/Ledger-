@@ -1,16 +1,44 @@
 
 # Abhi's Ledger // DEBT INTELLIGENCE SYSTEM
 
-**Abhi's Ledger** is a high-performance, offline-first financial tracking application designed for personal lending. It combines professional-grade interest calculations with a "Cyberpunk" aesthetic interface to manage debts, track trust scores, and generate formal PDF reports.
+**Abhi's Ledger** is a high-performance, offline-first financial tracking application designed for personal lending. It combines professional-grade interest calculations with a fully customizable "Cyberpunk" aesthetic interface to manage debts, track trust scores, and generate formal "Classified" PDF reports.
 
 ## 🚀 Core Capabilities
 
 *   **100% Offline Architecture**: All data resides in your browser's LocalStorage. No servers, no tracking.
 *   **Neural Trust Scoring**: An algorithm that rates borrowers from 0-100 based on repayment behavior with a detailed **Audit Modal**.
 *   **Dynamic Interest Engine**: Supports Fixed, Daily, Monthly, and Yearly compound-style logic using the **Reducing Balance Method**.
-*   **Forensic PDF Reports**: Generate professional "Confidential" dossiers for any client, now with robust ESM compatibility.
-*   **PWA Enhanced**: Supports Android 13+ **Themed Icons** (Monochrome) and Adaptive Shapes (Maskable) for a native OS feel.
+*   **Forensic PDF Reports**: Generate professional "Classified Dossier" reports with scan lines, redacted text, and top-secret stamps.
+*   **Visual Engine**: Complete control over the app's atmosphere—OLED modes, glass blur, film grain, and neon intensity.
 *   **Data Integrity**: Robust whitespace trimming and case-insensitive matching ensure all transactions link to the correct profile.
+
+---
+
+## 🎨 Visual Engine & Interface Tuner
+
+Customize the Ledger to fit your device and mood via the Settings menu.
+
+### Atmosphere Control
+*   **Base Reality**: Switch between **Deep Slate** (Professional Dark) and **OLED Black** (Battery Saver / True Black).
+*   **Texture Overlays**: Apply **Nebula** glows, **Grid** lines, or keep it **Solid**.
+*   **Glass Material**: Fine-tune the UI's glass effect.
+    *   **Blur Strength**: 0px (Matte) to 40px (Frosted).
+    *   **Transparency**: Control how much background bleeds through.
+    *   **Film Grain**: Toggle a subtle noise overlay for a tactile, cinematic feel.
+*   **System Glow**: Adjust the intensity of the neon shadows and borders (0% to 100%).
+
+### Interface Geometry
+*   **Density**:
+    *   **Comfortable**: Large touch targets, airy layout.
+    *   **Information Dense**: Compact lists for power users managing many accounts.
+*   **Corner Radius**:
+    *   **Sharp**: Brutalist, square corners.
+    *   **Round**: Standard mobile radius.
+    *   **Pill**: Soft, hyper-rounded aesthetics (Default).
+*   **Typography**:
+    *   **Tech Mono**: JetBrains Mono for a coding/hacker vibe.
+    *   **Modern Sans**: Inter for clean readability.
+    *   **System Native**: Uses your device's optimized font (SF Pro / Roboto).
 
 ---
 
@@ -33,10 +61,6 @@ When a payment is made, it immediately reduces the principal balance used for *f
 *   **Standardized Divisors**:
     *   **Monthly**: Uses `30.4375` days (Average month length based on 365.25 / 12).
     *   **Yearly**: Uses `365.25` days (Accounts for leap years).
-
-### 3. Settlement Logic
-A contract is only marked as **SETTLED** (Completed) when:
-`Total Paid Amount >= (Principal + Accumulated Interest)`
 
 ---
 
@@ -61,45 +85,26 @@ The "Target Identity" score helps you assess risk at a glance. **Click the Score
 
 ---
 
-## 🕹️ User Manual
+## 📄 Classified Dossier (PDF)
 
-### 1. Creating a Deal
-Click the **+ Button** at the bottom right. Enter the Principal, Start Date, and Return Date.
-*   *Input Sanitization*: The app automatically trims extra spaces from names to prevent duplicate profiles (e.g., "Rahul" vs "Rahul ").
+Click the **File Icon** next to a Client's Total Liability to generate a report.
 
-### 2. Logging Payments
-Click **"Entry"** (Purple/Green button) on a transaction card.
-*   Enter the amount received.
-*   The system recalculates the outstanding balance instantly.
-*   If the payment covers the full debt (Principal + Interest), the card turns gray and marks as "Settled".
-
-### 3. Extending Deadlines
-Click the **Date Button** (e.g., "24 Oct") on the transaction card.
-*   Select a new date.
-*   The system updates the due date and adds a "System Log" note to the transaction history tracking this extension.
-
-### 4. Backup & Restore
-*   **Export**: Click the **Download Icon** in the top navigation bar. This saves a `.json` file to your device.
-*   **Import**: On the login/welcome screen, click **"Restore Backup"** and select your previously saved file.
-
-### 5. PDF Generation
-Click the **File Icon** next to a Client's Total Liability in the account header.
-*   Generates a "Secure Report" containing the full ledger, trust breakdown, and verification logs.
-*   **Compatibility**: Now supports various ESM environments (like esm.sh) for reliable generation.
-
-### 6. Interactive Features
-*   **Sort Options**: Sort profiles by Name, Exposure (Total Debt), Trust Score, or Recent Activity.
-*   **Currency Toggle**: Switch between ₹, $, €, £, ¥ instantly.
-*   **Onboarding Tour**: An 8-step interactive guide explains every feature to new users.
+*   **Style**: "Agency Confidential"
+*   **Features**:
+    *   **Courier Typeface**: For that typewriter/terminal look.
+    *   **Scan Lines**: CRT monitor effect on the header.
+    *   **Redaction**: Footer elements (Origin, Clearance Code) are visually censored with black bars.
+    *   **Stamps**: Tilted "TOP SECRET // EYES ONLY" red stamps.
+    *   **Breakdown**: Includes full transaction ledger, calculated interest events, and Trust Score analysis.
 
 ---
 
 ## 🛠️ Technical Specs
 
 *   **Framework**: React 18+ (TypeScript)
-*   **Styling**: Tailwind CSS 3.4
-*   **Icons**: Lucide React
-*   **PDF Engine**: jsPDF + AutoTable (Optimized for ESM)
-*   **PWA**: Service Worker with Stale-While-Revalidate caching strategy.
-*   **Manifest**: Supports `monochrome` (Themed) and `maskable` icons.
-*   **Persistence**: `localStorage` (Key: `abhi_ledger_session`)
+*   **State Management**: Custom `useLedger` hook (Separation of Concerns).
+*   **Styling**: Tailwind CSS 3.4 + Dynamic CSS Variables (Visual Engine).
+*   **Icons**: Lucide React.
+*   **PDF Engine**: jsPDF + AutoTable.
+*   **PWA**: Service Worker with Stale-While-Revalidate caching.
+*   **Persistence**: `localStorage` (Key: `abhi_ledger_session`).

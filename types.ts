@@ -36,9 +36,27 @@ export interface SummaryStats {
 export type ThemeColor = 'emerald' | 'violet' | 'blue' | 'rose' | 'amber';
 export type BackgroundType = 'solid' | 'nebula' | 'grid';
 
+// Visual Engine Types
+export type BaseColor = 'slate' | 'oled';
+export type Density = 'comfortable' | 'compact';
+export type CornerRadius = 'sharp' | 'round' | 'pill';
+export type FontStyle = 'mono' | 'sans' | 'system';
+
 export interface AppSettings {
   userName: string;
   themeColor: ThemeColor;
   background: BackgroundType;
   currency: string;
+  
+  // Visual Engine
+  baseColor: BaseColor;
+  glowIntensity: number; // 0.0 to 1.0
+  glassBlur: number; // px
+  glassOpacity: number; // 0.0 to 1.0
+  enableGrain: boolean;
+
+  // Interface Tuner
+  density: Density;
+  cornerRadius: CornerRadius;
+  fontStyle: FontStyle;
 }

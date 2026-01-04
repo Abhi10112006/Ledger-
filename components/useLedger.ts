@@ -1,17 +1,28 @@
-
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Transaction, AppSettings, Repayment, InterestType, SummaryStats } from '../types';
 import { generateId } from '../utils/common';
 import { calculateTrustScore, getTotalPayable, getSummaryStats } from '../utils/calculations';
 
 const STORAGE_KEY = 'abhi_ledger_session';
-const SETTINGS_KEY = 'abhi_ledger_settings_v1';
+const SETTINGS_KEY = 'abhi_ledger_settings_v2';
 
 const DEFAULT_SETTINGS: AppSettings = {
   userName: "Abhi's Ledger",
   themeColor: 'emerald',
   background: 'solid',
-  currency: '₹'
+  currency: '₹',
+  
+  // Visual Engine Defaults
+  baseColor: 'slate',
+  glowIntensity: 0.5,
+  glassBlur: 16,
+  glassOpacity: 0.5,
+  enableGrain: false,
+
+  // Interface Tuner Defaults
+  density: 'comfortable',
+  cornerRadius: 'pill',
+  fontStyle: 'sans'
 };
 
 export type SortOption = 'name' | 'exposure' | 'trust' | 'recent';
@@ -42,7 +53,8 @@ export const useLedger = (tourStep: number) => {
 
     if (savedSettings) {
       try {
-        setSettings({ ...DEFAULT_SETTINGS, ...JSON.parse(savedSettings) });
+        const parsed = JSON.parse(savedSettings);
+        setSettings({ ...DEFAULT_SETTINGS, ...parsed });
       } catch (e) { console.error("Failed settings load", e); }
     }
 
