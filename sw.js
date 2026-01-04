@@ -1,5 +1,5 @@
 
-const CACHE_NAME = 'abhi-ledger-v17-modern-icon';
+const CACHE_NAME = 'abhi-ledger-v19-hook-refactor';
 
 // EXACT MATCH URLs from index.html
 // If these strings don't match index.html exactly, the browser treats them as different files.
@@ -15,8 +15,19 @@ const PRECACHE_ASSETS = [
   './types.ts',
   './utils/calculations.ts',
   './utils/pdfGenerator.ts',
+  './utils/common.ts',
+  './hooks/useLedger.ts',
   './components/TransactionCard.tsx',
   './components/TrustScoreBadge.tsx',
+  './components/Navbar.tsx',
+  './components/DashboardStats.tsx',
+  './components/SettingsModal.tsx',
+  './components/DealModal.tsx',
+  './components/PaymentModal.tsx',
+  './components/EditDateModal.tsx',
+  './components/DeleteModal.tsx',
+  './components/TourOverlay.tsx',
+  './components/WelcomeScreen.tsx',
   // External Libraries (Exact versions from ImportMap)
   'https://cdn.tailwindcss.com?v=3.4.1',
   'https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;700&display=swap',
