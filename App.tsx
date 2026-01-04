@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Plus, Cpu, PlusCircle, FileText } from 'lucide-react';
 import { useLedger, SortOption } from './hooks/useLedger';
