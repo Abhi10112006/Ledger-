@@ -23,8 +23,12 @@ const SponsorModal: React.FC<Props> = ({ isOpen, onClose, activeTheme }) => {
 
   if (!isOpen || !ad) return null;
 
-  // --- VIDEO LOGIC (HIDDEN / FUTURE USE) ---
-  // const youtubeId = ad.video ? getYoutubeId(ad.video) : null;
+  // --- AUTOMATIC MEDIA ANALYSIS ---
+  // 1. Check if video exists
+  // 2. Determine if it is YouTube or Direct File
+  const youtubeId = ad.video ? getYoutubeId(ad.video) : null;
+  const hasVideo = !!ad.video;
+  const hasImage = !!ad.image && !hasVideo; // Video takes precedence
 
   return (
     <div className="fixed inset-0 z-[3000] flex items-center justify-center p-4 sm:p-6 pointer-events-none">
@@ -59,38 +63,39 @@ const SponsorModal: React.FC<Props> = ({ isOpen, onClose, activeTheme }) => {
         {/* Content */}
         <div className="p-8 pt-6">
             
-            {/* --- VIDEO MEDIA AREA (HIDDEN / FUTURE USE) --- */}
-            {/*
-            {youtubeId ? (
-               <div className="mb-6 rounded-2xl overflow-hidden aspect-video w-full bg-slate-950 border border-white/5 relative shadow-inner">
-                 <iframe 
-                   width="100%" 
-                   height="100%" 
-                   src={`https://www.youtube.com/embed/${youtubeId}?autoplay=1&rel=0`} 
-                   title="Sponsored Content" 
-                   frameBorder="0" 
-                   allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
-                   allowFullScreen
-                   className="w-full h-full object-cover"
-                 ></iframe>
+            {/* --- DYNAMIC MEDIA RENDERING ENGINE --- */}
+            {hasVideo && (
+              <div className="mb-6 rounded-2xl overflow-hidden aspect-video w-full bg-slate-950 border border-white/5 relative shadow-inner group">
+                 {youtubeId ? (
+                   /* YOUTUBE PLAYER */
+                   <iframe 
+                     width="100%" 
+                     height="100%" 
+                     src={`https://www.youtube.com/embed/${youtubeId}?autoplay=1&mute=1&rel=0&controls=0&loop=1&playlist=${youtubeId}`} 
+                     title="Sponsored Content" 
+                     frameBorder="0" 
+                     allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+                     allowFullScreen
+                     className="w-full h-full object-cover pointer-events-none" 
+                   ></iframe>
+                 ) : (
+                   /* DIRECT HTML5 VIDEO PLAYER */
+                   <>
+                     <video 
+                       src={ad.video} 
+                       autoPlay 
+                       muted 
+                       loop 
+                       playsInline 
+                       className="w-full h-full object-cover opacity-90 group-hover:opacity-100 transition-opacity"
+                     />
+                     <div className="absolute inset-0 bg-gradient-to-t from-slate-900/50 to-transparent pointer-events-none"></div>
+                   </>
+                 )}
               </div>
-            ) : ad.video ? (
-              <div className="mb-6 rounded-2xl overflow-hidden aspect-video w-full bg-slate-950 border border-white/5 relative shadow-inner">
-                 <video 
-                   src={ad.video} 
-                   autoPlay 
-                   muted 
-                   loop 
-                   playsInline 
-                   className="w-full h-full object-cover opacity-90"
-                 />
-                 <div className="absolute inset-0 bg-gradient-to-t from-slate-900/50 to-transparent pointer-events-none"></div>
-              </div>
-            ) : null}
-            */}
+            )}
 
-            {/* --- IMAGE MEDIA AREA (ACTIVE) --- */}
-            {ad.image && (
+            {hasImage && (
               <div className="mb-6 rounded-2xl overflow-hidden h-48 w-full bg-slate-800 border border-white/5 relative shadow-inner">
                  <img src={ad.image} alt="Ad Visual" className="w-full h-full object-cover opacity-90 hover:scale-105 transition-transform duration-700" />
               </div>

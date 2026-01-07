@@ -6,35 +6,57 @@ export interface AdContent {
   buttonText: string;
   link: string;
   isActive: boolean;
-  image?: string; // Optional: URL to an image
-  video?: string; // Optional: URL to a video (Takes precedence over image)
+  image?: string; // Optional: URL to an image (Displayed if no video is provided)
+  video?: string; // Optional: URL to a video (YouTube or MP4). Takes precedence over image.
 }
 
 /**
- * SPONSORED CONTENT CONFIGURATION
- * --------------------------------
- * Add your advertisement here. 
- * The system will pick the FIRST item in this list that has 'isActive: true'.
+ * ------------------------------------------------------------------
+ *  SPONSORSHIP CONTROL PROTOCOL
+ * ------------------------------------------------------------------
+ * 
+ *  HOW TO ADD A NEW ADVERTISEMENT:
+ *  1. Add a new object to the `SPONSORED_CONTENT` array below.
+ *  2. Set `isActive: true` on the ad you want to display.
+ *  3. Ensure only ONE ad is active at a time (The system picks the first active one).
+ * 
+ *  MEDIA AUTO-DETECTION:
+ *  - If you provide a `video` URL, the system prioritizes it.
+ *    - Supported Video Formats: YouTube Links (e.g., https://youtu.be/...) or Direct MP4 URLs.
+ *  - If `video` is empty/undefined, the system looks for an `image` URL.
+ *  - If both are missing, only text is displayed.
+ * 
+ *  HOW TO REMOVE/DISABLE ADS:
+ *  - Simply set `isActive: false` on all items.
+ * 
+ * ------------------------------------------------------------------
  */
+
 export const SPONSORED_CONTENT: AdContent[] = [
   {
-    id: 'promo_video_01',
+    id: 'neural_cloud_v1',
     title: 'Neural Cloud Sync',
     message: 'Data integrity is paramount. Experience seamless, encrypted synchronization between your local ledger and our off-world secure vaults.',
     buttonText: 'Initialize Link',
     link: 'https://example.com/promo',
-    isActive: true,
+    isActive: true, // <--- Toggle this to true/false to show/hide
     
-    // video: 'https://www.youtube.com/watch?v=g_hZm2b8ZO0', // HIDDEN: Enable for video ads
-    image: 'https://images.unsplash.com/photo-1518770660439-4636190af475?q=80&w=1000&auto=format&fit=crop' // Placeholder Tech Image
+    // CASE 1: VIDEO AD (YouTube Example)
+    // video: 'https://www.youtube.com/watch?v=g_hZm2b8ZO0',
+    
+    // CASE 2: VIDEO AD (Direct MP4 Example) - Takes precedence if uncommented
+    // video: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4',
+
+    // CASE 3: IMAGE AD (Fallback if video is commented out or empty)
+    image: 'https://images.unsplash.com/photo-1518770660439-4636190af475?q=80&w=1000&auto=format&fit=crop'
   },
   {
-    id: 'promo_001',
-    title: 'Upgrade Your Gear',
-    message: 'Unlock the full potential of your financial tracking with our new Neural Cloud Sync. Military-grade encryption for your most sensitive data.',
-    buttonText: 'View Offer',
-    link: 'https://example.com/promo',
+    id: 'placeholder_ad_02',
+    title: 'Cyber Deck Upgrade',
+    message: 'Enhance your terminal with the latest hardware implants. Zero latency, infinite storage.',
+    buttonText: 'Check Specs',
+    link: 'https://example.com/hardware',
     isActive: false,
-    // image: 'https://placehold.co/600x400/1e293b/ffffff?text=AD+SPACE' 
+    image: 'https://images.unsplash.com/photo-1550751827-4bd374c3f58b?q=80&w=1000&auto=format&fit=crop' 
   }
 ];
