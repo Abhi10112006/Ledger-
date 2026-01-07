@@ -32,11 +32,12 @@ export const generateStatementPDF = (friendName: string, allTransactions: Transa
     };
     const displayCurrency = currencyMap[settings.currency] || settings.currency;
 
-    // AGENCY STYLE CONFIG
+    // AGENCY STYLE CONFIG (Man in Black Theme)
     const colors = {
       bg: [255, 255, 255] as [number, number, number], // Paper White
       ink: [20, 20, 20] as [number, number, number],   // Typing Black
       stamp: [185, 28, 28] as [number, number, number], // Red Stamp
+      highlight: [255, 241, 5] as [number, number, number], // Neon Yellow Highlighter
       grid: [220, 220, 220] as [number, number, number] // Faint Guide Lines
     };
 
@@ -51,22 +52,17 @@ export const generateStatementPDF = (friendName: string, allTransactions: Transa
         doc.line(0, y, pageWidth, y);
     }
 
-    // 3. "CONFIDENTIAL" STAMP (Tilted Text in Box)
+    // 3. STAMP (Formal but styled)
     doc.setTextColor(...colors.stamp);
     doc.setDrawColor(...colors.stamp);
     doc.setLineWidth(0.8);
-    
-    // Draw the frame
-    doc.roundedRect(pageWidth - 70, 10, 55, 25, 1, 1, 'S');
-    
-    // Draw Tilted Text
+    doc.roundedRect(pageWidth - 70, 10, 55, 20, 1, 1, 'S');
     doc.setFont('courier', 'bold');
-    doc.setFontSize(18);
-    const stampX = pageWidth - 42.5; // Center of box roughly
-    doc.text("TOP SECRET", stampX, 22, { align: 'center', angle: -10 });
-    
-    doc.setFontSize(8);
-    doc.text("EYES ONLY // NO COPY", stampX, 30, { align: 'center', angle: -10 });
+    doc.setFontSize(14);
+    const stampX = pageWidth - 42.5; 
+    doc.text("CONFIDENTIAL", stampX, 21, { align: 'center', angle: -5 });
+    doc.setFontSize(7);
+    doc.text("EYES ONLY // NO COPY", stampX, 26, { align: 'center', angle: -5 });
 
     // ROBUST FILTERING
     const friendTx = allTransactions.filter(t => 
@@ -75,10 +71,13 @@ export const generateStatementPDF = (friendName: string, allTransactions: Transa
     
     const breakdown = getTrustBreakdown(friendName, allTransactions, settings.currency);
 
-    // Financial Calculations
+    // Financial & Timeline Calculations
     let totalBorrowed = 0;
     let totalInterest = 0;
     let totalPaid = 0;
+    let activeLoanEnd: Date | null = null;
+    let activeInterestRate = 0;
+    let activeInterestType = '';
     
     const events: any[] = [];
 
@@ -88,9 +87,16 @@ export const generateStatementPDF = (friendName: string, allTransactions: Transa
       totalInterest += interest;
       totalPaid += t.paidAmount;
 
+      // Check for active loan details
+      if (!t.isCompleted) {
+        activeLoanEnd = new Date(t.returnDate);
+        activeInterestRate = t.interestRate;
+        activeInterestType = t.interestType;
+      }
+
       events.push({
         date: new Date(t.startDate),
-        type: 'INITIATION',
+        type: 'ADVANCE',
         amount: t.principalAmount,
         note: `Principal (${t.interestRate}%)`,
         isCredit: false
@@ -109,9 +115,9 @@ export const generateStatementPDF = (friendName: string, allTransactions: Transa
       t.repayments.forEach(r => {
         events.push({
           date: new Date(r.date),
-          type: 'PAYMENT',
+          type: 'REPAYMENT',
           amount: r.amount,
-          note: 'Funds Logged',
+          note: 'Payment Received',
           isCredit: true
         });
       });
@@ -123,50 +129,148 @@ export const generateStatementPDF = (friendName: string, allTransactions: Transa
     doc.setTextColor(...colors.ink);
     doc.setFont('courier', 'bold');
     doc.setFontSize(22);
-    doc.text("AGENCY DOSSIER", 14, 20);
+    // User Name Header
+    doc.text(`${settings.userName.toUpperCase()} DOSSIER`, 14, 20);
     
     doc.setFontSize(10);
     doc.setFont('courier', 'normal');
-    // Monospace alignment
-    doc.text(`SUBJECT  : ${friendName.toUpperCase()}`, 14, 30);
-    doc.text(`HANDLER  : ${settings.userName.toUpperCase()}`, 14, 35);
+    // Monospace alignment with formal terms
+    doc.text(`CLIENT   : ${friendName.toUpperCase()}`, 14, 30);
+    doc.text(`AGENT    : ${settings.userName.toUpperCase()}`, 14, 35);
     doc.text(`DATE     : ${formatDate(new Date())}`, 14, 40);
 
-    // --- SUMMARY GRID (Typewriter Style) ---
-    const startY = 50;
+    // --- SUMMARY GRID ---
+    const startY = 55;
+    const boxHeight = 35;
+    
+    // Net Calculation
+    const netDue = (totalBorrowed + totalInterest) - totalPaid;
+    
+    // Timeline Logic
+    let timelineText1 = "NO ACTIVE";
+    let timelineText2 = "CONTRACTS";
+    let isOverdue = false;
+
+    if (activeLoanEnd && netDue > 1) {
+        const now = new Date();
+        now.setHours(0,0,0,0);
+        const due = new Date(activeLoanEnd);
+        due.setHours(0,0,0,0);
+        
+        const diffTime = due.getTime() - now.getTime();
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+        if (diffDays < 0) {
+            isOverdue = true;
+            timelineText1 = `${Math.abs(diffDays)} DAYS`;
+            timelineText2 = "OVERDUE";
+        } else {
+            timelineText1 = `${diffDays} DAYS`;
+            timelineText2 = "REMAINING";
+        }
+    } else if (netDue <= 1 && friendTx.length > 0) {
+         timelineText1 = "ALL CLEAR";
+         timelineText2 = "SETTLED";
+    }
+
+    // Draw Grid Lines
     doc.setDrawColor(0, 0, 0);
     doc.setLineWidth(0.2);
+    doc.line(14, startY, pageWidth - 14, startY); // Top
+    doc.line(14, startY + boxHeight, pageWidth - 14, startY + boxHeight); // Bottom
     
-    // Top Bar
-    doc.line(14, startY, pageWidth - 14, startY); 
+    // Vertical Separators
+    const colWidth = (pageWidth - 28) / 3;
+    doc.line(14 + colWidth, startY, 14 + colWidth, startY + boxHeight);
+    doc.line(14 + (colWidth * 2), startY, 14 + (colWidth * 2), startY + boxHeight);
+
+    // COL 1: TRUST METRIC + GAUGE
+    doc.setFontSize(8);
+    doc.setFont('courier', 'normal');
+    doc.text("TRUST SCORE", 18, startY + 8);
+    
+    doc.setFontSize(14);
+    doc.text(`${breakdown.score}`, 18, startY + 18);
     
     doc.setFontSize(9);
-    // Column 1
-    doc.text("TRUST RATING", 14, startY + 8);
-    doc.setFont('courier', 'bold');
-    doc.text(`${breakdown.score}/100`, 14, startY + 14);
+    doc.text("/ 100", 18 + doc.getTextWidth(`${breakdown.score}`) + 2, startY + 18);
     
-    // Column 2
+    // --- GAUGE (Progress Bar) ---
+    const gaugeY = startY + 22;
+    const gaugeWidth = 35;
+    const gaugeHeight = 2.5;
+    
+    // Background Track
+    doc.setFillColor(220, 220, 220);
+    doc.rect(18, gaugeY, gaugeWidth, gaugeHeight, 'F');
+    
+    // Fill
+    const fillWidth = (breakdown.score / 100) * gaugeWidth;
+    // Color Logic
+    if (breakdown.score >= 75) doc.setFillColor(16, 185, 129); // Emerald
+    else if (breakdown.score >= 50) doc.setFillColor(245, 158, 11); // Amber
+    else doc.setFillColor(220, 38, 38); // Red
+    
+    if (fillWidth > 0) {
+        doc.rect(18, gaugeY, fillWidth, gaugeHeight, 'F');
+    }
+
+    doc.setFillColor(...colors.ink); // Reset to ink
+    doc.setFontSize(7);
+    doc.text("RATING ANALYSIS", 18, startY + 30);
+
+    // COL 2: NET LIABILITY (The Highlighter)
+    const col2X = 14 + colWidth + 4;
+    doc.setFontSize(8);
+    doc.text("TOTAL LIABILITY", col2X, startY + 8);
+    
+    if (netDue > 0) {
+        const amountText = `${displayCurrency} ${Math.round(netDue).toLocaleString()}`;
+        doc.setFontSize(16);
+        doc.setFont('courier', 'bold');
+        
+        // HIGHLIGHTER EFFECT (Yellow Rect behind text)
+        const textWidth = doc.getTextWidth(amountText);
+        doc.setFillColor(...colors.highlight);
+        // x, y, w, h, style
+        doc.rect(col2X - 1, startY + 14, textWidth + 2, 8, 'F');
+        
+        doc.text(amountText, col2X, startY + 20);
+    } else {
+        doc.setFontSize(16);
+        doc.setFont('courier', 'bold');
+        doc.setTextColor(150, 150, 150);
+        doc.text("SETTLED", col2X, startY + 20);
+        doc.setTextColor(...colors.ink);
+    }
+    
+    // Reset Font
+    doc.setFontSize(7);
     doc.setFont('courier', 'normal');
-    doc.text("NET LIABILITY", 60, startY + 8);
-    const netDue = (totalBorrowed + totalInterest) - totalPaid;
-    doc.setFont('courier', 'bold');
-    doc.text(`${displayCurrency} ${netDue.toLocaleString()}`, 60, startY + 14);
+    if(activeInterestRate > 0) {
+        doc.text(`RATE: ${activeInterestRate}% ${activeInterestType.toUpperCase()}`, col2X, startY + 28);
+    } else {
+        doc.text("RATE: FIXED PRINCIPAL", col2X, startY + 28);
+    }
 
-    // Column 3
+    // COL 3: TIMELINE
+    const col3X = 14 + (colWidth * 2) + 4;
+    doc.setFontSize(8);
+    doc.text("DEADLINE STATUS", col3X, startY + 8);
+    
+    doc.setFontSize(14);
+    doc.setFont('courier', 'bold');
+    if (isOverdue) doc.setTextColor(200, 0, 0); // Red if overdue
+    
+    doc.text(timelineText1, col3X, startY + 18);
+    doc.text(timelineText2, col3X, startY + 24);
+    
+    doc.setTextColor(...colors.ink); // Reset color
+    doc.setFontSize(7);
     doc.setFont('courier', 'normal');
-    doc.text("STATUS", 120, startY + 8);
-    doc.setFont('courier', 'bold');
-    doc.text(netDue > 0 ? "ACTIVE / UNRESOLVED" : "CLEARED", 120, startY + 14);
-
-    // Bottom Bar
-    doc.line(14, startY + 18, pageWidth - 14, startY + 18);
-
-    // --- REDACTED FOOTER HELPER ---
-    const drawRedacted = (x: number, y: number, w: number) => {
-      doc.setFillColor(10, 10, 10);
-      doc.rect(x, y, w, 3.5, 'F');
-    };
+    if (activeLoanEnd && netDue > 1) {
+        doc.text(`DUE: ${formatDate(activeLoanEnd)}`, col3X, startY + 31);
+    }
 
     // --- AUTO TABLE ---
     let applyAutoTable = autoTable;
@@ -177,7 +281,7 @@ export const generateStatementPDF = (friendName: string, allTransactions: Transa
 
     if (typeof applyAutoTable === 'function') {
       applyAutoTable(doc, {
-        startY: startY + 25,
+        startY: startY + 45,
         head: [['DATE', 'OPERATION', 'DETAILS', 'AMOUNT']],
         body: events.map(e => [
           formatDate(e.date),
@@ -185,7 +289,7 @@ export const generateStatementPDF = (friendName: string, allTransactions: Transa
           e.note,
           `${e.isCredit ? '-' : '+'} ${Math.abs(e.amount).toLocaleString()}`
         ]),
-        theme: 'plain', // Minimalist layout
+        theme: 'plain', // Minimalist layout for typewriter look
         styles: {
           font: 'courier',
           fontSize: 9,
@@ -208,6 +312,8 @@ export const generateStatementPDF = (friendName: string, allTransactions: Transa
         didDrawPage: (data: any) => {
             const footerY = pageHeight - 15;
             
+            // REMOVED "DIGITALLY SIGNED" here
+
             // Footer Line
             doc.setLineWidth(0.1);
             doc.line(14, footerY - 5, pageWidth - 14, footerY - 5);
@@ -216,22 +322,21 @@ export const generateStatementPDF = (friendName: string, allTransactions: Transa
             doc.setFont('courier', 'normal');
             doc.setTextColor(...colors.ink);
 
-            // Redacted Info Blocks
+            // Redacted Info Blocks helper
+            const drawRedacted = (x: number, y: number, w: number) => {
+                doc.setFillColor(20, 20, 20);
+                doc.rect(x, y, w, 3.5, 'F');
+            };
+
+            // Redacted Info Blocks (Kept for Theme)
             doc.text("CLEARANCE:", 14, footerY);
             drawRedacted(35, footerY - 3, 25); // Black Bar 1
             
             doc.text("ORIGIN:", 70, footerY);
             drawRedacted(85, footerY - 3, 30); // Black Bar 2
-
-            doc.text("AUTH:", 125, footerY);
-            drawRedacted(135, footerY - 3, 20); // Black Bar 3
             
             // Page Number
             doc.text(`PG ${doc.internal.getNumberOfPages()}`, pageWidth - 25, footerY);
-            
-            // Bottom disclaimer
-            doc.setFontSize(6);
-            doc.text("WARNING: UNAUTHORIZED ACCESS IS A FEDERAL OFFENSE. DESTROY AFTER READING.", pageWidth / 2, pageHeight - 5, { align: 'center' });
         }
       });
     }

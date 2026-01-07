@@ -42,6 +42,15 @@ Customize the Ledger to fit your device and mood via the Settings menu.
 
 ---
 
+## 👨‍💻 Developer & Sponsorship Protocol
+
+Hidden within the **Settings Module** is the new **Developer Tab**.
+*   **Holographic Identity**: Interact with a 3D-tilt enabled ID card representing the system architect.
+*   **Direct Transmission**: One-click access to open sponsorship channels or business inquiries via secure email link.
+*   **Cipher Decryption**: Experience real-time text decoding animations on the developer profile.
+
+---
+
 ## 🧠 The Interest Engine
 
 Unlike simple calculators, Abhi's Ledger uses a **Timeline-Based Reducing Balance** algorithm. This ensures fairness: borrowers only pay interest on the money they are currently holding.

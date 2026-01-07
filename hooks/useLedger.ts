@@ -26,9 +26,9 @@ const DEFAULT_SETTINGS: AppSettings = {
   fontStyle: 'sans'
 };
 
-export type SortOption = 'name' | 'exposure' | 'trust' | 'recent';
+export type SortOption = 'exposure' | 'recent';
 
-export const useLedger = (tourStep: number) => {
+export const useLedger = (tourStep: number, searchQuery: string = '') => {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [settings, setSettings] = useState<AppSettings>(DEFAULT_SETTINGS);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -226,7 +226,7 @@ export const useLedger = (tourStep: number) => {
     });
 
     // Transform into Account objects for sorting
-    const accountList = Object.entries(grouped).map(([name, txs]) => {
+    let accountList = Object.entries(grouped).map(([name, txs]) => {
       const exposure = txs.reduce((acc, t) => acc + (getTotalPayable(t) - t.paidAmount), 0);
       const trust = calculateTrustScore(name, transactions);
       const lastActivity = Math.max(...txs.map(t => new Date(t.startDate).getTime()));
@@ -240,17 +240,26 @@ export const useLedger = (tourStep: number) => {
       };
     });
 
-    // Sorting
+    // 1. Filter based on Search Query
+    if (searchQuery) {
+        const query = searchQuery.toLowerCase();
+        accountList = accountList.filter(acc => 
+            acc.name.toLowerCase().includes(query) || 
+            acc.transactions.some(t => 
+                t.notes.toLowerCase().includes(query) ||
+                t.principalAmount.toString().includes(query)
+            )
+        );
+    }
+
+    // 2. Sorting
     return accountList.sort((a, b) => {
       switch (sortBy) {
-        case 'name': return a.name.localeCompare(b.name);
         case 'exposure': return b.totalExposure - a.totalExposure;
-        case 'trust': return b.trustScore - a.trustScore;
-        case 'recent': return b.lastActivity - a.lastActivity;
-        default: return 0;
+        case 'recent': default: return b.lastActivity - a.lastActivity;
       }
     });
-  }, [transactions, sortBy, tourStep]);
+  }, [transactions, sortBy, tourStep, searchQuery]);
 
   const stats = getSummaryStats(transactions);
 

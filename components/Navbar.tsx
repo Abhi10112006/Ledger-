@@ -8,6 +8,7 @@ interface Props {
   activeTheme: any;
   tourStep: number;
   setTourStep: (step: number) => void;
+  onOpenTutorialSelection: () => void;
   setIsSettingsModalOpen: (isOpen: boolean) => void;
   handleExport: () => void;
   setIsLoggedIn: (isLoggedIn: boolean) => void;
@@ -20,6 +21,7 @@ const Navbar: React.FC<Props> = ({
   activeTheme,
   tourStep,
   setTourStep,
+  onOpenTutorialSelection,
   setIsSettingsModalOpen,
   handleExport,
   setIsLoggedIn,
@@ -57,7 +59,12 @@ const Navbar: React.FC<Props> = ({
         
         <div className="h-6 w-px bg-slate-800 mx-1"></div>
 
-        <button onClick={() => setTourStep(0)} className="p-2 text-slate-400 hover:text-blue-400 transition-all hover:bg-slate-800/50 rounded-lg"><HelpCircle className="w-5 h-5" /></button>
+        <button 
+          onClick={onOpenTutorialSelection} 
+          className="p-2 text-slate-400 hover:text-blue-400 transition-all hover:bg-slate-800/50 rounded-lg"
+        >
+          <HelpCircle className="w-5 h-5" />
+        </button>
         <button 
           id="tour-backup"
           onClick={handleExport} 

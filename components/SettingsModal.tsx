@@ -1,6 +1,6 @@
 
-import React, { useState } from 'react';
-import { Settings, X, Type, Palette, Layout, CheckCircle2, Sliders, Smartphone, Eye, Grid } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Settings, X, Type, Palette, Layout, CheckCircle2, Sliders, Smartphone, Eye, Grid, Terminal, Mail, Copy, Cpu, Code } from 'lucide-react';
 import { AppSettings, ThemeColor, FontStyle, Density, CornerRadius, BaseColor } from '../types';
 
 interface Props {
@@ -22,7 +22,36 @@ const SettingsModal: React.FC<Props> = ({
   themes,
   currencies
 }) => {
-  const [activeTab, setActiveTab] = useState<'general' | 'visual' | 'interface'>('general');
+  const [activeTab, setActiveTab] = useState<'general' | 'visual' | 'interface' | 'contact'>('general');
+  
+  // Developer Tab State
+  const [tilt, setTilt] = useState({ x: 0, y: 0 });
+  const [isCopied, setIsCopied] = useState(false);
+  const [displayName, setDisplayName] = useState('ABHINAV YADUVANSHI');
+  
+  // Scramble Effect
+  useEffect(() => {
+    if (activeTab === 'contact') {
+      const target = 'ABHINAV YADUVANSHI';
+      const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789@#$%&';
+      let iteration = 0;
+      
+      const interval = setInterval(() => {
+        setDisplayName(
+          target.split('').map((letter, index) => {
+            if (index < iteration) return target[index];
+            if (letter === ' ') return ' ';
+            return chars[Math.floor(Math.random() * chars.length)];
+          }).join('')
+        );
+        
+        if (iteration >= target.length) clearInterval(interval);
+        iteration += 1 / 2;
+      }, 30);
+      
+      return () => clearInterval(interval);
+    }
+  }, [activeTab]);
 
   if (!isOpen) return null;
 
@@ -30,7 +59,35 @@ const SettingsModal: React.FC<Props> = ({
     { id: 'general', label: 'Identity', icon: <Settings className="w-4 h-4" /> },
     { id: 'visual', label: 'Visual Engine', icon: <Eye className="w-4 h-4" /> },
     { id: 'interface', label: 'Interface Tuner', icon: <Sliders className="w-4 h-4" /> },
+    { id: 'contact', label: 'Developer', icon: <Terminal className="w-4 h-4" /> },
   ];
+
+  // 3D Card Handlers
+  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    const centerX = rect.width / 2;
+    const centerY = rect.height / 2;
+    
+    // Max rotation degrees
+    const max = 15;
+    
+    setTilt({
+      x: ((x - centerX) / centerX) * max,
+      y: ((y - centerY) / centerY) * -max 
+    });
+  };
+
+  const handleMouseLeave = () => {
+    setTilt({ x: 0, y: 0 });
+  };
+
+  const copyEmail = () => {
+    navigator.clipboard.writeText('abhiyaduvanshi@zohomail.in');
+    setIsCopied(true);
+    setTimeout(() => setIsCopied(false), 2000);
+  };
 
   return (
     <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">
@@ -298,6 +355,98 @@ const SettingsModal: React.FC<Props> = ({
                </div>
 
              </div>
+          )}
+          
+          {/* DEVELOPER CONTACT TAB */}
+          {activeTab === 'contact' && (
+            <div className="flex flex-col items-center justify-center min-h-[400px] animate-in slide-in-from-right-4 duration-500 perspective-1000">
+                
+                {/* 3D Interactive Card */}
+                <div 
+                  className="relative group w-full max-w-sm cursor-default"
+                  onMouseMove={handleMouseMove}
+                  onMouseLeave={handleMouseLeave}
+                  style={{ perspective: '1000px' }}
+                >
+                  <div 
+                     className="relative w-full aspect-[1.58/1] rounded-2xl bg-slate-950 border border-slate-700/50 shadow-2xl transition-transform duration-100 ease-out overflow-hidden"
+                     style={{ 
+                       transform: `rotateY(${tilt.x}deg) rotateX(${tilt.y}deg)`,
+                       transformStyle: 'preserve-3d',
+                       boxShadow: `0 20px 50px -10px rgba(0,0,0,0.5), 0 0 0 1px ${activeTheme.hex}30`
+                     }}
+                  >
+                     {/* Dynamic Backgrounds */}
+                     <div className="absolute inset-0 bg-gradient-to-br from-slate-900 via-slate-900 to-slate-950 z-0"></div>
+                     <div className={`absolute inset-0 opacity-10 bg-[radial-gradient(circle_at_50%_50%,${activeTheme.hex},transparent_70%)] group-hover:opacity-30 transition-opacity duration-500`}></div>
+                     <div className="absolute inset-0 bg-[linear-gradient(to_bottom,transparent_50%,rgba(0,0,0,0.8)_50%)] bg-[size:100%_4px] pointer-events-none opacity-10"></div>
+
+                     {/* Content Layer (Floating) */}
+                     <div className="absolute inset-0 p-6 flex flex-col justify-between z-10" style={{ transform: 'translateZ(30px)' }}>
+                        
+                        {/* Header */}
+                        <div className="flex justify-between items-start">
+                           <div className={`p-2 rounded-lg bg-slate-900/80 border border-slate-700/50 ${activeTheme.text}`}>
+                              <Code className="w-6 h-6" />
+                           </div>
+                           <div className="text-[9px] font-mono text-slate-500 uppercase tracking-widest text-right leading-tight">
+                              ID: DEV_001<br/>
+                              LOC: GRID_NODE_7<br/>
+                              <span className={activeTheme.text}>STATUS: ONLINE</span>
+                           </div>
+                        </div>
+
+                        {/* Identity Block */}
+                        <div className="space-y-2 mt-2">
+                           <div className="flex items-center gap-2">
+                              <span className={`h-px w-8 ${activeTheme.bg}`}></span>
+                              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em]">Architect</span>
+                           </div>
+                           <h3 className="text-xl sm:text-2xl font-black text-white tracking-tight break-words" style={{ textShadow: `0 0 20px ${activeTheme.hex}40` }}>
+                              {displayName}
+                           </h3>
+                        </div>
+
+                        {/* Footer / Contact Action */}
+                        <div className="flex items-center gap-3 mt-2">
+                           <button 
+                              onClick={copyEmail}
+                              className="flex-1 flex items-center justify-between px-3 py-2 rounded-xl bg-slate-900/80 border border-slate-700 hover:border-slate-500 transition-all group/btn"
+                              title="Copy Email Address"
+                           >
+                              <div className="flex items-center gap-3 overflow-hidden">
+                                 <Mail className="w-4 h-4 text-slate-400 shrink-0" />
+                                 <span className="text-[10px] sm:text-xs font-mono text-slate-300 truncate">abhiyaduvanshi@zohomail.in</span>
+                              </div>
+                              {isCopied ? <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" /> : <Copy className="w-4 h-4 text-slate-500 group-hover/btn:text-white shrink-0" />}
+                           </button>
+                        </div>
+                     </div>
+                     
+                     {/* Holographic Border Shine */}
+                     <div className="absolute inset-0 border border-white/5 rounded-2xl pointer-events-none"></div>
+                     {/* Corner Accents */}
+                     <div className={`absolute top-0 left-0 w-8 h-8 border-t-2 border-l-2 ${activeTheme.border} rounded-tl-2xl opacity-50`}></div>
+                     <div className={`absolute bottom-0 right-0 w-8 h-8 border-b-2 border-r-2 ${activeTheme.border} rounded-br-2xl opacity-50`}></div>
+                  </div>
+                </div>
+
+                <div className="mt-8 text-center space-y-2 animate-in fade-in slide-in-from-bottom-4 duration-700 delay-200">
+                   <p className="text-xs text-slate-500 font-mono">
+                      &lt; SPONSORSHIP_CHANNELS_OPEN /&gt;
+                   </p>
+                   <p className="text-slate-400 text-sm max-w-xs mx-auto leading-relaxed">
+                      Interested in sponsoring this project or hiring the architect? Direct channels are now open.
+                   </p>
+                   <a 
+                      href="mailto:abhiyaduvanshi@zohomail.in?subject=Sponsorship%20Inquiry%20:%20Abhi's%20Ledger" 
+                      className={`inline-block mt-4 text-xs font-bold ${activeTheme.text} hover:underline uppercase tracking-widest decoration-2 underline-offset-4 cursor-pointer`}
+                   >
+                      Initiate Direct Transmission
+                   </a>
+                </div>
+
+            </div>
           )}
 
         </div>
