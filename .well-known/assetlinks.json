@@ -3,6 +3,7 @@
       "target": {
         "namespace": "android_app",
         "package_name": "app.vercel.ledger69.twa",
-        "sha256_cert_fingerprints": ["EE:74:FA:87:F8:99:CE:3C:88:E9:82:E9:CB:6A:42:5D:77:B1:A1:65:52:1D:2D:F8:D8:E9:A4:B8:44:DF:E3:CE"]
+        "sha256_cert_fingerprints": ["62:C0:E9:21:7F:F7:D7:B2:99:28:A4:A1:A4:8E:07:79:CF:46:2C:F0:A8:01:F4:9C:AA:9A:6E:3C:59:6F:35:BA"]
+      }
       }
     }]
