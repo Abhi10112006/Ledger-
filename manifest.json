@@ -2,7 +2,7 @@
 {
   "name": "Abhi's Ledger",
   "short_name": "Ledger",
-  "description": "A high-performance, cyberpunk-themed offline financial tracker for personal loans and debts with trust-score algorithms and secure local storage.",
+  "description": "A high-performance, cyberpunk-themed offline financial tracker for personal loans and debts.",
   "id": "/",
   "start_url": "/",
   "display": "standalone",
@@ -12,8 +12,7 @@
   "dir": "ltr",
   "lang": "en",
   "scope": "/",
-  "prefer_related_applications": false,
-  "categories": ["finance", "productivity", "business"],
+  "categories": ["finance", "productivity"],
   "icons": [
     {
       "src": "https://cdn-icons-png.flaticon.com/512/2910/2910768.png",
@@ -46,26 +45,23 @@
       "sizes": "512x512",
       "type": "image/png",
       "form_factor": "wide",
-      "label": "Dashboard & Analytics"
+      "label": "Dashboard"
     },
     {
       "src": "https://cdn-icons-png.flaticon.com/512/2910/2910768.png",
       "sizes": "512x512",
       "type": "image/png",
       "form_factor": "narrow",
-      "label": "Mobile Transaction Management"
+      "label": "Mobile View"
     }
   ],
   "shortcuts": [
     {
       "name": "New Contract",
-      "short_name": "Add Deal",
-      "description": "Create a new loan record immediately",
+      "short_name": "New",
+      "description": "Create a new loan record",
       "url": "/?action=new",
-      "icons": [{ "src": "https://cdn-icons-png.flaticon.com/512/2910/2910768.png", "sizes": "512x512", "type": "image/png" }]
+      "icons": [{ "src": "https://cdn-icons-png.flaticon.com/512/2910/2910768.png", "sizes": "192x192", "type": "image/png" }]
     }
-  ],
-  "launch_handler": {
-    "client_mode": "auto"
-  }
+  ]
 }
