@@ -1,5 +1,5 @@
 
-const CACHE_NAME = 'abhi-ledger-v31-clean';
+const CACHE_NAME = 'abhi-ledger-v32-clean';
 
 // Core assets required for the app shell
 // We only cache the strict list of files we know exist.
