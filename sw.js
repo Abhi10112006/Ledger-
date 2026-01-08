@@ -1,5 +1,5 @@
 
-const CACHE_NAME = 'abhi-ledger-v23-swr-active';
+const CACHE_NAME = 'abhi-ledger-v24-swr-active';
 
 // Core assets required for the app shell
 const PRECACHE_ASSETS = [
@@ -19,7 +19,6 @@ const PRECACHE_ASSETS = [
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      // console.log('[[SW]] Installing v23...');
       return cache.addAll(PRECACHE_ASSETS).catch(err => {
         console.warn('Precache failed for some assets', err);
       });
@@ -34,7 +33,6 @@ self.addEventListener('activate', (event) => {
       return Promise.all(
         cacheNames.map((cacheName) => {
           if (cacheName !== CACHE_NAME) {
-            // console.log('[[SW]] Clearing old cache:', cacheName);
             return caches.delete(cacheName);
           }
         })
@@ -45,6 +43,25 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
+  const url = new URL(event.request.url);
+
+  // 1. MANIFEST: Network First (Critical for PWA validation updates)
+  if (url.pathname === '/manifest.json') {
+    event.respondWith(
+      fetch(event.request)
+        .then(response => {
+          if (response.status === 200) {
+            const responseClone = response.clone();
+            caches.open(CACHE_NAME).then(cache => cache.put(event.request, responseClone));
+          }
+          return response;
+        })
+        .catch(() => caches.match(event.request))
+    );
+    return;
+  }
+
+  // 2. Navigation: Network First -> Cache -> Fallback
   if (event.request.mode === 'navigate') {
     event.respondWith(
       fetch(event.request)
@@ -55,6 +72,7 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
+  // 3. Static Assets: Stale-While-Revalidate
   event.respondWith(
     caches.match(event.request).then((cachedResponse) => {
       const fetchPromise = fetch(event.request).then((networkResponse) => {
