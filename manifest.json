@@ -42,16 +42,16 @@
   ],
   "screenshots": [
     {
-      "src": "/app-icon.svg",
+      "src": "https://cdn-icons-png.flaticon.com/512/2910/2910768.png",
       "sizes": "512x512",
-      "type": "image/svg+xml",
+      "type": "image/png",
       "form_factor": "wide",
       "label": "Dashboard & Analytics"
     },
     {
-      "src": "/app-icon.svg",
+      "src": "https://cdn-icons-png.flaticon.com/512/2910/2910768.png",
       "sizes": "512x512",
-      "type": "image/svg+xml",
+      "type": "image/png",
       "form_factor": "narrow",
       "label": "Mobile Transaction Management"
     }
@@ -62,7 +62,7 @@
       "short_name": "Add Deal",
       "description": "Create a new loan record immediately",
       "url": "/?action=new",
-      "icons": [{ "src": "/icon-v3.svg", "sizes": "512x512", "type": "image/svg+xml" }]
+      "icons": [{ "src": "https://cdn-icons-png.flaticon.com/512/2910/2910768.png", "sizes": "512x512", "type": "image/png" }]
     }
   ],
   "launch_handler": {
