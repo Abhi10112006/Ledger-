@@ -1,5 +1,5 @@
 
-const CACHE_NAME = 'abhi-ledger-v28-swr-active';
+const CACHE_NAME = 'abhi-ledger-v29-swr-active';
 
 // Core assets required for the app shell
 const PRECACHE_ASSETS = [
