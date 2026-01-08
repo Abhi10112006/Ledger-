@@ -1,5 +1,5 @@
 
-const CACHE_NAME = 'abhi-ledger-v21-swr-active';
+const CACHE_NAME = 'abhi-ledger-v22-swr-active';
 
 // Core assets required for the app shell to load offline
 const PRECACHE_ASSETS = [
@@ -76,8 +76,6 @@ self.addEventListener('activate', (event) => {
 
 // Fetch Event: Stale-While-Revalidate Strategy
 self.addEventListener('fetch', (event) => {
-  const url = new URL(event.request.url);
-
   // 1. Navigation Requests (HTML) - Network First (for freshness), fall back to Cache
   if (event.request.mode === 'navigate') {
     event.respondWith(

@@ -103,5 +103,21 @@
     <div id="root"></div>
     <!-- Explicitly load the application entry point -->
     <script type="module" src="/index.tsx"></script>
+    
+    <!-- PWA Service Worker Registration - Inline for detection -->
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', async () => {
+          try {
+            const registration = await navigator.serviceWorker.register('/sw.js', {
+              scope: '/'
+            });
+            console.log('SW registered:', registration);
+          } catch (error) {
+            console.log('SW registration failed:', error);
+          }
+        });
+      }
+    </script>
 </body>
 </html>
