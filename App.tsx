@@ -127,15 +127,34 @@ const App: React.FC = () => {
   const activeTheme = THEMES[settings.themeColor];
   const activeTx = transactions.find(t => t.id === activeTxId);
 
+  // --- INITIALIZATION EFFECTS ---
   useEffect(() => {
+    // 1. Check for Tour Status
     const tourComplete = localStorage.getItem(TOUR_KEY);
     if (!tourComplete) {
-      // New User: Show Selection Modal after small delay (instead of auto-starting Neural Link)
+      // New User: Show Selection Modal after small delay
       setTimeout(() => setIsTutorialSelectionOpen(true), 1500);
     } else {
-      // Returning User: Show Ad immediately
-      setIsSponsorModalOpen(true);
+      // Returning User: Show Ad immediately (unless shortcut used)
+      // Check for Shortcuts first to avoid ad blocking the action
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('action') !== 'new') {
+        setIsSponsorModalOpen(true);
+      }
     }
+
+    // 2. Handle PWA Shortcuts (e.g. Long press icon -> New Deal)
+    const handleShortcut = () => {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('action') === 'new') {
+        // Wait a bit for app to hydrate if needed
+        setTimeout(() => setIsModalOpen(true), 500);
+        // Clean the URL so refresh doesn't reopen it
+        window.history.replaceState({}, document.title, "/");
+      }
+    };
+    handleShortcut();
+
   }, []);
 
   // --- TOUR AUTOMATION LOGIC ---

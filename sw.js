@@ -1,34 +1,41 @@
 
-const CACHE_NAME = 'abhi-ledger-v19-hook-refactor';
+const CACHE_NAME = 'abhi-ledger-v21-swr-active';
 
-// EXACT MATCH URLs from index.html
-// If these strings don't match index.html exactly, the browser treats them as different files.
+// Core assets required for the app shell to load offline
 const PRECACHE_ASSETS = [
-  './',
-  './index.html',
-  './manifest.json',
-  './app-icon.svg',
-  './icon-v4.svg',
-  // Local Code (The App Logic)
-  './index.tsx',
-  './App.tsx',
-  './types.ts',
-  './utils/calculations.ts',
-  './utils/pdfGenerator.ts',
-  './utils/common.ts',
-  './hooks/useLedger.ts',
-  './components/TransactionCard.tsx',
-  './components/TrustScoreBadge.tsx',
-  './components/Navbar.tsx',
-  './components/DashboardStats.tsx',
-  './components/SettingsModal.tsx',
-  './components/DealModal.tsx',
-  './components/PaymentModal.tsx',
-  './components/EditDateModal.tsx',
-  './components/DeleteModal.tsx',
-  './components/TourOverlay.tsx',
-  './components/WelcomeScreen.tsx',
-  // External Libraries (Exact versions from ImportMap)
+  '/',
+  '/index.html',
+  '/manifest.json',
+  '/app-icon.svg',
+  '/icon-v2.svg',
+  '/icon-v3.svg',
+  '/icon-v4.svg',
+  '/monochrome.svg',
+  // App Logic
+  '/index.tsx',
+  '/App.tsx',
+  '/types.ts',
+  '/utils/calculations.ts',
+  '/utils/pdfGenerator.ts',
+  '/utils/common.ts',
+  '/hooks/useLedger.ts',
+  '/data/sponsoredContent.ts',
+  // Components
+  '/components/TransactionCard.tsx',
+  '/components/TrustScoreBadge.tsx',
+  '/components/Navbar.tsx',
+  '/components/DashboardStats.tsx',
+  '/components/SettingsModal.tsx',
+  '/components/DealModal.tsx',
+  '/components/PaymentModal.tsx',
+  '/components/EditDateModal.tsx',
+  '/components/DeleteModal.tsx',
+  '/components/TourOverlay.tsx',
+  '/components/WelcomeScreen.tsx',
+  '/components/SponsorModal.tsx',
+  '/components/TutorialSelectionModal.tsx',
+  '/components/VideoTutorialModal.tsx',
+  // External Libraries (Pinned Versions)
   'https://cdn.tailwindcss.com?v=3.4.1',
   'https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;700&display=swap',
   'https://esm.sh/react@18.2.0',
@@ -39,74 +46,72 @@ const PRECACHE_ASSETS = [
   'https://cdn-icons-png.flaticon.com/512/2910/2910768.png'
 ];
 
+// Install Event: Cache core assets immediately
 self.addEventListener('install', (event) => {
-  // FORCE WAIT: The browser will not consider the app "installed" 
-  // until ALL these files are successfully downloaded.
   event.waitUntil(
-    caches.open(CACHE_NAME).then(async (cache) => {
-      console.log('[[SW]] Downloading ALL assets for offline mode...');
-      try {
-        await cache.addAll(PRECACHE_ASSETS);
-        console.log('[[SW]] All assets cached. App is now offline-ready.');
-      } catch (err) {
-        console.error('[[SW]] Failed to cache assets:', err);
-      }
+    caches.open(CACHE_NAME).then((cache) => {
+      console.log('[[SW]] Installing... Pre-caching core assets.');
+      return cache.addAll(PRECACHE_ASSETS);
     })
   );
-  self.skipWaiting();
+  self.skipWaiting(); // Activate worker immediately
 });
 
+// Activate Event: Clean up old caches
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((cacheNames) => {
       return Promise.all(
         cacheNames.map((cacheName) => {
           if (cacheName !== CACHE_NAME) {
+            console.log('[[SW]] Clearing old cache:', cacheName);
             return caches.delete(cacheName);
           }
         })
       );
     })
   );
-  self.clients.claim();
+  self.clients.claim(); // Take control of all clients immediately
 });
 
+// Fetch Event: Stale-While-Revalidate Strategy
 self.addEventListener('fetch', (event) => {
-  // STRATEGY: Stale-While-Revalidate tailored for APK-like feel.
-  // 1. Return cached version IMMEDIATELY (Speed/Offline).
-  // 2. Check network in background to update cache for NEXT time.
-  
   const url = new URL(event.request.url);
 
-  // For navigation (opening the app), always serve index.html
+  // 1. Navigation Requests (HTML) - Network First (for freshness), fall back to Cache
   if (event.request.mode === 'navigate') {
     event.respondWith(
-      caches.match('./index.html').then((response) => {
-        return response || fetch(event.request).catch(() => caches.match('./'));
-      })
+      fetch(event.request)
+        .then((networkResponse) => {
+          return caches.open(CACHE_NAME).then((cache) => {
+            cache.put(event.request, networkResponse.clone());
+            return networkResponse;
+          });
+        })
+        .catch(() => {
+          return caches.match('/index.html');
+        })
     );
     return;
   }
 
+  // 2. All other assets - Stale-While-Revalidate
   event.respondWith(
-    caches.match(event.request).then((cachedResponse) => {
-      // If we have it in cache, return it immediately.
-      // This mimics an APK file sitting on the disk.
-      if (cachedResponse) {
-        return cachedResponse;
-      }
+    caches.open(CACHE_NAME).then(async (cache) => {
+      const cachedResponse = await cache.match(event.request);
+      
+      const networkFetch = fetch(event.request)
+        .then((networkResponse) => {
+          if (networkResponse && networkResponse.status === 200) {
+            cache.put(event.request, networkResponse.clone());
+          }
+          return networkResponse;
+        })
+        .catch((err) => {
+          // console.warn('[[SW]] Background fetch failed:', err);
+        });
 
-      // If not in cache, go to network
-      return fetch(event.request).then((networkResponse) => {
-        // Cache new files automatically (e.g., if you add new files later)
-        if (networkResponse && networkResponse.status === 200) {
-            const responseToCache = networkResponse.clone();
-            caches.open(CACHE_NAME).then((cache) => {
-                cache.put(event.request, responseToCache);
-            });
-        }
-        return networkResponse;
-      });
+      return cachedResponse || networkFetch;
     })
   );
 });

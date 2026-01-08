@@ -16,18 +16,15 @@ root.render(
 );
 
 // 1. PWA Service Worker Registration
-// Wrapped in try/catch and specific error logs to handle Preview Environment restrictions
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', async () => {
     try {
-      // Explicitly using ./sw.js to resolve relative to current path
-      const registration = await navigator.serviceWorker.register('./sw.js', {
-        scope: './'
+      // Explicitly using /sw.js to resolve to root
+      const registration = await navigator.serviceWorker.register('/sw.js', {
+        scope: '/'
       });
       console.log('OFFLINE READY: ServiceWorker registered with scope: ', registration.scope);
     } catch (error) {
-      // This error often happens in Preview environments (like AI Studio) due to cross-origin frames.
-      // It does NOT affect the final deployed APK or Netlify site.
       console.warn('ServiceWorker registration note:', error);
       console.log('Note: If you are in a preview iframe, this error is expected and can be ignored.');
     }
@@ -35,7 +32,6 @@ if ('serviceWorker' in navigator) {
 }
 
 // 2. Request Persistent Storage
-// This tells the Browser/OS: "This is a critical app, do not auto-delete my localStorage if space is low."
 if (navigator.storage && navigator.storage.persist) {
   navigator.storage.persist().then((granted) => {
     if (granted) {
