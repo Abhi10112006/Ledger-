@@ -1,6 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Plus, Cpu, PlusCircle, FileText, Search, ArrowUpDown, Filter } from 'lucide-react';
+import { Analytics } from '@vercel/analytics/react';
 import { useLedger, SortOption } from './hooks/useLedger';
 import { generateStatementPDF } from './utils/pdfGenerator';
 import TransactionCard from './components/TransactionCard';
@@ -517,6 +518,8 @@ const App: React.FC = () => {
           setActiveTxId(null); 
         }}
       />
+
+      <Analytics />
     </div>
   );
 };
