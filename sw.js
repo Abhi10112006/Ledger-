@@ -1,5 +1,5 @@
 
-const CACHE_NAME = 'abhi-ledger-v32-clean';
+const CACHE_NAME = 'abhi-ledger-v33-clean';
 
 // Core assets required for the app shell
 // We only cache the strict list of files we know exist.
@@ -49,7 +49,13 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
 
-  // 1. MANIFEST: Network First (Critical for PWA validation updates)
+  // 1. ASSET LINKS: Network Only (Critical for TWA Verification)
+  if (url.pathname.includes('assetlinks.json')) {
+    event.respondWith(fetch(event.request));
+    return;
+  }
+
+  // 2. MANIFEST: Network First (Critical for PWA validation updates)
   if (url.pathname === '/manifest.json') {
     event.respondWith(
       fetch(event.request)
@@ -65,7 +71,7 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // 2. Navigation: Network First -> Cache -> Fallback
+  // 3. Navigation: Network First -> Cache -> Fallback
   if (event.request.mode === 'navigate') {
     event.respondWith(
       fetch(event.request)
@@ -77,7 +83,7 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // 3. Static Assets: Stale-While-Revalidate
+  // 4. Static Assets: Stale-While-Revalidate
   event.respondWith(
     caches.match(event.request).then((cachedResponse) => {
       const fetchPromise = fetch(event.request).then((networkResponse) => {
