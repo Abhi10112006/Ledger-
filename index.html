@@ -11,7 +11,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Ledger">
     <!-- Versioned manifest to force update -->
-    <link rel="manifest" href="/manifest.json?v=2.5">
+    <link rel="manifest" href="/manifest.json?v=3.0">
     <link rel="icon" type="image/png" href="https://cdn-icons-png.flaticon.com/512/2910/2910768.png">
     <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/2910/2910768.png">
     
@@ -112,7 +112,7 @@
         window.addEventListener('load', async () => {
           try {
             // Adding version query to force update
-            const registration = await navigator.serviceWorker.register('/sw.js?v=2.5');
+            const registration = await navigator.serviceWorker.register('/sw.js?v=3.0');
             console.log('SW registered:', registration);
           } catch (error) {
             console.log('SW registration failed:', error);
