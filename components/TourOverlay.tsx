@@ -1,6 +1,6 @@
 
 import React, { useEffect, useState, useRef } from 'react';
-import { Sparkles, TrendingUp, PlusCircle, CreditCard, UserCheck, CalendarDays, FileText, Download, ArrowRight, Target, Settings, Eye } from 'lucide-react';
+import { Sparkles, TrendingUp, PlusCircle, CreditCard, UserCheck, CalendarDays, FileText, Download, ArrowRight, Target, Settings, Eye, Search } from 'lucide-react';
 
 interface Props {
   tourStep: number;
@@ -73,15 +73,43 @@ const TourOverlay: React.FC<Props> = ({ tourStep, setTourStep, completeTour, act
       targetId: 'tour-pdf'
     },
     { 
+      id: 'tour-search',
+      title: "7. Global Search", 
+      desc: "Instantly filter your database. Search by name, amount, or notes to retrieve specific contracts.", 
+      icon: <Search className="text-violet-400" />,
+      targetId: 'tour-search' 
+    },
+    { 
       id: 'tour-settings',
-      title: "7. Visual Engine", 
-      desc: "Open Settings (Gear Icon) to access the Interface Tuner. Toggle OLED mode, adjust Glass Blur, or enable 'Film Grain' for that cyberpunk feel.", 
+      title: "8. System Config", 
+      desc: "Access the main control panel here. This is where you configure your identity, currency, and visual preferences.", 
+      icon: <Settings className="text-slate-400" />,
+      targetId: 'tour-settings' 
+    },
+    { 
+      id: 'tour-visual-tab',
+      title: "9. Visual Engine", 
+      desc: "Inside Settings, switch to the 'Visual Engine' tab to customize the application's atmosphere and materials.", 
       icon: <Eye className="text-teal-400" />,
-      targetId: 'tour-settings'
+      targetId: 'tour-visual-tab' 
+    },
+    { 
+      id: 'tour-visual-base',
+      title: "10. Atmosphere", 
+      desc: "Toggle between Deep Slate (Professional) and OLED Black (Battery Saver). Apply texture overlays like Nebula or Grid lines.", 
+      icon: <Sparkles className="text-purple-400" />,
+      targetId: 'tour-visual-base' 
+    },
+    { 
+      id: 'tour-visual-glass',
+      title: "11. Glass & Physics", 
+      desc: "Fine-tune the UI materials. Adjust glass blur intensity, transparency, and enable cinematic film grain.", 
+      icon: <Settings className="text-indigo-400" />,
+      targetId: 'tour-visual-glass' 
     },
     { 
       id: 'tour-backup',
-      title: "8. Secure Data", 
+      title: "12. Secure Data", 
       desc: "The system is offline-first. Use the Download icon to save an encrypted backup JSON file to your local device.", 
       icon: <Download className="text-amber-400" />,
       targetId: 'tour-backup'
@@ -90,30 +118,41 @@ const TourOverlay: React.FC<Props> = ({ tourStep, setTourStep, completeTour, act
 
   const currentStep = tourStep >= 0 && tourStep < steps.length ? steps[tourStep] : null;
 
-  // Effect to calculate spotlight position
   useEffect(() => {
     if (!currentStep) return;
 
     if (currentStep.targetId) {
-      const targetEl = document.getElementById(currentStep.targetId);
-      if (targetEl) {
-        const rect = targetEl.getBoundingClientRect();
-        // Add some padding
-        const padding = 8;
-        setSpotlightStyle({
-          top: rect.top - padding,
-          left: rect.left - padding,
-          width: rect.width + (padding * 2),
-          height: rect.height + (padding * 2),
-          opacity: 1,
-          borderRadius: window.getComputedStyle(targetEl).borderRadius || '1rem'
-        });
-        setHasTarget(true);
-      } else {
-        // Fallback if target not found (e.g. scrolled out or hidden)
-        setSpotlightStyle(prev => ({ ...prev, opacity: 0 }));
-        setHasTarget(false);
-      }
+      let attempts = 0;
+      
+      const findTarget = () => {
+        const targetEl = document.getElementById(currentStep.targetId!);
+        
+        if (targetEl) {
+          const rect = targetEl.getBoundingClientRect();
+          const padding = 8;
+          setSpotlightStyle({
+            top: rect.top - padding,
+            left: rect.left - padding,
+            width: rect.width + (padding * 2),
+            height: rect.height + (padding * 2),
+            opacity: 1,
+            borderRadius: window.getComputedStyle(targetEl).borderRadius || '1rem'
+          });
+          setHasTarget(true);
+        } else {
+          // Retry mechanism for modals that animate in
+          if (attempts < 10) {
+            attempts++;
+            setTimeout(findTarget, 100);
+          } else {
+            setSpotlightStyle(prev => ({ ...prev, opacity: 0 }));
+            setHasTarget(false);
+          }
+        }
+      };
+
+      findTarget();
+
     } else {
       // Center modal for intro
       setHasTarget(false);
@@ -129,27 +168,24 @@ const TourOverlay: React.FC<Props> = ({ tourStep, setTourStep, completeTour, act
 
   if (!currentStep) return null;
 
-  // Determine tooltip position relative to spotlight
-  // Simple logic: if spotlight is in top half, show tooltip below. Else above.
   const isTopHalf = (typeof spotlightStyle.top === 'number') && spotlightStyle.top < window.innerHeight / 2;
   
   return (
-    <div className="fixed inset-0 z-[9999] overflow-hidden">
+    // pointer-events-none on ROOT ensures clicks pass through the empty spaces
+    <div className="fixed inset-0 z-[9999] overflow-hidden pointer-events-none">
       
       {/* 
         THE SPOTLIGHT 
-        We use a massive box-shadow to darken everything *except* the hole.
-        This effectively creates the 'cutout' mask.
+        The shadow creates the dark overlay. The div itself is the "hole".
       */}
       <div 
         className="absolute transition-all duration-500 ease-in-out pointer-events-none border-2 border-white/20 shadow-[0_0_0_9999px_rgba(2,6,23,0.85)]"
         style={{
           ...spotlightStyle,
-          // If no target (intro), we don't show the ring/shadow in this specific div
           display: hasTarget ? 'block' : 'none'
         }}
       >
-        {/* Animated Corner Brackets for cyberpunk feel */}
+        {/* Animated Corner Brackets */}
         <div className={`absolute -top-1 -left-1 w-4 h-4 border-t-2 border-l-2 ${activeTheme.border.replace('border-', 'border-')}`}></div>
         <div className={`absolute -top-1 -right-1 w-4 h-4 border-t-2 border-r-2 ${activeTheme.border.replace('border-', 'border-')}`}></div>
         <div className={`absolute -bottom-1 -left-1 w-4 h-4 border-b-2 border-l-2 ${activeTheme.border.replace('border-', 'border-')}`}></div>
@@ -158,12 +194,11 @@ const TourOverlay: React.FC<Props> = ({ tourStep, setTourStep, completeTour, act
 
       {/* 
         INTRO / NO TARGET MODAL (Centered) 
-        Separate overlay background needed since the spotlight div is hidden
+        Pointer-events-auto re-enables clicking on this specific modal
       */}
       {!hasTarget && (
-        <div className="absolute inset-0 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-6" onClick={completeTour}>
+        <div className="absolute inset-0 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-6 pointer-events-auto" onClick={completeTour}>
            <div className={`glass max-w-sm w-full p-8 rounded-[2.5rem] border ${activeTheme.border} shadow-2xl relative overflow-hidden`} onClick={e => e.stopPropagation()}>
-             {/* Glow effect */}
              <div className={`absolute -top-20 -right-20 w-40 h-40 ${activeTheme.bg} blur-[80px] opacity-20`}></div>
              
              <div className="relative z-10 space-y-6">
@@ -192,18 +227,19 @@ const TourOverlay: React.FC<Props> = ({ tourStep, setTourStep, completeTour, act
       )}
 
       {/* 
-        TOOLTIP CARD (Positioned relative to spotlight)
+        TOOLTIP CARD
+        Pointer-events-auto re-enables clicking on buttons
       */}
       {hasTarget && (
         <div 
-           className="absolute left-0 w-full flex justify-center transition-all duration-500 ease-in-out px-6"
+           className="absolute left-0 w-full flex justify-center transition-all duration-500 ease-in-out px-6 pointer-events-none"
            style={{
              top: isTopHalf 
                ? (typeof spotlightStyle.top === 'number' ? spotlightStyle.top + (typeof spotlightStyle.height === 'number' ? spotlightStyle.height : 0) + 24 : 0)
-               : (typeof spotlightStyle.top === 'number' ? spotlightStyle.top - 200 : 0) // rough estimate for bottom positioning
+               : (typeof spotlightStyle.top === 'number' ? spotlightStyle.top - 200 : 0)
            }}
         >
-          <div className={`glass max-w-sm w-full p-6 rounded-3xl border ${activeTheme.border} bg-slate-900/90 shadow-[0_20px_50px_rgba(0,0,0,0.5)] backdrop-blur-md animate-in fade-in slide-in-from-bottom-4 duration-500`}>
+          <div className={`glass max-w-sm w-full p-6 rounded-3xl border ${activeTheme.border} bg-slate-900/90 shadow-[0_20px_50px_rgba(0,0,0,0.5)] backdrop-blur-md animate-in fade-in slide-in-from-bottom-4 duration-500 pointer-events-auto`}>
             <div className="flex items-start gap-4">
                <div className="shrink-0 mt-1">
                  {currentStep.icon}

@@ -10,7 +10,12 @@ export const calculateDaysBetween = (start: Date, end: Date): number => {
 };
 
 export const calculateInterest = (t: Transaction): number => {
-  if (t.interestType === 'none' || t.interestRate <= 0) return 0;
+  if (t.interestRate <= 0) return 0;
+
+  // Fixed Interest (Flat Rate)
+  if (t.interestType === 'none') {
+    return t.principalAmount * (t.interestRate / 100);
+  }
 
   const start = new Date(t.startDate);
   start.setHours(0,0,0,0);

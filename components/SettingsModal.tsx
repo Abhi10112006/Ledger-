@@ -11,6 +11,7 @@ interface Props {
   activeTheme: any;
   themes: Record<string, any>;
   currencies: string[];
+  tourStep?: number;
 }
 
 const SettingsModal: React.FC<Props> = ({
@@ -20,7 +21,8 @@ const SettingsModal: React.FC<Props> = ({
   updateSetting,
   activeTheme,
   themes,
-  currencies
+  currencies,
+  tourStep
 }) => {
   const [activeTab, setActiveTab] = useState<'general' | 'visual' | 'interface' | 'contact'>('general');
   
@@ -28,6 +30,13 @@ const SettingsModal: React.FC<Props> = ({
   const [tilt, setTilt] = useState({ x: 0, y: 0 });
   const [isCopied, setIsCopied] = useState(false);
   const [displayName, setDisplayName] = useState('ABHINAV YADUVANSHI');
+
+  // Auto-switch tab during tour (Indices shifted due to Search step)
+  useEffect(() => {
+    if (tourStep && tourStep >= 9 && tourStep <= 11) {
+      setActiveTab('visual');
+    }
+  }, [tourStep]);
   
   // Scramble Effect
   useEffect(() => {
@@ -104,6 +113,7 @@ const SettingsModal: React.FC<Props> = ({
           {tabs.map(tab => (
             <button
               key={tab.id}
+              id={tab.id === 'visual' ? 'tour-visual-tab' : undefined}
               onClick={() => setActiveTab(tab.id as any)}
               className={`flex items-center gap-2 px-6 py-4 text-xs font-bold uppercase tracking-wider transition-all border-b-2 whitespace-nowrap ${activeTab === tab.id ? `${activeTheme.border} ${activeTheme.text} bg-slate-900` : 'border-transparent text-slate-500 hover:text-slate-300'}`}
             >
@@ -175,7 +185,7 @@ const SettingsModal: React.FC<Props> = ({
           {activeTab === 'visual' && (
             <div className="space-y-8 animate-in slide-in-from-right-4 duration-300">
               {/* Background Base */}
-              <div className="space-y-4">
+              <div className="space-y-4" id="tour-visual-base">
                 <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-500">
                   <Layout className="w-3 h-3" /> Base Atmosphere
                 </div>
@@ -216,7 +226,7 @@ const SettingsModal: React.FC<Props> = ({
               </div>
 
               {/* Glass Material Tuner */}
-              <div className="space-y-6 p-5 rounded-2xl bg-slate-900/30 border border-slate-800">
+              <div className="space-y-6 p-5 rounded-2xl bg-slate-900/30 border border-slate-800" id="tour-visual-glass">
                  <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-500">
                       <Eye className="w-3 h-3" /> Glass Material

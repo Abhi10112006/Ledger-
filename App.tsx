@@ -138,9 +138,22 @@ const App: React.FC = () => {
     }
   }, []);
 
+  // --- TOUR AUTOMATION LOGIC ---
+  useEffect(() => {
+    // Step 9 is "Visual Engine Tab" -> Open Settings Modal (Shifted due to Search step)
+    if (tourStep === 9) {
+      setIsSettingsModalOpen(true);
+    } 
+    // Step 12 is "Secure Data" -> Close Settings Modal
+    else if (tourStep === 12) {
+      setIsSettingsModalOpen(false);
+    }
+  }, [tourStep]);
+
   const completeTour = () => {
     localStorage.setItem(TOUR_KEY, 'true');
     setTourStep(-1);
+    setIsSettingsModalOpen(false); // Ensure settings close if tour ends early
     // Show ad after tutorial finishes
     setIsSponsorModalOpen(true);
   };
@@ -259,7 +272,7 @@ const App: React.FC = () => {
             {/* Search & Action Bar */}
             <div className="flex flex-col sm:flex-row gap-3 w-full lg:w-auto">
               {/* Database Search Input */}
-              <div className="relative group flex-grow sm:w-64">
+              <div className="relative group flex-grow sm:w-64" id="tour-search">
                 <div className={`absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none transition-colors ${searchQuery ? activeTheme.text : 'text-slate-500'}`}>
                   <Search className="h-4 w-4" />
                 </div>
@@ -439,6 +452,7 @@ const App: React.FC = () => {
         activeTheme={activeTheme}
         themes={THEMES}
         currencies={CURRENCIES}
+        tourStep={tourStep}
       />
 
       <DealModal 

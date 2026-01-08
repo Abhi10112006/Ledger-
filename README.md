@@ -1,53 +1,66 @@
 
 # Abhi's Ledger // DEBT INTELLIGENCE SYSTEM
 
+> **⚠️ SYSTEM STATUS: ONLINE**
+> 
+> 🔴 **ACCESS NEURAL LINK**: [**https://ledger69.vercel.app/**](https://ledger69.vercel.app/)
+>
+> *Initiate protocol to access your offline financial mainframe.*
+
+![License](https://img.shields.io/badge/LICENSE-MIT-emerald?style=for-the-badge)
+![Status](https://img.shields.io/badge/SYSTEM-OPERATIONAL-cyan?style=for-the-badge)
+![Stack](https://img.shields.io/badge/REACT-TYPESCRIPT-blue?style=for-the-badge)
+
 **Abhi's Ledger** is a high-performance, offline-first financial tracking application designed for personal lending. It combines professional-grade interest calculations with a fully customizable "Cyberpunk" aesthetic interface to manage debts, track trust scores, and generate formal "Classified" PDF reports.
 
-## 🚀 Core Capabilities
+---
 
-*   **100% Offline Architecture**: All data resides in your browser's LocalStorage. No servers, no tracking.
-*   **Neural Trust Scoring**: An algorithm that rates borrowers from 0-100 based on repayment behavior with a detailed **Audit Modal**.
-*   **Dynamic Interest Engine**: Supports Fixed, Daily, Monthly, and Yearly compound-style logic using the **Reducing Balance Method**.
-*   **Forensic PDF Reports**: Generate professional "Classified Dossier" reports with scan lines, redacted text, and top-secret stamps.
-*   **Visual Engine**: Complete control over the app's atmosphere—OLED modes, glass blur, film grain, and neon intensity.
-*   **Data Integrity**: Robust whitespace trimming and case-insensitive matching ensure all transactions link to the correct profile.
+## 🚀 Quick Start & Usage Protocol
+
+### 1. The Dashboard (Command Center)
+*   **Exposure Monitor**: The top cards show your financial health.
+    *   **Pending**: Capital currently lent out (Principal + Interest).
+    *   **Returned**: Total capital recovered.
+*   **Global Search**: Use the top bar to instantly filter your entire database by Name, Amount, or Note content.
+
+### 2. Managing Contracts (Transactions)
+*   **New Deal**: Click the **(+)** button.
+    *   **Principal**: The amount lent.
+    *   **Interest Protocol**: Choose between **Fixed %** (Flat), **Daily**, **Monthly**, or **Yearly** compounding logic.
+    *   **Return Date**: Sets the deadline. If missed, the borrower's Trust Score degrades.
+*   **Logging Payments**: Click **Entry** on a specific transaction card.
+    *   Partial payments immediately reduce the principal balance for future interest calculations (Reducing Balance Method).
+*   **Flex Deadlines**: Negotiations happen. Click the **Date** on any active card to extend the deadline. The system logs this event for the audit trail.
+
+### 3. Neural Trust Score (Risk Analysis)
+Every borrower is assigned a dynamic score **(0 - 100)**.
+*   **View Analysis**: Click the **Trust Badge** (e.g., "92 • Elite") to open the **Trust Briefing**.
+*   **The Breakdown**: See exactly why a score went up or down (e.g., "+25 pts On-Time Payment", "-10 pts Overdue").
+
+### 4. Classified Dossier (PDF Export)
+Need a hard copy?
+*   Click the **File Icon** next to any client's name.
+*   The system generates an **"Agency Confidential" PDF** featuring:
+    *   CRT Scanline header effects.
+    *   Redacted footer information.
+    *   Full transaction history and interest calculation events.
+
+### 5. System Config & Visual Engine
+Access the **Settings (Gear Icon)** to tune the mainframe:
+*   **Identity**: Set your Alias and Currency (₹, $, €, £, ¥).
+*   **Visual Engine**:
+    *   **Base Atmosphere**: Switch between **Deep Slate** (Dark Mode) and **OLED Black** (Battery Saver).
+    *   **Glass Physics**: Adjust blur strength, transparency, and film grain.
+*   **Developer Tab**: Access the hidden 3D ID card and sponsorship channels.
 
 ---
 
-## 🎨 Visual Engine & Interface Tuner
-
-Customize the Ledger to fit your device and mood via the Settings menu.
-
-### Atmosphere Control
-*   **Base Reality**: Switch between **Deep Slate** (Professional Dark) and **OLED Black** (Battery Saver / True Black).
-*   **Texture Overlays**: Apply **Nebula** glows, **Grid** lines, or keep it **Solid**.
-*   **Glass Material**: Fine-tune the UI's glass effect.
-    *   **Blur Strength**: 0px (Matte) to 40px (Frosted).
-    *   **Transparency**: Control how much background bleeds through.
-    *   **Film Grain**: Toggle a subtle noise overlay for a tactile, cinematic feel.
-*   **System Glow**: Adjust the intensity of the neon shadows and borders (0% to 100%).
-
-### Interface Geometry
-*   **Density**:
-    *   **Comfortable**: Large touch targets, airy layout.
-    *   **Information Dense**: Compact lists for power users managing many accounts.
-*   **Corner Radius**:
-    *   **Sharp**: Brutalist, square corners.
-    *   **Round**: Standard mobile radius.
-    *   **Pill**: Soft, hyper-rounded aesthetics (Default).
-*   **Typography**:
-    *   **Tech Mono**: JetBrains Mono for a coding/hacker vibe.
-    *   **Modern Sans**: Inter for clean readability.
-    *   **System Native**: Uses your device's optimized font (SF Pro / Roboto).
-
----
-
-## 👨‍💻 Developer & Sponsorship Protocol
-
-Hidden within the **Settings Module** is the new **Developer Tab**.
-*   **Holographic Identity**: Interact with a 3D-tilt enabled ID card representing the system architect.
-*   **Direct Transmission**: One-click access to open sponsorship channels or business inquiries via secure email link.
-*   **Cipher Decryption**: Experience real-time text decoding animations on the developer profile.
+## 🔒 Offline & Privacy First
+**Abhi's Ledger** operates entirely within your browser's secure sandbox.
+*   **No Servers**: Your financial data never leaves your device.
+*   **Persistence**: Data is stored in `localStorage`.
+*   **Backup**: Use the **Download Icon** in the navbar to save an encrypted JSON file.
+*   **Restore**: Drag and drop your JSON backup onto the Welcome Screen to restore your session.
 
 ---
 
@@ -55,27 +68,23 @@ Hidden within the **Settings Module** is the new **Developer Tab**.
 
 Unlike simple calculators, Abhi's Ledger uses a **Timeline-Based Reducing Balance** algorithm. This ensures fairness: borrowers only pay interest on the money they are currently holding.
 
-### 1. Reducing Balance Logic
-When a payment is made, it immediately reduces the principal balance used for *future* interest calculations.
-
-**Example**:
+**Logic Example**:
 1.  **Day 0**: Loan of ₹10,000 @ 10% Monthly.
 2.  **Day 15**: Borrower repays ₹5,000.
 3.  **Day 30**: Interest is calculated in two segments:
     *   *First 15 days*: Interest on ₹10,000.
     *   *Next 15 days*: Interest on ₹5,000.
 
-### 2. Precision Timekeeping
-*   **UTC Normalization**: All dates are converted to UTC Midnight to prevent timezone offsets from causing "0.9 day" rounding errors.
-*   **Standardized Divisors**:
-    *   **Monthly**: Uses `30.4375` days (Average month length based on 365.25 / 12).
-    *   **Yearly**: Uses `365.25` days (Accounts for leap years).
+**Precision Timekeeping**:
+*   All dates are normalized to UTC Midnight to prevent timezone drift.
+*   **Monthly Divisor**: `30.4375` days (Average month).
+*   **Yearly Divisor**: `365.25` days (Leap year safe).
 
 ---
 
-## 🛡️ Trust Score Algorithm (0 - 100)
+## 🛡️ Trust Score Algorithm
 
-The "Target Identity" score helps you assess risk at a glance. **Click the Score Badge** to open the Trust Briefing Modal.
+The "Target Identity" score helps you assess risk at a glance.
 
 *   **Baseline**: Everyone starts at **50/100**.
 *   **Positive Factors (+)**:
@@ -86,34 +95,22 @@ The "Target Identity" score helps you assess risk at a glance. **Click the Score
     *   **Current Overdue**: If a loan is past its due date, score drops daily (up to -40 pts).
 
 **Tiers**:
-*   **90+**: Elite (Cyan)
-*   **75-89**: Reliable (Emerald)
-*   **50-74**: Fair (Amber)
-*   **25-49**: Risky (Orange)
-*   **0-24**: Critical (Rose)
-
----
-
-## 📄 Classified Dossier (PDF)
-
-Click the **File Icon** next to a Client's Total Liability to generate a report.
-
-*   **Style**: "Agency Confidential"
-*   **Features**:
-    *   **Courier Typeface**: For that typewriter/terminal look.
-    *   **Scan Lines**: CRT monitor effect on the header.
-    *   **Redaction**: Footer elements (Origin, Clearance Code) are visually censored with black bars.
-    *   **Stamps**: Tilted "TOP SECRET // EYES ONLY" red stamps.
-    *   **Breakdown**: Includes full transaction ledger, calculated interest events, and Trust Score analysis.
+*   🟢 **90+**: Elite
+*   🔵 **75-89**: Reliable
+*   🟡 **50-74**: Fair
+*   🟠 **25-49**: Risky
+*   🔴 **0-24**: Critical
 
 ---
 
 ## 🛠️ Technical Specs
 
 *   **Framework**: React 18+ (TypeScript)
-*   **State Management**: Custom `useLedger` hook (Separation of Concerns).
-*   **Styling**: Tailwind CSS 3.4 + Dynamic CSS Variables (Visual Engine).
-*   **Icons**: Lucide React.
-*   **PDF Engine**: jsPDF + AutoTable.
-*   **PWA**: Service Worker with Stale-While-Revalidate caching.
-*   **Persistence**: `localStorage` (Key: `abhi_ledger_session`).
+*   **State Management**: Custom `useLedger` hook.
+*   **Styling**: Tailwind CSS 3.4 + CSS Variables for the Visual Engine.
+*   **PWA**: Fully installable on iOS/Android with Service Worker caching.
+
+---
+
+> *System Architect: Abhinav Yaduvanshi*
+> *Protocol: Secure*

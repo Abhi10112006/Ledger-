@@ -242,14 +242,16 @@ export const useLedger = (tourStep: number, searchQuery: string = '') => {
 
     // 1. Filter based on Search Query
     if (searchQuery) {
-        const query = searchQuery.toLowerCase();
-        accountList = accountList.filter(acc => 
-            acc.name.toLowerCase().includes(query) || 
-            acc.transactions.some(t => 
-                t.notes.toLowerCase().includes(query) ||
-                t.principalAmount.toString().includes(query)
-            )
-        );
+        const query = searchQuery.trim().toLowerCase();
+        if (query) {
+            accountList = accountList.filter(acc => 
+                acc.name.toLowerCase().includes(query) || 
+                acc.transactions.some(t => 
+                    t.notes.toLowerCase().includes(query) ||
+                    t.principalAmount.toString().includes(query)
+                )
+            );
+        }
     }
 
     // 2. Sorting
