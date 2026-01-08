@@ -10,16 +10,23 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Ledger">
+    
     <!-- Versioned manifest to force update -->
-    <link rel="manifest" href="/manifest.json?v=3.3">
+    <link rel="manifest" href="/manifest.json?v=3.4">
+    
+    <!-- Icon Configuration -->
     <link rel="icon" type="image/png" href="https://cdn-icons-png.flaticon.com/512/2910/2910768.png">
     <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/2910/2910768.png">
     
     <meta name="application-name" content="Abhi's Ledger">
+    <meta name="description" content="Offline financial tracking system">
+    
     <title>Abhi's Ledger</title>
-    <!-- Tailwind CSS (Pinned Version) -->
+    
+    <!-- External Dependencies -->
     <script src="https://cdn.tailwindcss.com?v=3.4.1"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+    
     <style>
         :root {
             /* Defaults - Will be overridden by React */
@@ -39,6 +46,7 @@
             padding: 0;
             -webkit-tap-highlight-color: transparent;
             transition: background-color 0.5s ease;
+            overscroll-behavior-y: none; /* Prevents pull-to-refresh on mobile which looks weird in standalone */
         }
 
         /* Dynamic Classes */
@@ -112,7 +120,7 @@
         window.addEventListener('load', async () => {
           try {
             // Adding version query to force update
-            const registration = await navigator.serviceWorker.register('/sw.js?v=3.3');
+            const registration = await navigator.serviceWorker.register('/sw.js?v=3.4');
             console.log('SW registered:', registration);
           } catch (error) {
             console.log('SW registration failed:', error);

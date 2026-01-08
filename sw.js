@@ -1,7 +1,8 @@
 
-const CACHE_NAME = 'abhi-ledger-v29-swr-active';
+const CACHE_NAME = 'abhi-ledger-v30-clean';
 
 // Core assets required for the app shell
+// We only cache the strict list of files we know exist.
 const PRECACHE_ASSETS = [
   '/',
   '/index.html',
@@ -19,9 +20,11 @@ const PRECACHE_ASSETS = [
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(PRECACHE_ASSETS).catch(err => {
-        console.warn('Precache failed for some assets', err);
-      });
+      // We use addAllSettled logic manually to prevent one missing file from breaking the entire install
+      const promises = PRECACHE_ASSETS.map(url => 
+        cache.add(url).catch(err => console.warn(`Failed to cache ${url}:`, err))
+      );
+      return Promise.all(promises);
     })
   );
   self.skipWaiting();
@@ -33,6 +36,7 @@ self.addEventListener('activate', (event) => {
       return Promise.all(
         cacheNames.map((cacheName) => {
           if (cacheName !== CACHE_NAME) {
+            console.log('Deleting old cache:', cacheName);
             return caches.delete(cacheName);
           }
         })
@@ -45,19 +49,7 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
 
-  // 1. GHOST FILE TRAP: Intercept requests for the missing icon-v3.svg
-  // If the automated build manifest still references this file and it's missing (404),
-  // we serve the CDN image instead to satisfy the PWA validator.
-  if (url.pathname.includes('icon-v3.svg')) {
-    event.respondWith(
-      fetch(event.request).catch(() => {
-        return fetch('https://cdn-icons-png.flaticon.com/512/2910/2910768.png');
-      })
-    );
-    return;
-  }
-
-  // 2. MANIFEST: Network First (Critical for PWA validation updates)
+  // 1. MANIFEST: Network First (Critical for PWA validation updates)
   if (url.pathname === '/manifest.json') {
     event.respondWith(
       fetch(event.request)
@@ -73,18 +65,19 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // 3. Navigation: Network First -> Cache -> Fallback
+  // 2. Navigation: Network First -> Cache -> Fallback
   if (event.request.mode === 'navigate') {
     event.respondWith(
       fetch(event.request)
         .catch(() => {
-          return caches.match('/index.html');
+          return caches.match('/index.html')
+            .then(response => response || fetch('/')); // Last resort fallback
         })
     );
     return;
   }
 
-  // 4. Static Assets: Stale-While-Revalidate
+  // 3. Static Assets: Stale-While-Revalidate
   event.respondWith(
     caches.match(event.request).then((cachedResponse) => {
       const fetchPromise = fetch(event.request).then((networkResponse) => {

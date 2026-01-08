@@ -3,8 +3,8 @@
   "name": "Abhi's Ledger",
   "short_name": "Ledger",
   "description": "A high-performance, cyberpunk-themed offline financial tracker for personal loans and debts.",
-  "id": "/",
-  "start_url": "/",
+  "id": "/?source=pwa",
+  "start_url": "/?source=pwa",
   "display": "standalone",
   "display_override": ["window-controls-overlay", "standalone", "minimal-ui"],
   "background_color": "#020617",
@@ -14,7 +14,7 @@
   "lang": "en",
   "scope": "/",
   "prefer_related_applications": false,
-  "categories": ["finance", "productivity"],
+  "categories": ["finance", "productivity", "utilities"],
   "icons": [
     {
       "src": "https://cdn-icons-png.flaticon.com/512/2910/2910768.png",
@@ -35,14 +35,14 @@
       "sizes": "512x512",
       "type": "image/png",
       "form_factor": "wide",
-      "label": "Dashboard"
+      "label": "Dashboard Overview"
     },
     {
       "src": "https://cdn-icons-png.flaticon.com/512/2910/2910768.png",
       "sizes": "512x512",
       "type": "image/png",
       "form_factor": "narrow",
-      "label": "Mobile View"
+      "label": "Mobile Interface"
     }
   ],
   "shortcuts": [
