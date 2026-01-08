@@ -30,8 +30,12 @@ const Navbar: React.FC<Props> = ({
 }) => {
   return (
     <nav 
-      className="sticky top-0 py-4 flex justify-between items-center glass border-b border-slate-800/30 z-40 transition-all duration-500"
-      style={{ paddingLeft: 'var(--app-padding)', paddingRight: 'var(--app-padding)' }}
+      className="sticky top-0 pb-4 flex justify-between items-center glass border-b border-slate-800/30 z-40 transition-all duration-500"
+      style={{ 
+        paddingLeft: 'var(--app-padding)', 
+        paddingRight: 'var(--app-padding)',
+        paddingTop: 'calc(1rem + env(safe-area-inset-top))' 
+      }}
     >
       <div className="flex items-center gap-3">
         <Zap className={`w-6 h-6 ${activeTheme.text}`} />
