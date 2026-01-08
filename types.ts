@@ -10,6 +10,7 @@ export interface Repayment {
 export interface Transaction {
   id: string;
   friendName: string;
+  friendPhone?: string; // Contact number for SMS
   principalAmount: number;
   paidAmount: number;
   startDate: string; // ISO string
@@ -40,7 +41,7 @@ export type BackgroundType = 'solid' | 'nebula' | 'grid';
 export type BaseColor = 'slate' | 'oled';
 export type Density = 'comfortable' | 'compact';
 export type CornerRadius = 'sharp' | 'round' | 'pill';
-export type FontStyle = 'mono' | 'sans' | 'system';
+export type FontStyle = 'mono' | 'sans' | 'system' | 'serif' | 'comic';
 
 export interface AppSettings {
   userName: string;

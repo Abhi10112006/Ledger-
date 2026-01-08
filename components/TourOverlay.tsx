@@ -26,91 +26,63 @@ const TourOverlay: React.FC<Props> = ({ tourStep, setTourStep, completeTour, act
     { 
       id: 'tour-intro',
       title: "System Online", 
-      desc: "Welcome to your personal debt intelligence vault. I'll walk you through the 8 core modules of the system.", 
+      desc: "Welcome to your personal debt intelligence vault. This neural link will guide you through the core command modules.", 
       icon: <Sparkles className="text-cyan-400" />,
       targetId: null 
     },
     { 
       id: 'tour-stats',
       title: "1. Exposure Monitor", 
-      desc: "Real-time capital tracking. 'Pending' is money in the field; 'Returned' is capital secured. Watch the 'Active' count closely.", 
+      desc: "Real-time capital tracking. 'Pending' is money in the field; 'Returned' is capital secured. Monitor the active count closely.", 
       icon: <TrendingUp className={activeTheme.text} />,
       targetId: 'tour-stats'
     },
     { 
-      id: 'tour-new-deal',
-      title: "2. New Contract", 
-      desc: "Initiate a new debt record here. Define the Principal, Interest Protocol, and Return Date. The engine handles the math.", 
-      icon: <PlusCircle className="text-blue-400" />,
-      targetId: 'tour-new-deal'
-    },
-    { 
-      id: 'tour-entry',
-      title: "3. Log Transaction", 
-      desc: "When capital flows back, click 'Entry' on the specific card. Partial payments automatically reduce the interest burden.", 
-      icon: <CreditCard className="text-purple-400" />,
-      targetId: 'tour-entry'
-    },
-    { 
-      id: 'tour-trust',
-      title: "4. Neural Trust Score", 
-      desc: "The algorithm rates every borrower (0-100). Click the badge to view the 'Trust Briefing'—a breakdown of their reliability habits.", 
-      icon: <UserCheck className="text-emerald-500" />,
-      targetId: 'tour-trust'
-    },
-    { 
-      id: 'tour-date',
-      title: "5. Flex Deadlines", 
-      desc: "Negotiations happen. Click the date on any card to extend the deadline. The system logs this event for the audit trail.", 
-      icon: <CalendarDays className="text-blue-400" />,
-      targetId: 'tour-date'
-    },
-    { 
-      id: 'tour-pdf',
-      title: "6. Classified Dossier", 
-      desc: "Generate a 'Top Secret' agency-style PDF report containing the full ledger history and redacted trust analysis.", 
-      icon: <FileText className="text-rose-400" />,
-      targetId: 'tour-pdf'
-    },
-    { 
       id: 'tour-search',
-      title: "7. Global Search", 
-      desc: "Instantly filter your database. Search by name, amount, or notes to retrieve specific contracts.", 
+      title: "2. Global Search", 
+      desc: "Instantly filter your database. Search by client name to retrieve specific profiles.", 
       icon: <Search className="text-violet-400" />,
       targetId: 'tour-search' 
     },
     { 
+      id: 'tour-add-profile',
+      title: "3. New Contract", 
+      desc: "The primary entry point. Click here to add a NEW client profile or record a NEW loan for an existing client.", 
+      icon: <PlusCircle className="text-blue-400" />,
+      targetId: 'tour-add-profile'
+    },
+    { 
       id: 'tour-settings',
-      title: "8. System Config", 
-      desc: "Access the main control panel here. This is where you configure your identity, currency, and visual preferences.", 
+      title: "4. System Config", 
+      desc: "Access the main control panel. Configure your identity, currency (₹/$/€), and application behavior here.", 
       icon: <Settings className="text-slate-400" />,
       targetId: 'tour-settings' 
     },
     { 
       id: 'tour-visual-tab',
-      title: "9. Visual Engine", 
-      desc: "Inside Settings, switch to the 'Visual Engine' tab to customize the application's atmosphere and materials.", 
+      title: "5. Visual Engine", 
+      desc: "Inside Settings, the 'Visual Engine' tab allows you to customize the application's atmosphere and materials.", 
       icon: <Eye className="text-teal-400" />,
       targetId: 'tour-visual-tab' 
     },
     { 
       id: 'tour-visual-base',
-      title: "10. Atmosphere", 
+      title: "6. Atmosphere", 
       desc: "Toggle between Deep Slate (Professional) and OLED Black (Battery Saver). Apply texture overlays like Nebula or Grid lines.", 
       icon: <Sparkles className="text-purple-400" />,
       targetId: 'tour-visual-base' 
     },
     { 
       id: 'tour-visual-glass',
-      title: "11. Glass & Physics", 
+      title: "7. Glass & Physics", 
       desc: "Fine-tune the UI materials. Adjust glass blur intensity, transparency, and enable cinematic film grain.", 
       icon: <Settings className="text-indigo-400" />,
       targetId: 'tour-visual-glass' 
     },
     { 
       id: 'tour-backup',
-      title: "12. Secure Data", 
-      desc: "The system is offline-first. Use the Download icon to save an encrypted backup JSON file to your local device.", 
+      title: "8. Secure Data", 
+      desc: "The system is offline-first. Use this to download an encrypted JSON backup of your ledger to your local device.", 
       icon: <Download className="text-amber-400" />,
       targetId: 'tour-backup'
     }
@@ -141,9 +113,9 @@ const TourOverlay: React.FC<Props> = ({ tourStep, setTourStep, completeTour, act
           setHasTarget(true);
         } else {
           // Retry mechanism for modals that animate in
-          if (attempts < 10) {
+          if (attempts < 20) { // Increased attempts for smoother modal transition
             attempts++;
-            setTimeout(findTarget, 100);
+            setTimeout(findTarget, 50);
           } else {
             setSpotlightStyle(prev => ({ ...prev, opacity: 0 }));
             setHasTarget(false);
