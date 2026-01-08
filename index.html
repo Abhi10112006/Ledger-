@@ -10,7 +10,8 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Ledger">
-    <link rel="manifest" href="/manifest.json">
+    <!-- Versioned manifest to force update -->
+    <link rel="manifest" href="/manifest.json?v=2.5">
     <link rel="icon" type="image/png" href="https://cdn-icons-png.flaticon.com/512/2910/2910768.png">
     <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/2910/2910768.png">
     
@@ -105,12 +106,13 @@
     <!-- Explicitly load the application entry point -->
     <script type="module" src="/index.tsx"></script>
     
-    <!-- PWA Service Worker Registration -->
+    <!-- PWA Service Worker Registration - Versioned -->
     <script>
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', async () => {
           try {
-            const registration = await navigator.serviceWorker.register('/sw.js');
+            // Adding version query to force update
+            const registration = await navigator.serviceWorker.register('/sw.js?v=2.5');
             console.log('SW registered:', registration);
           } catch (error) {
             console.log('SW registration failed:', error);
