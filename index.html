@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -46,6 +47,20 @@
             -webkit-tap-highlight-color: transparent;
             transition: background-color 0.5s ease;
             overscroll-behavior-y: none; /* Prevents pull-to-refresh on mobile which looks weird in standalone */
+            
+            /* Native App Feel: Disable Text Selection */
+            user-select: none;
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+        }
+
+        /* Re-enable selection for inputs so user can still type and edit */
+        input, textarea, [contenteditable="true"] {
+            user-select: text;
+            -webkit-user-select: text;
+            -moz-user-select: text;
+            -ms-user-select: text;
         }
 
         /* Dynamic Classes */
