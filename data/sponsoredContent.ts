@@ -33,12 +33,12 @@ export interface AdContent {
  */
 
 export const SPONSORED_CONTENT: AdContent[] = [
-  {
-    id: 'neural_cloud_v1',
-    title: 'Neural Cloud Sync',
-    message: 'Data integrity is paramount. Experience seamless, encrypted synchronization between your local ledger and our off-world secure vaults.',
-    buttonText: 'Initialize Link',
-    link: 'https://example.com/promo',
+{
+    id: 'personal_branding_1',
+    title: 'X',
+    message: 'Follow me on X (Twitter).',
+    buttonText: 'X',
+    link: 'https://x.com/Abhinav_1289Y',
     isActive: true, // <--- Toggle this to true/false to show/hide
     
     // CASE 1: VIDEO AD (YouTube Example)
@@ -50,7 +50,7 @@ export const SPONSORED_CONTENT: AdContent[] = [
     // CASE 3: IMAGE AD (Fallback if video is commented out or empty)
     // NOTE: Ensure this is a DIRECT link (ends in .jpg, .png). 
     // If using ImgBB, right-click the image on the site and "Copy Image Address".
-    image: 'https://ibb.co/xKRz6PQ6'
+    image: 'https://i.ibb.co/MDgtHBfP/Screenshot-20260107-182702-2.jpg'
   },
   {
     id: 'placeholder_ad_02',
