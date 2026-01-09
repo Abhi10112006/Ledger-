@@ -149,7 +149,7 @@ export const useLedger = (tourStep: number, searchQuery: string = '') => {
     if (isAndroid) {
         // Direct APK Download
         const link = document.createElement('a');
-        link.href = '/data/app.apk';
+        link.href = '/app.apk';
         link.setAttribute('download', 'AbhiLedger.apk');
         document.body.appendChild(link);
         link.click();
