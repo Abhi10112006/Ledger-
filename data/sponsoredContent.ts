@@ -50,7 +50,7 @@ export const SPONSORED_CONTENT: AdContent[] = [
     // CASE 3: IMAGE AD (Fallback if video is commented out or empty)
     // NOTE: Ensure this is a DIRECT link (ends in .jpg, .png). 
     // If using ImgBB, right-click the image on the site and "Copy Image Address".
-    image: 'https://i.ibb.co/MDgtHBfP/Screenshot-20260107-182702-2.jpg'
+    image: 'https://ibb.co/MDgtHBfP/Screenshot-20260107-182702-2.jpg'
   },
   {
     id: 'placeholder_ad_02',

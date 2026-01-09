@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Plus, Search, UserPlus } from 'lucide-react';
 import { useLedger } from './hooks/useLedger';
 import { generateStatementPDF } from './utils/pdfGenerator';
@@ -17,6 +17,7 @@ import SponsorModal from './components/SponsorModal';
 import AccountRow from './components/AccountRow';
 import ProfileView from './components/ProfileView';
 import TypographyModal from './components/TypographyModal';
+import ActiveDealsModal from './components/ActiveDealsModal';
 import { ThemeColor } from './types';
 
 const TOUR_KEY = 'abhi_ledger_tour_complete_v8';
@@ -90,6 +91,7 @@ const App: React.FC = () => {
   const [isEditDateModalOpen, setIsEditDateModalOpen] = useState(false);
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
   const [isTypographyModalOpen, setIsTypographyModalOpen] = useState(false);
+  const [isActiveDealsModalOpen, setIsActiveDealsModalOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   
   // Ad State
@@ -102,6 +104,10 @@ const App: React.FC = () => {
   
   // Navigation State
   const [selectedProfileName, setSelectedProfileName] = useState<string | null>(null);
+
+  // Back Button Logic State
+  const [showExitToast, setShowExitToast] = useState(false);
+  const lastBackPress = useRef<number>(0);
 
   // Business Logic from Hook
   const {
@@ -133,6 +139,90 @@ const App: React.FC = () => {
   // Find active profile object
   const activeProfile = accounts.find(a => a.name === selectedProfileName);
 
+  // Helper to check if any modal is open
+  const isAnyModalOpen = isModalOpen || isPaymentModalOpen || isDeleteModalOpen || isEditDateModalOpen || isSettingsModalOpen || isTypographyModalOpen || isActiveDealsModalOpen || isSponsorModalOpen || (tourStep !== -1);
+
+  const closeAllModals = useCallback(() => {
+    setIsModalOpen(false);
+    setIsPaymentModalOpen(false);
+    setIsDeleteModalOpen(false);
+    setIsEditDateModalOpen(false);
+    setIsSettingsModalOpen(false);
+    setIsTypographyModalOpen(false);
+    setIsActiveDealsModalOpen(false);
+    setIsSponsorModalOpen(false);
+    // If tour is active, we might want to close it or handle differently. For now, we leave it.
+    if (tourStep !== -1) setTourStep(-1);
+  }, [tourStep]);
+
+  // --- NAVIGATION CONTROLLER ---
+  const navigateToProfile = (name: string) => {
+    // Fixed SecurityError: Avoid explicit URL manipulation in environments like blob-runners
+    window.history.pushState({ key: 'profile', id: name }, '', '');
+    setSelectedProfileName(name);
+  };
+
+  const navigateBack = () => {
+    window.history.back();
+  };
+
+  // --- HISTORY LISTENER (Back Button Logic) ---
+  useEffect(() => {
+    // 1. Initialize History Stack on Mount
+    // Using empty string for URL to avoid cross-scheme SecurityErrors in sandboxed/preview environments
+    if (!window.history.state || window.history.state.key !== 'home') {
+       window.history.replaceState({ key: 'root' }, '', '');
+       window.history.pushState({ key: 'home' }, '', '');
+    }
+
+    const handlePopState = (e: PopStateEvent) => {
+        // A. If any modal or menu is open, close it and prevent navigation
+        if (isAnyModalOpen || isMobileMenuOpen) {
+            closeAllModals();
+            setIsMobileMenuOpen(false);
+            
+            // Restore the history stack to the current view (Home or Profile)
+            // Using empty string for URL to prevent SecurityErrors
+            if (selectedProfileName) {
+                window.history.pushState({ key: 'profile', id: selectedProfileName }, '', '');
+            } else {
+                window.history.pushState({ key: 'home' }, '', '');
+            }
+            return;
+        }
+
+        // B. Navigation Routing based on History State
+        const destState = e.state;
+
+        if (destState?.key === 'profile') {
+            // User navigated back/forward to a Profile
+            setSelectedProfileName(destState.id);
+        } else if (destState?.key === 'home') {
+            // User navigated back to Home
+            setSelectedProfileName(null);
+        } else if (!destState || destState.key === 'root') {
+             // C. Home Page Exit Logic (User hit the 'root' state)
+             const now = Date.now();
+             if (now - lastBackPress.current < 2000) {
+                 // Double click confirmed: Let browser exit
+                 window.history.back(); 
+             } else {
+                 // First click: Show toast and trap user
+                 lastBackPress.current = now;
+                 setShowExitToast(true);
+                 
+                 // Push 'home' state back to keep user in app
+                 window.history.pushState({ key: 'home' }, '', '');
+                 
+                 setTimeout(() => setShowExitToast(false), 2000);
+             }
+        }
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, [isAnyModalOpen, isMobileMenuOpen, selectedProfileName, closeAllModals]);
+
   // --- INITIALIZATION EFFECTS ---
   useEffect(() => {
     // 1. Check for Tour Status
@@ -151,7 +241,8 @@ const App: React.FC = () => {
       const params = new URLSearchParams(window.location.search);
       if (params.get('action') === 'new') {
         setTimeout(() => setIsModalOpen(true), 500);
-        window.history.replaceState({}, document.title, "/");
+        // Avoid SecurityError with explicit paths in some runners
+        window.history.replaceState({}, document.title, "");
       }
     };
     handleShortcut();
@@ -272,12 +363,15 @@ const App: React.FC = () => {
               account={activeProfile} 
               settings={settings} 
               activeTheme={activeTheme}
-              onBack={() => setSelectedProfileName(null)}
+              onBack={navigateBack}
               onGive={() => setIsModalOpen(true)}
               onReceive={(txId) => { setActiveTxId(txId); setIsPaymentModalOpen(true); }}
               onDeleteTransaction={deleteTransaction}
               onDeleteRepayment={deleteRepayment}
-              onDeleteProfile={() => { deleteProfile(activeProfile.name); setSelectedProfileName(null); }}
+              onDeleteProfile={() => { 
+                  deleteProfile(activeProfile.name); 
+                  navigateBack(); // Go back in history (to Home) after deletion
+              }}
               onUpdateDueDate={(txId) => { setActiveTxId(txId); setIsEditDateModalOpen(true); }}
            />
         </div>
@@ -310,6 +404,7 @@ const App: React.FC = () => {
               settings={settings}
               activeTheme={activeTheme}
               tourStep={tourStep}
+              onShowActiveDeals={() => setIsActiveDealsModalOpen(true)}
             />
 
             <div className="space-y-6">
@@ -343,7 +438,7 @@ const App: React.FC = () => {
                       account={account}
                       settings={settings}
                       activeTheme={activeTheme}
-                      onClick={() => setSelectedProfileName(account.name)}
+                      onClick={() => navigateToProfile(account.name)}
                     />
                   ))
                 ) : (
@@ -372,6 +467,11 @@ const App: React.FC = () => {
           </button>
         </>
       )}
+      
+      {/* EXIT TOAST UI */}
+      <div className={`fixed bottom-8 left-1/2 -translate-x-1/2 bg-slate-800 text-white px-6 py-3 rounded-full shadow-2xl z-[5000] transition-all duration-300 pointer-events-none ${showExitToast ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}>
+          <p className="text-xs font-bold uppercase tracking-widest">Press back again to exit</p>
+      </div>
 
       {/* --- MODALS --- */}
       <SponsorModal isOpen={isSponsorModalOpen} onClose={() => setIsSponsorModalOpen(false)} activeTheme={activeTheme} />
@@ -379,6 +479,7 @@ const App: React.FC = () => {
       <TourOverlay tourStep={tourStep} setTourStep={setTourStep} completeTour={completeTour} activeTheme={activeTheme} />
       <SettingsModal isOpen={isSettingsModalOpen} onClose={() => setIsSettingsModalOpen(false)} settings={settings} updateSetting={updateSetting} activeTheme={activeTheme} themes={THEMES} currencies={CURRENCIES} tourStep={tourStep} />
       <TypographyModal isOpen={isTypographyModalOpen} onClose={() => setIsTypographyModalOpen(false)} currentFont={settings.fontStyle} onSelect={(font) => updateSetting('fontStyle', font)} activeTheme={activeTheme} />
+      <ActiveDealsModal isOpen={isActiveDealsModalOpen} onClose={() => setIsActiveDealsModalOpen(false)} transactions={transactions} currency={settings.currency} activeTheme={activeTheme} onSelectDeal={(name) => navigateToProfile(name)} />
 
       <DealModal 
         isOpen={isModalOpen}
