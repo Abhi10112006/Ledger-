@@ -32,9 +32,9 @@ const SettingsModal: React.FC<Props> = ({
   const [isCopied, setIsCopied] = useState(false);
   const [displayName, setDisplayName] = useState('ABHINAV YADUVANSHI');
 
-  // Auto-switch tab during tour (Updated Indices: 5=Visual Tab, 6=Atmosphere, 7=Glass)
+  // Auto-switch tab during tour (Updated Indices: 6=Visual Tab, 7=Atmosphere, 8=Glass)
   useEffect(() => {
-    if (tourStep && tourStep >= 5 && tourStep <= 7) {
+    if (tourStep && tourStep >= 6 && tourStep <= 8) {
       setActiveTab('visual');
     }
   }, [tourStep]);
@@ -71,10 +71,10 @@ const SettingsModal: React.FC<Props> = ({
   if (!isOpen) return null;
 
   const tabs = [
-    { id: 'general', label: 'Identity', icon: <Settings className="w-4 h-4" /> },
-    { id: 'visual', label: 'Visual Engine', icon: <Eye className="w-4 h-4" /> },
-    { id: 'interface', label: 'Interface Tuner', icon: <Sliders className="w-4 h-4" /> },
-    { id: 'contact', label: 'Developer', icon: <Terminal className="w-4 h-4" /> },
+    { id: 'general', label: 'My Name', icon: <Settings className="w-4 h-4" /> },
+    { id: 'visual', label: 'Look & Feel', icon: <Eye className="w-4 h-4" /> },
+    { id: 'interface', label: 'Layout', icon: <Sliders className="w-4 h-4" /> },
+    { id: 'contact', label: 'Credits', icon: <Terminal className="w-4 h-4" /> },
   ];
 
   // 3D Card Handlers
@@ -116,7 +116,7 @@ const SettingsModal: React.FC<Props> = ({
         style={{ borderRadius: 'var(--app-radius)' }}
       >
         <div className="p-6 border-b border-slate-800 flex justify-between items-center bg-slate-900/40 shrink-0">
-          <h2 className="text-xl font-black flex items-center gap-3"><Settings className={`${activeTheme.text} w-5 h-5`} /> System Config</h2>
+          <h2 className="text-xl font-black flex items-center gap-3"><Settings className={`${activeTheme.text} w-5 h-5`} /> Settings</h2>
           <button onClick={onClose} className="p-2 hover:bg-slate-800 rounded-full text-slate-400 transition-colors"><X className="w-5 h-5" /></button>
         </div>
 
@@ -141,11 +141,11 @@ const SettingsModal: React.FC<Props> = ({
               {/* Identity Section */}
               <div className="space-y-4">
                 <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-500">
-                  <Type className="w-3 h-3" /> Ledger Identity
+                  <Type className="w-3 h-3" /> My Details
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <label className="text-xs text-slate-400 font-medium">Owner Alias</label>
+                    <label className="text-xs text-slate-400 font-medium">My Name</label>
                     <input 
                       type="text" 
                       value={settings.userName}
@@ -154,7 +154,7 @@ const SettingsModal: React.FC<Props> = ({
                     />
                   </div>
                    <div className="space-y-2">
-                    <label className="text-xs text-slate-400 font-medium">Unit of Account</label>
+                    <label className="text-xs text-slate-400 font-medium">Currency Symbol</label>
                     <div className="flex gap-2">
                       {currencies.map(c => (
                         <button
@@ -173,7 +173,7 @@ const SettingsModal: React.FC<Props> = ({
               {/* Theme Section */}
               <div className="space-y-4">
                 <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-500">
-                  <Palette className="w-3 h-3" /> System Accent
+                  <Palette className="w-3 h-3" /> App Color
                 </div>
                 <div className="grid grid-cols-5 gap-3">
                   {(Object.keys(themes) as ThemeColor[]).map((t) => (
@@ -190,8 +190,8 @@ const SettingsModal: React.FC<Props> = ({
                 </div>
               </div>
 
-              {/* Data Reset Section */}
-              <div className="space-y-4 pt-4 border-t border-slate-800">
+              {/* Data Reset Section (Desktop Only) */}
+              <div className="hidden md:block space-y-4 pt-4 border-t border-slate-800">
                 <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-rose-500">
                     <AlertTriangle className="w-3 h-3" /> Danger Zone
                 </div>
@@ -199,7 +199,7 @@ const SettingsModal: React.FC<Props> = ({
                     {!showResetConfirm ? (
                         <div className="flex items-center justify-between">
                             <div>
-                                <div className="font-bold text-sm text-slate-200">Factory Reset</div>
+                                <div className="font-bold text-sm text-slate-200">Delete Everything</div>
                                 <div className="text-[10px] text-slate-500">Wipe all data and restart fresh.</div>
                             </div>
                             <button 
@@ -245,22 +245,22 @@ const SettingsModal: React.FC<Props> = ({
               {/* Background Base */}
               <div className="space-y-4" id="tour-visual-base">
                 <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-500">
-                  <Layout className="w-3 h-3" /> Base Atmosphere
+                  <Layout className="w-3 h-3" /> Background Style
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <button 
                     onClick={() => updateSetting('baseColor', 'slate')}
                     className={`p-4 rounded-xl border text-left transition-all ${settings.baseColor === 'slate' ? `${activeTheme.border} bg-slate-800/50` : 'border-slate-800 bg-slate-900/50 hover:bg-slate-800/30'}`}
                   >
-                    <div className="font-bold text-sm">Deep Slate</div>
-                    <div className="text-[10px] text-slate-500">Soft, professional dark mode</div>
+                    <div className="font-bold text-sm">Dark Grey</div>
+                    <div className="text-[10px] text-slate-500">Soft and professional.</div>
                   </button>
                   <button 
                     onClick={() => updateSetting('baseColor', 'oled')}
                     className={`p-4 rounded-xl border text-left transition-all ${settings.baseColor === 'oled' ? `${activeTheme.border} bg-black` : 'border-slate-800 bg-slate-950 hover:bg-black'}`}
                   >
-                    <div className="font-bold text-sm">OLED Black</div>
-                    <div className="text-[10px] text-slate-500">Pure #000000. Battery saver.</div>
+                    <div className="font-bold text-sm">Pitch Black</div>
+                    <div className="text-[10px] text-slate-500">Pure black background.</div>
                   </button>
                 </div>
               </div>
@@ -268,7 +268,7 @@ const SettingsModal: React.FC<Props> = ({
                {/* Background Texture */}
               <div className="space-y-4">
                  <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-500">
-                  <Grid className="w-3 h-3" /> Texture Overlay
+                  <Grid className="w-3 h-3" /> Texture
                 </div>
                 <div className="grid grid-cols-3 gap-3">
                    {['solid', 'nebula', 'grid'].map((bg) => (
@@ -287,7 +287,7 @@ const SettingsModal: React.FC<Props> = ({
               <div className="space-y-6 p-5 rounded-2xl bg-slate-900/30 border border-slate-800" id="tour-visual-glass">
                  <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-500">
-                      <Eye className="w-3 h-3" /> Glass Material
+                      <Eye className="w-3 h-3" /> Effects
                     </div>
                     <div className="flex items-center gap-2">
                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mr-2">Film Grain</label>
@@ -349,7 +349,7 @@ const SettingsModal: React.FC<Props> = ({
                {/* Density */}
                <div className="space-y-4">
                   <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-500">
-                    <Layout className="w-3 h-3" /> Layout Density
+                    <Layout className="w-3 h-3" /> Screen Spacing
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <button 
@@ -364,7 +364,7 @@ const SettingsModal: React.FC<Props> = ({
                       onClick={() => updateSetting('density', 'compact')}
                       className={`p-4 rounded-xl border text-left transition-all ${settings.density === 'compact' ? `${activeTheme.border} bg-slate-800/50` : 'border-slate-800 bg-slate-900/50 hover:bg-slate-800/30'}`}
                     >
-                      <div className="font-bold text-sm mb-1">Information Dense</div>
+                      <div className="font-bold text-sm mb-1">Compact</div>
                       <div className="w-full h-1.5 bg-slate-700 rounded-full mb-1.5"></div>
                       <div className="w-2/3 h-1.5 bg-slate-700 rounded-full"></div>
                     </button>
@@ -374,7 +374,7 @@ const SettingsModal: React.FC<Props> = ({
                {/* Corner Radius */}
                <div className="space-y-4">
                   <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-500">
-                    <Smartphone className="w-3 h-3" /> Geometry
+                    <Smartphone className="w-3 h-3" /> Button Shape
                   </div>
                   <div className="flex gap-4">
                      {(['sharp', 'round', 'pill'] as CornerRadius[]).map(r => (
@@ -389,50 +389,6 @@ const SettingsModal: React.FC<Props> = ({
                           <span className="text-xs font-bold uppercase">{r}</span>
                         </button>
                      ))}
-                  </div>
-               </div>
-
-                {/* Typography */}
-               <div className="space-y-4">
-                  <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-500">
-                    <Type className="w-3 h-3" /> Typography
-                  </div>
-                  <div className="flex flex-col gap-2">
-                     <button
-                        onClick={() => updateSetting('fontStyle', 'mono')}
-                        className={`p-3 px-4 rounded-xl border flex justify-between items-center transition-all ${settings.fontStyle === 'mono' ? `${activeTheme.border} bg-slate-800` : 'border-slate-800 bg-slate-900 hover:bg-slate-800'}`}
-                     >
-                       <span className="font-mono text-sm">Tech Mono (JetBrains)</span>
-                       {settings.fontStyle === 'mono' && <CheckCircle2 className={`w-4 h-4 ${activeTheme.text}`} />}
-                     </button>
-                     <button
-                        onClick={() => updateSetting('fontStyle', 'sans')}
-                        className={`p-3 px-4 rounded-xl border flex justify-between items-center transition-all ${settings.fontStyle === 'sans' ? `${activeTheme.border} bg-slate-800` : 'border-slate-800 bg-slate-900 hover:bg-slate-800'}`}
-                     >
-                       <span className="font-sans text-sm">Modern Sans (Inter)</span>
-                       {settings.fontStyle === 'sans' && <CheckCircle2 className={`w-4 h-4 ${activeTheme.text}`} />}
-                     </button>
-                     <button
-                        onClick={() => updateSetting('fontStyle', 'system')}
-                        className={`p-3 px-4 rounded-xl border flex justify-between items-center transition-all ${settings.fontStyle === 'system' ? `${activeTheme.border} bg-slate-800` : 'border-slate-800 bg-slate-900 hover:bg-slate-800'}`}
-                     >
-                       <span className="font-sans text-sm" style={{fontFamily: 'system-ui'}}>System Native</span>
-                       {settings.fontStyle === 'system' && <CheckCircle2 className={`w-4 h-4 ${activeTheme.text}`} />}
-                     </button>
-                     <button
-                        onClick={() => updateSetting('fontStyle', 'serif')}
-                        className={`p-3 px-4 rounded-xl border flex justify-between items-center transition-all ${settings.fontStyle === 'serif' ? `${activeTheme.border} bg-slate-800` : 'border-slate-800 bg-slate-900 hover:bg-slate-800'}`}
-                     >
-                       <span className="text-sm font-serif-app">Typewriter (Elite)</span>
-                       {settings.fontStyle === 'serif' && <CheckCircle2 className={`w-4 h-4 ${activeTheme.text}`} />}
-                     </button>
-                     <button
-                        onClick={() => updateSetting('fontStyle', 'comic')}
-                        className={`p-3 px-4 rounded-xl border flex justify-between items-center transition-all ${settings.fontStyle === 'comic' ? `${activeTheme.border} bg-slate-800` : 'border-slate-800 bg-slate-900 hover:bg-slate-800'}`}
-                     >
-                       <span className="text-sm font-comic-app">Comin Sans (Casual)</span>
-                       {settings.fontStyle === 'comic' && <CheckCircle2 className={`w-4 h-4 ${activeTheme.text}`} />}
-                     </button>
                   </div>
                </div>
 

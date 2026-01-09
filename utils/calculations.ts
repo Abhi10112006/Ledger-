@@ -12,6 +12,28 @@ export const calculateDaysBetween = (start: Date, end: Date): number => {
 export const calculateInterest = (t: Transaction): number => {
   if (t.interestRate <= 0) return 0;
 
+  // --- CONDITIONAL WAIVER LOGIC ---
+  if (t.interestFreeIfPaidByDueDate) {
+    const dueDate = new Date(t.returnDate);
+    const now = new Date();
+
+    // 1. Check if Principal was fully repaid ON or BEFORE the Due Date
+    const paidByDue = t.repayments.reduce((acc, r) => {
+        if (new Date(r.date) <= dueDate) return acc + r.amount;
+        return acc;
+    }, 0);
+
+    // If principal is covered by timely payments, waive interest permanently
+    if (paidByDue >= t.principalAmount) return 0;
+
+    // 2. If not yet paid off, check if we are still within the Grace Period
+    // If today is before due date, we show 0 interest to reflect the potential benefit
+    if (now <= dueDate) return 0;
+    
+    // If neither condition met (Overdue and not paid enough), fall through to standard interest calculation below.
+  }
+  // --------------------------------
+
   // Fixed Interest (Flat Rate)
   if (t.interestType === 'none') {
     return t.principalAmount * (t.interestRate / 100);

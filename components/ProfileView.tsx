@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { ArrowLeft, MessageSquare, FileText, ArrowUpRight, ArrowDownLeft, Calendar, Shield, Bell, BellRing, MessageCircle, Trash2, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, MessageSquare, FileText, ArrowUpRight, ArrowDownLeft, Calendar, Shield, Bell, BellRing, MessageCircle, Trash2, AlertTriangle, Edit } from 'lucide-react';
 import { Transaction, AppSettings } from '../types';
 import { generateStatementPDF } from '../utils/pdfGenerator';
 import TrustScoreBadge from './TrustScoreBadge';
@@ -20,6 +20,7 @@ interface Props {
   onDeleteTransaction: (txId: string) => void;
   onDeleteRepayment: (txId: string, repId: string) => void;
   onDeleteProfile: () => void;
+  onUpdateDueDate: (txId: string) => void;
 }
 
 const ProfileView: React.FC<Props> = ({ 
@@ -31,7 +32,8 @@ const ProfileView: React.FC<Props> = ({
   onReceive,
   onDeleteTransaction,
   onDeleteRepayment,
-  onDeleteProfile
+  onDeleteProfile,
+  onUpdateDueDate
 }) => {
   const [deleteConfirm, setDeleteConfirm] = useState<{
     type: 'PROFILE' | 'TRANSACTION' | 'REPAYMENT';
@@ -220,7 +222,7 @@ const ProfileView: React.FC<Props> = ({
                <div className="p-3 bg-slate-800 text-slate-300 rounded-xl group-hover:bg-slate-700 transition-colors shadow-lg border border-slate-700/50">
                   <FileText className="w-5 h-5" />
                </div>
-               <span className="text-[9px] font-black uppercase tracking-widest text-slate-500 group-hover:text-slate-300 transition-colors">Statement</span>
+               <span className="text-[9px] font-black uppercase tracking-widest text-slate-500 group-hover:text-slate-300 transition-colors">Report</span>
             </button>
           </div>
         </div>
@@ -246,13 +248,13 @@ const ProfileView: React.FC<Props> = ({
              
              <div className="mt-6 flex flex-col items-center gap-3">
                  <div className="p-4 rounded-2xl bg-slate-900/50 border border-slate-800 inline-block min-w-[200px]">
-                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-1">You will get</p>
+                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-1">To Collect</p>
                     <p className={`text-3xl font-mono font-black ${account.totalExposure > 0 ? 'text-emerald-400' : 'text-slate-500'}`}>
                        {settings.currency}{Math.round(account.totalExposure).toLocaleString('en-IN')}
                     </p>
                  </div>
 
-                 {/* Collection Date Indicator */}
+                 {/* Collection Date Indicator (Reverted to read-only reminder) */}
                  {nextDueTx && (
                    <button 
                      onClick={handleSetReminder}
@@ -295,14 +297,19 @@ const ProfileView: React.FC<Props> = ({
                       <div className="flex items-center gap-2 text-[10px] text-slate-500 font-mono mt-0.5">
                          <Calendar className="w-3 h-3" />
                          {item.date.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: '2-digit' })}
+                         {item.type === 'LOAN' && item.rawTx.hasTime && (
+                           <span className="text-slate-400 ml-1">
+                               {item.date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                           </span>
+                         )}
                          {item.type === 'LOAN' && item.rawTx.isCompleted && (
                            <span className="bg-slate-800 px-1 rounded text-slate-400">SETTLED</span>
                          )}
                       </div>
                    </div>
                 </div>
-                <div className="flex items-center gap-4">
-                    <div className="text-right">
+                <div className="flex items-center gap-2">
+                    <div className="text-right mr-2">
                        <div className={`font-mono font-bold text-lg ${item.type === 'LOAN' ? 'text-rose-400' : 'text-emerald-400'}`}>
                           {settings.currency}{item.amount.toLocaleString('en-IN')}
                        </div>
@@ -312,6 +319,22 @@ const ProfileView: React.FC<Props> = ({
                          </div>
                        )}
                     </div>
+                    
+                    {/* EDIT DATE BUTTON - Only for Loans */}
+                    {item.type === 'LOAN' && (
+                        <button
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                onUpdateDueDate(item.id);
+                            }}
+                            className="p-2 text-slate-600 hover:text-blue-400 hover:bg-blue-500/10 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
+                            title="Edit Due Date"
+                        >
+                            <Edit className="w-4 h-4" />
+                        </button>
+                    )}
+
+                    {/* DELETE BUTTON */}
                     <button 
                         onClick={(e) => {
                             e.stopPropagation();
@@ -342,14 +365,14 @@ const ProfileView: React.FC<Props> = ({
              onClick={onGive}
              className="bg-rose-600 text-white p-4 rounded-2xl font-black uppercase tracking-widest shadow-lg shadow-rose-900/20 active:scale-[0.98] transition-all flex items-center justify-center gap-2 hover:bg-rose-500"
            >
-             <ArrowUpRight className="w-5 h-5" /> You Gave
+             <ArrowUpRight className="w-5 h-5" /> Give Money
            </button>
            <button 
              onClick={handleMainReceive}
              disabled={account.totalExposure <= 0}
              className={`p-4 rounded-2xl font-black uppercase tracking-widest shadow-lg transition-all flex items-center justify-center gap-2 ${account.totalExposure <= 0 ? 'bg-slate-800 text-slate-500 cursor-not-allowed' : 'bg-emerald-600 text-white shadow-emerald-900/20 hover:bg-emerald-500 active:scale-[0.98]'}`}
            >
-             <ArrowDownLeft className="w-5 h-5" /> You Got
+             <ArrowDownLeft className="w-5 h-5" /> Get Money
            </button>
         </div>
       </div>
@@ -363,11 +386,11 @@ const ProfileView: React.FC<Props> = ({
                         <AlertTriangle className="w-8 h-8" />
                     </div>
                     <div>
-                        <h3 className="text-xl font-black text-white">Confirm Deletion</h3>
+                        <h3 className="text-xl font-black text-white">Delete?</h3>
                         <p className="text-slate-400 text-sm mt-2">
                             {deleteConfirm.type === 'PROFILE' 
-                                ? "This will erase this profile and ALL associated history permanently." 
-                                : "This action will remove this record from the ledger history."
+                                ? "This will delete this profile and all payment history forever." 
+                                : "This will remove this payment record from the list."
                             }
                         </p>
                     </div>

@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { Plus, Cpu, PlusCircle, Search, ArrowUpDown, Filter, UserPlus } from 'lucide-react';
+import { Plus, Search, UserPlus } from 'lucide-react';
 import { useLedger } from './hooks/useLedger';
 import { generateStatementPDF } from './utils/pdfGenerator';
 import TrustScoreBadge from './components/TrustScoreBadge';
@@ -16,6 +16,7 @@ import WelcomeScreen from './components/WelcomeScreen';
 import SponsorModal from './components/SponsorModal';
 import AccountRow from './components/AccountRow';
 import ProfileView from './components/ProfileView';
+import TypographyModal from './components/TypographyModal';
 import { ThemeColor } from './types';
 
 const TOUR_KEY = 'abhi_ledger_tour_complete_v8';
@@ -88,6 +89,8 @@ const App: React.FC = () => {
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isEditDateModalOpen, setIsEditDateModalOpen] = useState(false);
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
+  const [isTypographyModalOpen, setIsTypographyModalOpen] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   
   // Ad State
   const [isSponsorModalOpen, setIsSponsorModalOpen] = useState(false);
@@ -155,20 +158,38 @@ const App: React.FC = () => {
 
   }, []);
 
-  // Update Settings Modal for Tour Step 5, 6, 7 (Visual Engine)
-  // Step 5: Visual Tab (Modal must be open)
-  // Step 6: Atmosphere (Modal must be open)
-  // Step 7: Glass (Modal must be open)
-  // Step 8: Backup (Modal must be closed to see Navbar)
+  // Update Settings Modal for Tour Step 6-8 (Visual Engine)
   useEffect(() => {
-    if (tourStep >= 5 && tourStep <= 7) setIsSettingsModalOpen(true);
-    else if (tourStep === 8 || tourStep === -1) setIsSettingsModalOpen(false);
+    if (tourStep >= 6 && tourStep <= 8) {
+      setIsSettingsModalOpen(true);
+      setIsTypographyModalOpen(false);
+    } else if (tourStep === -1) {
+      setIsSettingsModalOpen(false);
+    } else {
+      setIsSettingsModalOpen(false);
+    }
+  }, [tourStep]);
+
+  // Update Mobile Menu for Tour Steps
+  useEffect(() => {
+    if (tourStep !== -1) {
+      const isMobile = window.innerWidth < 768;
+      // Steps: 4 (Config), 5 (Typography), 9 (Backup)
+      if (tourStep === 4 || tourStep === 5 || tourStep === 9) {
+        if (isMobile) {
+          setIsMobileMenuOpen(true);
+        }
+      } else {
+        setIsMobileMenuOpen(false);
+      }
+    }
   }, [tourStep]);
 
   const completeTour = () => {
     localStorage.setItem(TOUR_KEY, 'true');
     setTourStep(-1);
     setIsSettingsModalOpen(false);
+    setIsMobileMenuOpen(false);
     setIsSponsorModalOpen(true);
   };
 
@@ -181,6 +202,7 @@ const App: React.FC = () => {
         deferredPrompt={deferredPrompt}
         handleInstallClick={handleInstallClick}
         handleImport={handleImport}
+        updateSetting={updateSetting}
       />
     );
   }
@@ -256,6 +278,7 @@ const App: React.FC = () => {
               onDeleteTransaction={deleteTransaction}
               onDeleteRepayment={deleteRepayment}
               onDeleteProfile={() => { deleteProfile(activeProfile.name); setSelectedProfileName(null); }}
+              onUpdateDueDate={(txId) => { setActiveTxId(txId); setIsEditDateModalOpen(true); }}
            />
         </div>
       ) : (
@@ -271,9 +294,17 @@ const App: React.FC = () => {
             setIsLoggedIn={setIsLoggedIn}
             deferredPrompt={deferredPrompt}
             handleInstallClick={handleInstallClick}
+            onOpenTypographyModal={() => setIsTypographyModalOpen(true)}
+            isMobileMenuOpen={isMobileMenuOpen}
+            setIsMobileMenuOpen={setIsMobileMenuOpen}
           />
 
-          <main className="max-w-4xl mx-auto px-6 space-y-8 pt-8 relative pb-32">
+          {/* 
+            MAIN CONTAINER LAYOUT
+            Mobile: Top padding 24 (6rem for header), NO bottom padding for rail (Hamburger mode).
+            Desktop: Left padding 32 (8rem for rail), Top padding 12, Right padding 6
+          */}
+          <main className="max-w-4xl mx-auto px-6 space-y-8 pt-24 pb-8 md:pl-32 md:pt-12 md:pr-6 relative transition-all duration-300">
             <DashboardStats 
               stats={stats}
               settings={settings}
@@ -284,8 +315,8 @@ const App: React.FC = () => {
             <div className="space-y-6">
               <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 border-b border-slate-800/50 pb-6 mt-12">
                 <div>
-                  <h2 className="text-2xl font-black text-slate-200 tracking-tight">All Profiles</h2>
-                  <p className="text-xs text-slate-500 font-bold uppercase tracking-widest mt-1">{accounts.length} Active Clients</p>
+                  <h2 className="text-2xl font-black text-slate-200 tracking-tight">People</h2>
+                  <p className="text-xs text-slate-500 font-bold uppercase tracking-widest mt-1">{accounts.length} Friends added</p>
                 </div>
                 
                 <div className="flex flex-col sm:flex-row gap-3 w-full lg:w-auto">
@@ -298,7 +329,7 @@ const App: React.FC = () => {
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
                       className="block w-full pl-10 pr-3 py-2.5 bg-slate-900/50 border border-slate-800 rounded-xl text-xs font-mono text-slate-100 placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-slate-700 focus:border-slate-700 transition-all uppercase tracking-wider"
-                      placeholder="SEARCH NAME..."
+                      placeholder="Search Name..."
                     />
                   </div>
                 </div>
@@ -323,12 +354,12 @@ const App: React.FC = () => {
                     <div className="bg-slate-900/50 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4 border border-slate-800">
                        <UserPlus className="w-10 h-10 text-slate-700" />
                     </div>
-                    <h3 className="text-xl font-bold text-slate-300 mb-2">No Profiles Yet</h3>
+                    <h3 className="text-xl font-bold text-slate-300 mb-2">No Friends Added</h3>
                     <p className="text-slate-500 text-sm mb-6 max-w-xs mx-auto">
-                        Start by adding your first client profile to the ledger.
+                        Start by adding your first friend to the ledger.
                     </p>
                     <button onClick={() => { setSearchQuery(''); setIsModalOpen(true); }} className={`px-8 py-3 ${activeTheme.bg} text-slate-950 rounded-xl font-bold hover:brightness-110 transition-all`}>
-                        Add First Profile
+                        Add a Friend
                     </button>
                   </div>
                 )}
@@ -336,8 +367,8 @@ const App: React.FC = () => {
             </div>
           </main>
 
-          <button id="tour-add-profile" onClick={() => setIsModalOpen(true)} className={`fixed bottom-8 right-8 w-18 h-18 ${activeTheme.bg} hover:brightness-110 text-slate-950 rounded-[2rem] flex items-center justify-center shadow-2xl active:scale-90 transition-all group z-30`}>
-            <Plus className="w-10 h-10 group-hover:rotate-90 transition-transform duration-300" />
+          <button id="tour-add-profile" onClick={() => setIsModalOpen(true)} className={`fixed bottom-8 right-6 md:right-8 w-16 h-16 md:w-18 md:h-18 ${activeTheme.bg} hover:brightness-110 text-slate-950 rounded-[2rem] flex items-center justify-center shadow-2xl active:scale-90 transition-all group z-30`}>
+            <Plus className="w-8 h-8 md:w-10 md:h-10 group-hover:rotate-90 transition-transform duration-300" />
           </button>
         </>
       )}
@@ -347,6 +378,7 @@ const App: React.FC = () => {
       
       <TourOverlay tourStep={tourStep} setTourStep={setTourStep} completeTour={completeTour} activeTheme={activeTheme} />
       <SettingsModal isOpen={isSettingsModalOpen} onClose={() => setIsSettingsModalOpen(false)} settings={settings} updateSetting={updateSetting} activeTheme={activeTheme} themes={THEMES} currencies={CURRENCIES} tourStep={tourStep} />
+      <TypographyModal isOpen={isTypographyModalOpen} onClose={() => setIsTypographyModalOpen(false)} currentFont={settings.fontStyle} onSelect={(font) => updateSetting('fontStyle', font)} activeTheme={activeTheme} />
 
       <DealModal 
         isOpen={isModalOpen}

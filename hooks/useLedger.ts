@@ -3,9 +3,17 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Transaction, AppSettings, Repayment, InterestType, SummaryStats } from '../types';
 import { generateId } from '../utils/common';
 import { calculateTrustScore, getTotalPayable, getSummaryStats } from '../utils/calculations';
+import { 
+  getAllTransactions, 
+  saveTransaction, 
+  deleteTxFromDB, 
+  getSettings, 
+  saveSettingsToDB, 
+  bulkSaveTransactions 
+} from '../utils/db';
 
-const STORAGE_KEY = 'abhi_ledger_session';
-const SETTINGS_KEY = 'abhi_ledger_settings_v2';
+const STORAGE_KEY = 'abhi_ledger_session'; // Legacy Key for Migration
+const SETTINGS_KEY = 'abhi_ledger_settings_v2'; // Legacy Key for Migration
 
 const DEFAULT_SETTINGS: AppSettings = {
   userName: "Abhi's Ledger",
@@ -34,30 +42,55 @@ export const useLedger = (tourStep: number, searchQuery: string = '') => {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [sortBy, setSortBy] = useState<SortOption>('recent');
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+  const [isDbLoaded, setIsDbLoaded] = useState(false);
 
-  // --- INITIALIZATION & EFFECTS ---
+  // --- INITIALIZATION & MIGRATION ---
   useEffect(() => {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    const savedSettings = localStorage.getItem(SETTINGS_KEY);
-    
-    if (saved) {
+    const initializeData = async () => {
       try {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed)) {
-          setTransactions(parsed);
-          setIsLoggedIn(true);
+        // 1. Try to load from IndexedDB
+        const dbTransactions = await getAllTransactions();
+        const dbSettings = await getSettings();
+
+        if (dbTransactions.length > 0 || dbSettings) {
+          // DB has data, load it
+          setTransactions(dbTransactions);
+          if (dbSettings) setSettings({ ...DEFAULT_SETTINGS, ...dbSettings });
+          if (dbTransactions.length > 0) setIsLoggedIn(true);
+        } else {
+          // 2. DB is empty, check for Legacy LocalStorage (Migration)
+          const legacyTx = localStorage.getItem(STORAGE_KEY);
+          const legacySettings = localStorage.getItem(SETTINGS_KEY);
+
+          if (legacyTx) {
+            console.log("Migrating data to IndexedDB...");
+            const parsedTx = JSON.parse(legacyTx);
+            if (Array.isArray(parsedTx)) {
+              setTransactions(parsedTx);
+              setIsLoggedIn(true);
+              await bulkSaveTransactions(parsedTx);
+            }
+          }
+
+          if (legacySettings) {
+            const parsedSettings = JSON.parse(legacySettings);
+            const newSettings = { ...DEFAULT_SETTINGS, ...parsedSettings };
+            setSettings(newSettings);
+            await saveSettingsToDB(newSettings);
+          }
+          
+          // Optional: Clear legacy storage after successful migration
+          // localStorage.removeItem(STORAGE_KEY);
+          // localStorage.removeItem(SETTINGS_KEY);
         }
       } catch (e) {
-        console.error("Failed to load session", e);
+        console.error("Database Initialization Failed:", e);
+      } finally {
+        setIsDbLoaded(true);
       }
-    }
+    };
 
-    if (savedSettings) {
-      try {
-        const parsed = JSON.parse(savedSettings);
-        setSettings({ ...DEFAULT_SETTINGS, ...parsed });
-      } catch (e) { console.error("Failed settings load", e); }
-    }
+    initializeData();
 
     const handleBeforeInstallPrompt = (e: any) => {
       e.preventDefault();
@@ -80,7 +113,7 @@ export const useLedger = (tourStep: number, searchQuery: string = '') => {
 
   // --- CHECK DUE DATES ON LOAD ---
   useEffect(() => {
-    if (isLoggedIn && transactions.length > 0 && 'Notification' in window && Notification.permission === 'granted') {
+    if (isDbLoaded && isLoggedIn && transactions.length > 0 && 'Notification' in window && Notification.permission === 'granted') {
        const today = new Date().toISOString().split('T')[0];
        const dueToday = transactions.filter(t => !t.isCompleted && t.returnDate.startsWith(today));
        
@@ -92,26 +125,43 @@ export const useLedger = (tourStep: number, searchQuery: string = '') => {
           });
        }
     }
-  }, [isLoggedIn, transactions]);
+  }, [isDbLoaded, isLoggedIn, transactions]);
+
+  // --- PERSISTENCE HANDLERS ---
+  
+  // Unlike LocalStorage where we save the whole array on every change,
+  // with IDB we want to be more granular or use specific save functions.
+  // However, for keeping the app logic simple during migration, we will use specific 
+  // helpers inside the actions below, and only use this effect for Settings.
 
   useEffect(() => {
-    if (isLoggedIn) {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(transactions));
+    if (isDbLoaded) {
+      saveSettingsToDB(settings);
     }
-  }, [transactions, isLoggedIn]);
-
-  useEffect(() => {
-    localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
-  }, [settings]);
+  }, [settings, isDbLoaded]);
 
   // --- ACTIONS ---
 
   const handleInstallClick = async () => {
-    if (!deferredPrompt) return;
-    deferredPrompt.prompt();
-    const { outcome } = await deferredPrompt.userChoice;
-    if (outcome === 'accepted') {
-      setDeferredPrompt(null);
+    // Detect if Android
+    const isAndroid = /Android/i.test(navigator.userAgent);
+
+    if (isAndroid) {
+        // Direct APK Download
+        const link = document.createElement('a');
+        link.href = '/data/app.apk';
+        link.setAttribute('download', 'AbhiLedger.apk');
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    } else {
+        // Desktop/iOS PWA Install Prompt
+        if (!deferredPrompt) return;
+        deferredPrompt.prompt();
+        const { outcome } = await deferredPrompt.userChoice;
+        if (outcome === 'accepted') {
+            setDeferredPrompt(null);
+        }
     }
   };
 
@@ -119,7 +169,7 @@ export const useLedger = (tourStep: number, searchQuery: string = '') => {
     setSettings(prev => ({ ...prev, [key]: value }));
   };
 
-  const addLoan = (data: {
+  const addLoan = async (data: {
     friendName: string;
     friendPhone?: string;
     amount: number;
@@ -128,8 +178,11 @@ export const useLedger = (tourStep: number, searchQuery: string = '') => {
     notes: string;
     interestRate: number;
     interestType: InterestType;
+    interestFreeIfPaidByDueDate?: boolean;
   }) => {
-    setTransactions(prev => [{
+    const hasTime = data.startDate.includes('T');
+    
+    const newTx: Transaction = {
       id: generateId(),
       friendName: data.friendName.trim(),
       friendPhone: data.friendPhone?.trim(),
@@ -141,13 +194,20 @@ export const useLedger = (tourStep: number, searchQuery: string = '') => {
       interestType: data.interestType,
       interestRate: data.interestRate,
       isCompleted: false,
-      repayments: []
-    }, ...prev]);
+      repayments: [],
+      hasTime: hasTime,
+      interestFreeIfPaidByDueDate: data.interestFreeIfPaidByDueDate
+    };
+
+    setTransactions(prev => [newTx, ...prev]);
+    await saveTransaction(newTx); // Persist to DB
   };
 
-  const addPayment = (activeTxId: string | null, amount: number, date: string) => {
+  const addPayment = async (activeTxId: string | null, amount: number, date: string) => {
     if (!activeTxId) return;
     
+    let updatedTx: Transaction | null = null;
+
     setTransactions(prev => prev.map(t => {
       if (t.id === activeTxId) {
         const newRepayment: Repayment = { 
@@ -162,32 +222,53 @@ export const useLedger = (tourStep: number, searchQuery: string = '') => {
         const totalPayable = getTotalPayable(tempTx);
         const isCompleted = updatedPaidAmount >= (totalPayable - 0.1);
 
-        return {
+        updatedTx = {
           ...t,
           paidAmount: updatedPaidAmount,
           isCompleted,
           repayments: updatedRepayments
         };
+        return updatedTx;
       }
       return t;
     }));
+
+    if (updatedTx) {
+      await saveTransaction(updatedTx); // Persist update
+    }
   };
 
-  const updateDueDate = (activeTxId: string | null, newDueDate: string) => {
+  const updateDueDate = async (activeTxId: string | null, newDueDate: string) => {
     if (!activeTxId) return;
-    setTransactions(prev => prev.map(t => t.id === activeTxId ? {
-      ...t,
-      returnDate: new Date(newDueDate).toISOString(),
-      notes: `${t.notes}\n[System Log]: Deadline adjusted to ${newDueDate}`
-    } : t));
+    
+    let updatedTx: Transaction | null = null;
+
+    setTransactions(prev => prev.map(t => {
+      if (t.id === activeTxId) {
+        updatedTx = {
+          ...t,
+          returnDate: new Date(newDueDate).toISOString(),
+          notes: `${t.notes}\n[System Log]: Deadline adjusted to ${newDueDate}`
+        };
+        return updatedTx;
+      }
+      return t;
+    }));
+
+    if (updatedTx) {
+      await saveTransaction(updatedTx);
+    }
   };
 
-  const deleteTransaction = (activeTxId: string | null) => {
+  const deleteTransaction = async (activeTxId: string | null) => {
     if (!activeTxId) return;
     setTransactions(prev => prev.filter(t => t.id !== activeTxId)); 
+    await deleteTxFromDB(activeTxId);
   };
 
-  const deleteRepayment = (txId: string, repId: string) => {
+  const deleteRepayment = async (txId: string, repId: string) => {
+    let updatedTx: Transaction | null = null;
+
     setTransactions(prev => prev.map(t => {
       if (t.id === txId) {
         const repaymentToRemove = t.repayments.find(r => r.id === repId);
@@ -196,24 +277,35 @@ export const useLedger = (tourStep: number, searchQuery: string = '') => {
         const updatedRepayments = t.repayments.filter(r => r.id !== repId);
         const updatedPaidAmount = t.paidAmount - repaymentToRemove.amount;
         
-        // Recalculate completion status based on new paid amount
         const tempTx = { ...t, repayments: updatedRepayments, paidAmount: updatedPaidAmount };
         const totalPayable = getTotalPayable(tempTx);
         const isCompleted = updatedPaidAmount >= (totalPayable - 0.1);
 
-        return {
+        updatedTx = {
           ...t,
           repayments: updatedRepayments,
           paidAmount: Math.max(0, updatedPaidAmount),
           isCompleted
         };
+        return updatedTx;
       }
       return t;
     }));
+
+    if (updatedTx) {
+      await saveTransaction(updatedTx);
+    }
   };
 
-  const deleteProfile = (friendName: string) => {
+  const deleteProfile = async (friendName: string) => {
+    const txToDelete = transactions.filter(t => t.friendName.trim().toLowerCase() === friendName.trim().toLowerCase());
+    
     setTransactions(prev => prev.filter(t => t.friendName.trim().toLowerCase() !== friendName.trim().toLowerCase()));
+
+    // Delete all associated transactions from DB
+    for (const tx of txToDelete) {
+      await deleteTxFromDB(tx.id);
+    }
   };
 
   const handleExport = useCallback(() => {
@@ -226,18 +318,20 @@ export const useLedger = (tourStep: number, searchQuery: string = '') => {
     downloadAnchorNode.remove();
   }, [transactions]);
 
-  const handleImport = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImport = useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
 
     const reader = new FileReader();
-    reader.onload = (e) => {
+    reader.onload = async (e) => {
       try {
         const content = e.target?.result as string;
         const data = JSON.parse(content);
         if (Array.isArray(data)) {
           setTransactions(data);
           setIsLoggedIn(true);
+          // Sync imported data to DB
+          await bulkSaveTransactions(data);
           event.target.value = '';
         } else {
           alert("Invalid backup format.");
@@ -249,11 +343,9 @@ export const useLedger = (tourStep: number, searchQuery: string = '') => {
     reader.readAsText(file);
   }, []);
 
-  // --- DERIVED STATE ---
+  // --- DERIVED STATE (No Changes Needed Here) ---
 
   const accounts = useMemo(() => {
-    // Legacy simulation logic removed to support new tour structure
-
     // Grouping
     const grouped: Record<string, Transaction[]> = {};
     transactions.forEach(t => {

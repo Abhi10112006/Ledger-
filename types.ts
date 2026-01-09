@@ -20,6 +20,8 @@ export interface Transaction {
   interestRate: number; // percentage
   isCompleted: boolean;
   repayments: Repayment[];
+  hasTime?: boolean;
+  interestFreeIfPaidByDueDate?: boolean;
 }
 
 export interface AppState {
@@ -48,6 +50,7 @@ export interface AppSettings {
   themeColor: ThemeColor;
   background: BackgroundType;
   currency: string;
+  language?: string;
   
   // Visual Engine
   baseColor: BaseColor;

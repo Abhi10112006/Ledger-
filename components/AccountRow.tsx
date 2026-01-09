@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { ChevronRight, ShieldCheck, AlertCircle } from 'lucide-react';
 import { AppSettings } from '../types';
@@ -36,7 +37,7 @@ const AccountRow: React.FC<Props> = ({ account, settings, activeTheme, onClick }
             </span>
             {account.transactions.length > 0 && (
                <span className="text-[10px] text-slate-500 font-medium">
-                 {account.transactions.length} Contracts
+                 {account.transactions.length} Loans
                </span>
             )}
           </div>
@@ -47,7 +48,7 @@ const AccountRow: React.FC<Props> = ({ account, settings, activeTheme, onClick }
         <div className="text-right">
           {account.totalExposure > 0 ? (
             <>
-              <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-0.5">You will get</p>
+              <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-0.5">To Collect</p>
               <p className={`text-lg font-mono font-black ${isOverdue ? 'text-rose-400' : 'text-emerald-400'}`}>
                 {settings.currency}{Math.round(account.totalExposure).toLocaleString('en-IN')}
               </p>

@@ -1,6 +1,6 @@
 
 import React, { useEffect, useState, useRef } from 'react';
-import { Sparkles, TrendingUp, PlusCircle, CreditCard, UserCheck, CalendarDays, FileText, Download, ArrowRight, Target, Settings, Eye, Search } from 'lucide-react';
+import { Sparkles, TrendingUp, PlusCircle, CreditCard, UserCheck, CalendarDays, FileText, Download, ArrowRight, Target, Settings, Eye, Search, Type } from 'lucide-react';
 
 interface Props {
   tourStep: number;
@@ -25,64 +25,71 @@ const TourOverlay: React.FC<Props> = ({ tourStep, setTourStep, completeTour, act
   const steps = [
     { 
       id: 'tour-intro',
-      title: "System Online", 
-      desc: "Welcome to your personal debt intelligence vault. This neural link will guide you through the core command modules.", 
+      title: "Welcome!", 
+      desc: "This app helps you keep track of money you lend to friends. Let's take a quick look around.", 
       icon: <Sparkles className="text-cyan-400" />,
       targetId: null 
     },
     { 
       id: 'tour-stats',
-      title: "1. Exposure Monitor", 
-      desc: "Real-time capital tracking. 'Pending' is money in the field; 'Returned' is capital secured. Monitor the active count closely.", 
+      title: "1. Money Tracker", 
+      desc: "'To Collect' means money your friends still owe you. 'Collected' means money you already got back.", 
       icon: <TrendingUp className={activeTheme.text} />,
       targetId: 'tour-stats'
     },
     { 
       id: 'tour-search',
-      title: "2. Global Search", 
-      desc: "Instantly filter your database. Search by client name to retrieve specific profiles.", 
+      title: "2. Search Friends", 
+      desc: "Type a name here to quickly find a friend's profile.", 
       icon: <Search className="text-violet-400" />,
       targetId: 'tour-search' 
     },
     { 
       id: 'tour-add-profile',
-      title: "3. New Contract", 
-      desc: "The primary entry point. Click here to add a NEW client profile or record a NEW loan for an existing client.", 
+      title: "3. Give Money", 
+      desc: "Click this Plus button to add a new friend or record a new loan.", 
       icon: <PlusCircle className="text-blue-400" />,
       targetId: 'tour-add-profile'
     },
     { 
       id: 'tour-settings',
-      title: "4. System Config", 
-      desc: "Access the main control panel. Configure your identity, currency (₹/$/€), and application behavior here.", 
+      title: "4. Settings", 
+      desc: "Change your name, currency symbol, and other options here.", 
       icon: <Settings className="text-slate-400" />,
       targetId: 'tour-settings' 
     },
     { 
+      id: 'tour-typography',
+      title: "5. Fonts", 
+      desc: "Don't like this text? You can change the font style here.", 
+      icon: <Type className="text-indigo-400" />,
+      targetId: 'tour-typography' 
+    },
+    { 
       id: 'tour-visual-tab',
-      title: "5. Visual Engine", 
-      desc: "Inside Settings, the 'Visual Engine' tab allows you to customize the application's atmosphere and materials.", 
+      title: "6. Look & Feel", 
+      desc: "Inside Settings, use this tab to change colors and cool effects.", 
       icon: <Eye className="text-teal-400" />,
       targetId: 'tour-visual-tab' 
     },
     { 
       id: 'tour-visual-base',
-      title: "6. Atmosphere", 
-      desc: "Toggle between Deep Slate (Professional) and OLED Black (Battery Saver). Apply texture overlays like Nebula or Grid lines.", 
+      title: "7. Colors", 
+      desc: "Switch between Dark Grey or Pitch Black backgrounds.", 
       icon: <Sparkles className="text-purple-400" />,
       targetId: 'tour-visual-base' 
     },
     { 
       id: 'tour-visual-glass',
-      title: "7. Glass & Physics", 
-      desc: "Fine-tune the UI materials. Adjust glass blur intensity, transparency, and enable cinematic film grain.", 
+      title: "8. Cool Effects", 
+      desc: "Make the boxes see-through or add a grainy film effect.", 
       icon: <Settings className="text-indigo-400" />,
       targetId: 'tour-visual-glass' 
     },
     { 
       id: 'tour-backup',
-      title: "8. Secure Data", 
-      desc: "The system is offline-first. Use this to download an encrypted JSON backup of your ledger to your local device.", 
+      title: "9. Save Data", 
+      desc: "Your data is only on this phone. Click here to download a backup file so you don't lose it.", 
       icon: <Download className="text-amber-400" />,
       targetId: 'tour-backup'
     }
@@ -179,7 +186,7 @@ const TourOverlay: React.FC<Props> = ({ tourStep, setTourStep, completeTour, act
                     {currentStep.icon}
                   </div>
                   <div>
-                     <div className={`text-[10px] font-black uppercase tracking-[0.2em] ${activeTheme.text} mb-1`}>Initialising</div>
+                     <div className={`text-[10px] font-black uppercase tracking-[0.2em] ${activeTheme.text} mb-1`}>Start Here</div>
                      <h3 className="text-2xl font-black text-white">{currentStep.title}</h3>
                   </div>
                 </div>

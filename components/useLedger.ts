@@ -11,6 +11,7 @@ const DEFAULT_SETTINGS: AppSettings = {
   themeColor: 'emerald',
   background: 'solid',
   currency: '₹',
+  language: 'en',
   
   // Visual Engine Defaults
   baseColor: 'slate',

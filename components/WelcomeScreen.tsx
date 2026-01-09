@@ -10,6 +10,7 @@ interface Props {
   deferredPrompt: any;
   handleInstallClick: () => void;
   handleImport: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  updateSetting: (key: keyof AppSettings, value: any) => void;
 }
 
 const WelcomeScreen: React.FC<Props> = ({ 
@@ -18,7 +19,7 @@ const WelcomeScreen: React.FC<Props> = ({
     onLogin, 
     deferredPrompt, 
     handleInstallClick, 
-    handleImport 
+    handleImport
 }) => {
   return (
     <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center p-6 text-center text-slate-100 relative overflow-hidden">
@@ -36,15 +37,15 @@ const WelcomeScreen: React.FC<Props> = ({
           <h1 className="text-5xl font-black tracking-tighter">
             {settings.userName.split(' ')[0] || "Abhi's"} <span className={activeTheme.text}>Ledger</span>
           </h1>
-          <p className="text-slate-400 text-lg font-medium leading-relaxed">The elite offline debt tracking engine.</p>
+          <p className="text-slate-400 text-lg font-medium leading-relaxed">Simple money tracker for you and your friends.</p>
         </div>
         <div className="grid grid-cols-1 gap-4 pt-4">
           <label className="flex flex-col items-center justify-center w-full h-44 border-2 border-dashed border-slate-800 rounded-3xl bg-slate-900/40 hover:bg-slate-900/60 transition-all cursor-pointer group">
             <Upload className={`w-10 h-10 ${activeTheme.text} mb-3 group-hover:scale-110 transition-transform`} />
-            <span className="text-slate-300 font-bold">Restore Backup</span>
+            <span className="text-slate-300 font-bold">Restore Backup File</span>
             <input type="file" className="hidden" accept=".json,application/json" onChange={handleImport} />
           </label>
-          <button onClick={onLogin} className="w-full py-5 bg-white text-slate-950 rounded-2xl font-black text-xl hover:bg-slate-200 transition-all active:scale-95 transform">Fresh Ledger</button>
+          <button onClick={onLogin} className="w-full py-5 bg-white text-slate-950 rounded-2xl font-black text-xl hover:bg-slate-200 transition-all active:scale-95 transform">Start Fresh</button>
           {deferredPrompt && (
             <button onClick={handleInstallClick} className="w-full py-4 mt-2 bg-slate-800 text-slate-300 rounded-2xl font-bold flex items-center justify-center gap-2 hover:bg-slate-700 transition-colors">
               <MonitorDown className="w-5 h-5" /> Install App

@@ -4,13 +4,18 @@ import autoTable from 'jspdf-autotable';
 import { Transaction, AppSettings } from '../types';
 import { getTrustBreakdown, calculateInterest } from './calculations';
 
-const formatDate = (date: Date) => {
+const formatDate = (date: Date, includeTime = false) => {
   try {
-    return date.toLocaleDateString('en-IN', {
+    let str = date.toLocaleDateString('en-IN', {
       day: '2-digit',
       month: 'short',
       year: 'numeric'
     }).toUpperCase();
+    
+    if (includeTime) {
+      str += ' ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    }
+    return str;
   } catch (e) {
     return 'INVALID DATE';
   }
@@ -114,7 +119,8 @@ const createStatementDoc = (friendName: string, allTransactions: Transaction[], 
       type: 'ADVANCE',
       amount: t.principalAmount,
       note: noteDetails,
-      isCredit: false
+      isCredit: false,
+      hasTime: t.hasTime
     });
 
     if (interest > 0) {
@@ -299,7 +305,7 @@ const createStatementDoc = (friendName: string, allTransactions: Transaction[], 
       startY: startY + 45,
       head: [['DATE', 'OPERATION', 'DETAILS', 'AMOUNT']],
       body: events.map(e => [
-        formatDate(e.date),
+        formatDate(e.date, e.hasTime),
         e.type,
         e.note,
         `${e.isCredit ? '-' : '+'} ${Math.abs(e.amount).toLocaleString()}`
@@ -367,4 +373,3 @@ export const generateStatementFile = (friendName: string, allTransactions: Trans
   const blob = doc.output('blob');
   return new File([blob], `Statement_${friendName}.pdf`, { type: 'application/pdf' });
 };
-    

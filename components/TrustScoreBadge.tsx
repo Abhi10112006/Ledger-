@@ -67,7 +67,7 @@ const TrustScoreBadge: React.FC<Props> = ({ score, friendName, allTransactions =
               <div className="p-2 bg-emerald-500/10 rounded-lg">
                 <ShieldCheck className="text-emerald-500 w-5 h-5" />
               </div>
-              <h3 className="text-sm font-black uppercase tracking-widest text-slate-100">Trust Briefing</h3>
+              <h3 className="text-sm font-black uppercase tracking-widest text-slate-100">Trust Report</h3>
             </div>
             <button 
               type="button"
@@ -89,7 +89,7 @@ const TrustScoreBadge: React.FC<Props> = ({ score, friendName, allTransactions =
                 {info.label} Performance
               </div>
               <p className="text-slate-400 text-[11px] leading-relaxed max-w-[220px]">
-                Real-time reliability rating based on historical settlements and current liabilities.
+                Shows how good this friend is at paying back money on time.
               </p>
             </div>
 
@@ -97,7 +97,7 @@ const TrustScoreBadge: React.FC<Props> = ({ score, friendName, allTransactions =
             {breakdown.factors.length > 0 && (
               <div className="space-y-3">
                 <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 px-1">
-                  <Info className="w-3 h-3" /> Core Modifiers
+                  <Info className="w-3 h-3" /> Score Details
                 </div>
                 <div className="grid grid-cols-1 gap-2">
                   {breakdown.factors.map((f, i) => (
@@ -116,7 +116,7 @@ const TrustScoreBadge: React.FC<Props> = ({ score, friendName, allTransactions =
             {/* History */}
             <div className="space-y-3">
               <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 px-1">
-                <History className="w-3 h-3" /> Verification Trail
+                <History className="w-3 h-3" /> Payment History
               </div>
               <div className="space-y-1 pb-4">
                 {breakdown.history.slice(0, 5).map((h, i) => (
@@ -135,7 +135,7 @@ const TrustScoreBadge: React.FC<Props> = ({ score, friendName, allTransactions =
                 ))}
                 {breakdown.history.length === 0 && (
                   <div className="p-4 text-center glass rounded-2xl border-dashed border-white/10 text-slate-600 text-[11px] italic">
-                    Initial audit pending. No records found.
+                    No records found yet.
                   </div>
                 )}
               </div>

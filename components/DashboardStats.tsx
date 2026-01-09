@@ -35,18 +35,18 @@ const DashboardStats: React.FC<Props> = ({ stats, settings, activeTheme, tourSte
       className={`grid grid-cols-2 gap-4 sm:gap-6 relative transition-all duration-300 ${tourStep === 1 ? `z-[60] scale-105 ring-4 ${activeTheme.ring} ring-offset-8 ring-offset-slate-950 rounded-3xl` : ''}`}
     >
       <MinimalStatCard 
-        label="PENDING" 
+        label="TO COLLECT" 
         value={`${settings.currency}${stats.pending.toLocaleString('en-IN')}`} 
         icon={<TrendingUp className="w-4 h-4" />} 
         accent={activeTheme.text} 
-        subtext={`${stats.activeCount} active`} 
+        subtext={`${stats.activeCount} friends`} 
       />
       <MinimalStatCard 
-        label="RETURNED" 
+        label="COLLECTED" 
         value={`${settings.currency}${stats.received.toLocaleString('en-IN')}`} 
         icon={<CheckCircle2 className="w-4 h-4" />} 
         accent="text-slate-300" 
-        subtext={`${stats.overdueCount} overdue`} 
+        subtext={`${stats.overdueCount} late`} 
       />
     </div>
   );
