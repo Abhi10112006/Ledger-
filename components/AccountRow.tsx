@@ -15,6 +15,14 @@ const AccountRow: React.FC<Props> = ({ account, settings, activeTheme, onClick }
     return !t.isCompleted && new Date() > new Date(t.returnDate);
   });
 
+  const getScoreColor = (score: number) => {
+    if (score >= 90) return 'text-cyan-400';
+    if (score >= 75) return 'text-emerald-400';
+    if (score >= 50) return 'text-amber-400';
+    if (score >= 25) return 'text-orange-400';
+    return 'text-rose-400';
+  };
+
   return (
     <div 
       onClick={onClick}
@@ -32,7 +40,7 @@ const AccountRow: React.FC<Props> = ({ account, settings, activeTheme, onClick }
         <div className="space-y-0.5">
           <h3 className="font-bold text-slate-100 text-lg">{account.name}</h3>
           <div className="flex items-center gap-2">
-            <span className={`text-[10px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded-md bg-slate-800 ${activeTheme.text}`}>
+            <span className={`text-[10px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded-md bg-slate-800 ${getScoreColor(account.trustScore)}`}>
               Trust: {account.trustScore}
             </span>
             {account.transactions.length > 0 && (

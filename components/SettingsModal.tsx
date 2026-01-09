@@ -25,7 +25,6 @@ const SettingsModal: React.FC<Props> = ({
   tourStep
 }) => {
   const [activeTab, setActiveTab] = useState<'general' | 'visual' | 'interface' | 'contact'>('general');
-  const [showResetConfirm, setShowResetConfirm] = useState(false);
   
   // Developer Tab State
   const [tilt, setTilt] = useState({ x: 0, y: 0 });
@@ -39,11 +38,6 @@ const SettingsModal: React.FC<Props> = ({
     }
   }, [tourStep]);
   
-  // Reset confirmation state when tab or modal changes
-  useEffect(() => {
-      setShowResetConfirm(false);
-  }, [activeTab, isOpen]);
-
   // Scramble Effect
   useEffect(() => {
     if (activeTab === 'contact') {
@@ -102,11 +96,6 @@ const SettingsModal: React.FC<Props> = ({
     navigator.clipboard.writeText('abhiyaduvanshi@zohomail.in');
     setIsCopied(true);
     setTimeout(() => setIsCopied(false), 2000);
-  };
-
-  const handleFactoryReset = () => {
-      localStorage.clear();
-      window.location.reload();
   };
 
   return (
@@ -187,53 +176,6 @@ const SettingsModal: React.FC<Props> = ({
                       {settings.themeColor === t && <CheckCircle2 className="w-5 h-5 text-slate-950" />}
                     </button>
                   ))}
-                </div>
-              </div>
-
-              {/* Data Reset Section (Desktop Only) */}
-              <div className="hidden md:block space-y-4 pt-4 border-t border-slate-800">
-                <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-rose-500">
-                    <AlertTriangle className="w-3 h-3" /> Danger Zone
-                </div>
-                <div className={`p-4 rounded-xl border transition-all duration-300 ${showResetConfirm ? 'border-rose-500 bg-rose-950/30' : 'border-rose-900/30 bg-rose-950/10'}`}>
-                    {!showResetConfirm ? (
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <div className="font-bold text-sm text-slate-200">Delete Everything</div>
-                                <div className="text-[10px] text-slate-500">Wipe all data and restart fresh.</div>
-                            </div>
-                            <button 
-                                onClick={() => setShowResetConfirm(true)}
-                                className="px-4 py-2 bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold uppercase tracking-wider rounded-lg transition-colors shadow-lg shadow-rose-900/20 active:scale-95"
-                            >
-                                Reset
-                            </button>
-                        </div>
-                    ) : (
-                        <div className="space-y-3">
-                             <div className="flex items-center gap-2 text-rose-400 font-bold text-sm">
-                                <AlertTriangle className="w-4 h-4" />
-                                <span>Are you absolutely sure?</span>
-                             </div>
-                             <p className="text-[11px] text-slate-400 leading-relaxed">
-                                 This will permanently delete all transactions, settings, and local data. This action cannot be undone.
-                             </p>
-                             <div className="flex gap-3">
-                                <button 
-                                    onClick={handleFactoryReset}
-                                    className="flex-1 py-2 bg-rose-600 text-white text-xs font-bold uppercase tracking-wider rounded-lg hover:bg-rose-500 active:scale-95 transition-all shadow-lg shadow-rose-900/40"
-                                >
-                                    Confirm Reset
-                                </button>
-                                <button 
-                                    onClick={() => setShowResetConfirm(false)}
-                                    className="flex-1 py-2 bg-slate-800 text-slate-300 text-xs font-bold uppercase tracking-wider rounded-lg hover:bg-slate-700 active:scale-95 transition-all"
-                                >
-                                    Cancel
-                                </button>
-                             </div>
-                        </div>
-                    )}
                 </div>
               </div>
             </div>

@@ -33,7 +33,7 @@ const DashboardStats: React.FC<Props> = ({ stats, settings, activeTheme, tourSte
                 <div className="flex justify-between items-start mb-8">
                     <div className="space-y-1">
                         <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-400">
-                           <Wallet className="w-3.5 h-3.5" /> Total Remaining
+                           <Wallet className="w-3.5 h-3.5" /> Total To Collect
                         </div>
                         <div className="flex items-baseline gap-1.5">
                             <span className="text-xl sm:text-2xl text-slate-500 font-bold font-mono">{settings.currency}</span>
