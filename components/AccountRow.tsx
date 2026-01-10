@@ -37,11 +37,19 @@ const AccountRow: React.FC<Props> = ({ account, settings, activeTheme, onClick }
         </div>
         
         <div className="space-y-0.5">
-          <h3 className="font-bold text-slate-100 text-lg leading-tight">{account.name}</h3>
+          <div className="flex items-center gap-2">
+            <h3 className="font-bold text-slate-100 text-lg leading-tight">{account.name}</h3>
+            {account.id && (
+               <span className="text-[9px] font-mono font-bold text-slate-600 bg-slate-900/50 px-1.5 py-0.5 rounded border border-slate-800">
+                  #{account.id}
+               </span>
+            )}
+          </div>
           <div className="flex items-center gap-2">
             <TrustScoreBadge 
                 score={account.trustScore}
                 friendName={account.name}
+                profileId={account.id}
                 allTransactions={account.transactions}
                 currency={settings.currency}
             />

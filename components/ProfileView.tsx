@@ -7,6 +7,7 @@ import TrustScoreBadge from './TrustScoreBadge';
 
 interface Props {
   account: {
+    id: string; // Ledger ID
     name: string;
     transactions: Transaction[];
     totalExposure: number;
@@ -238,7 +239,7 @@ const ProfileView: React.FC<Props> = ({
             </button>
 
             <button 
-              onClick={() => generateStatementPDF(account.name, account.transactions, settings)}
+              onClick={() => generateStatementPDF(account.id, account.name, account.transactions, settings)}
               className="flex flex-col items-center gap-1.5 group active:scale-95 transition-transform"
             >
                <div className="p-3 bg-slate-800 text-slate-300 rounded-xl group-hover:bg-slate-700 transition-colors shadow-lg border border-slate-700/50">
@@ -257,12 +258,19 @@ const ProfileView: React.FC<Props> = ({
              <div className={`w-20 h-20 mx-auto rounded-full ${getAvatarClasses(account.trustScore)} flex items-center justify-center text-3xl font-black text-slate-950 shadow-2xl`}>
                 {account.name.charAt(0).toUpperCase()}
              </div>
-             <h2 className="text-2xl font-bold text-white tracking-tight">{account.name}</h2>
+             
+             <div className="space-y-0.5">
+                <h2 className="text-2xl font-bold text-white tracking-tight">{account.name}</h2>
+                <div className="text-[10px] text-slate-500 font-mono font-bold bg-slate-900/50 px-2 py-1 rounded inline-block border border-slate-800">
+                    ID: {account.id}
+                </div>
+             </div>
              
              <div className="flex justify-center mt-2">
                 <TrustScoreBadge 
                     score={account.trustScore}
                     friendName={account.name}
+                    profileId={account.id}
                     allTransactions={account.transactions}
                     currency={settings.currency}
                 />

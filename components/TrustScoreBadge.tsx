@@ -8,11 +8,12 @@ import { Transaction } from '../types';
 interface Props {
   score: number;
   friendName?: string;
+  profileId?: string;
   allTransactions?: Transaction[];
   currency: string;
 }
 
-const TrustScoreBadge: React.FC<Props> = ({ score, friendName, allTransactions = [], currency }) => {
+const TrustScoreBadge: React.FC<Props> = ({ score, friendName, profileId, allTransactions = [], currency }) => {
   const [showModal, setShowModal] = useState(false);
   const [mounted, setMounted] = useState(false);
 
@@ -46,11 +47,12 @@ const TrustScoreBadge: React.FC<Props> = ({ score, friendName, allTransactions =
   };
 
   const renderModal = () => {
-    if (!showModal || !friendName) return null;
+    if (!showModal || !profileId) return null;
     
     let breakdown = null;
     try {
-      breakdown = getTrustBreakdown(friendName, allTransactions, currency);
+      // USE ID FOR BREAKDOWN
+      breakdown = getTrustBreakdown(profileId, allTransactions, currency);
     } catch (e) {
       console.error("Truth breakdown calculation failed", e);
       return null;
@@ -71,7 +73,10 @@ const TrustScoreBadge: React.FC<Props> = ({ score, friendName, allTransactions =
               <div className="p-2 bg-emerald-500/10 rounded-lg">
                 <ShieldCheck className="text-emerald-500 w-5 h-5" />
               </div>
-              <h3 className="text-sm font-black uppercase tracking-widest text-slate-100">Truth Analysis</h3>
+              <div>
+                  <h3 className="text-sm font-black uppercase tracking-widest text-slate-100">Truth Analysis</h3>
+                  <div className="text-[10px] text-slate-500 font-mono">ID: {profileId}</div>
+              </div>
             </div>
             <button 
               type="button"

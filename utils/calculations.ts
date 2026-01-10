@@ -123,15 +123,14 @@ export interface TrustBreakdown {
   history: { date: string; event: string; status: string }[];
 }
 
-export const calculateTrustScore = (friendName: string, transactions: Transaction[]): number => {
-  const breakdown = getTrustBreakdown(friendName, transactions, ''); 
+export const calculateTrustScore = (profileId: string, transactions: Transaction[]): number => {
+  const breakdown = getTrustBreakdown(profileId, transactions, ''); 
   return breakdown.score;
 };
 
-export const getTrustBreakdown = (friendName: string, transactions: Transaction[], currency: string = '₹'): TrustBreakdown => {
-  const friendTx = transactions.filter(t => 
-    (t.friendName || '').trim().toLowerCase() === (friendName || '').trim().toLowerCase()
-  );
+export const getTrustBreakdown = (profileId: string, transactions: Transaction[], currency: string = '₹'): TrustBreakdown => {
+  // FILTER BY ID PREFERENCE
+  const friendTx = transactions.filter(t => t.profileId === profileId);
 
   if (friendTx.length === 0) {
     return { 

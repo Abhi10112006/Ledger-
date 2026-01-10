@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, Component } from 'react';
 import { Plus, Search, UserPlus, AlertOctagon, RefreshCw } from 'lucide-react';
 import { useLedger } from './hooks/useLedger';
 import { generateStatementPDF } from './utils/pdfGenerator';
@@ -41,11 +41,11 @@ interface ErrorBoundaryState {
 }
 
 // --- ERROR BOUNDARY COMPONENT ---
-class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
-  constructor(props: ErrorBoundaryProps) {
-    super(props);
-    this.state = { hasError: false, error: null };
-  }
+class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
+  state: ErrorBoundaryState = {
+    hasError: false,
+    error: null
+  };
 
   static getDerivedStateFromError(error: any): ErrorBoundaryState {
     return { hasError: true, error };
@@ -86,7 +86,9 @@ const AppContent: React.FC = () => {
   
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTxId, setActiveTxId] = useState<string | null>(null);
-  const [selectedProfileName, setSelectedProfileName] = useState<string | null>(null);
+  
+  // Use Profile ID for selection instead of Name to handle duplicates
+  const [selectedProfileId, setSelectedProfileId] = useState<string | null>(null);
 
   const {
     transactions, settings, isLoggedIn, deferredPrompt, accounts, stats,
@@ -94,9 +96,11 @@ const AppContent: React.FC = () => {
     deleteTransaction, deleteRepayment, deleteProfile, handleExport, handleImport, handleInstallClick
   } = useLedger(tourStep, searchQuery);
 
-  const activeTheme = THEMES[settings.themeColor];
+  const activeTheme = THEMES[settings.themeColor] || THEMES.emerald;
   const activeTx = transactions.find(t => t.id === activeTxId);
-  const activeProfile = accounts.find(a => a.name === selectedProfileName);
+  
+  // Find profile by ID (more robust)
+  const activeProfile = accounts.find(a => a.id === selectedProfileId);
 
   // --- NAVIGATION CONTROLLER (HISTORY API) ---
   
@@ -129,19 +133,19 @@ const AppContent: React.FC = () => {
     }
   }, [tourStep]);
 
-  const navigateToProfile = (name: string) => {
-    setSelectedProfileName(name);
+  const navigateToProfile = (profileId: string) => {
+    setSelectedProfileId(profileId);
     pushHistoryState('profile');
   };
 
   const handleBackAction = useCallback(() => {
-    if (selectedProfileName) {
-        setSelectedProfileName(null);
+    if (selectedProfileId) {
+        setSelectedProfileId(null);
         if (window.history.state?.view === 'profile') {
             window.history.back();
         }
     }
-  }, [selectedProfileName]);
+  }, [selectedProfileId]);
 
   // Handle Browser Back Button (Hardware Back on Android)
   useEffect(() => {
@@ -158,7 +162,7 @@ const AppContent: React.FC = () => {
         setIsActiveDealsModalOpen(false);
         setIsSponsorModalOpen(false);
         setIsMobileMenuOpen(false);
-        setSelectedProfileName(null);
+        setSelectedProfileId(null);
       } else if (event.state.view === 'profile') {
         // We are at profile level, ensure modals are closed
         setIsModalOpen(false);
@@ -197,7 +201,7 @@ const AppContent: React.FC = () => {
     const isMobile = window.innerWidth < 768;
 
     if (tourStep !== -1) {
-       setSelectedProfileName(null);
+       setSelectedProfileId(null);
     }
 
     // STEPS NEEDING MOBILE MENU: 
@@ -265,7 +269,7 @@ const AppContent: React.FC = () => {
        {settings.background === 'nebula' && <div className={`fixed top-0 left-0 right-0 h-[50vh] ${activeTheme.bg}/10 blur-[120px] pointer-events-none rounded-b-full`}></div>}
 
       {/* Safety Check: Only show profile if data exists. If deleted, it falls back to Dashboard */}
-      {selectedProfileName && activeProfile ? (
+      {selectedProfileId && activeProfile ? (
         <div className="max-w-4xl mx-auto px-6 pt-safe">
            <ProfileView 
               account={activeProfile} settings={settings} activeTheme={activeTheme}
@@ -273,7 +277,7 @@ const AppContent: React.FC = () => {
               onGive={() => openModal(setIsModalOpen)}
               onReceive={(txId) => { setActiveTxId(txId); openModal(setIsPaymentModalOpen); }}
               onDeleteTransaction={deleteTransaction} onDeleteRepayment={deleteRepayment}
-              onDeleteProfile={() => { deleteProfile(activeProfile.name); handleBackAction(); }}
+              onDeleteProfile={() => { deleteProfile(activeProfile.id); handleBackAction(); }}
               onUpdateDueDate={(txId) => { setActiveTxId(txId); openModal(setIsEditDateModalOpen); }}
            />
         </div>
@@ -302,7 +306,7 @@ const AppContent: React.FC = () => {
               </div>
               <div className="space-y-4">
                 {accounts.length > 0 ? accounts.map(account => (
-                  <AccountRow key={account.name} account={account} settings={settings} activeTheme={activeTheme} onClick={() => navigateToProfile(account.name)} />
+                  <AccountRow key={account.id} account={account} settings={settings} activeTheme={activeTheme} onClick={() => navigateToProfile(account.id)} />
                 )) : (
                   <div className="glass border-slate-800/40 border-dashed border-2 text-center" style={{ borderRadius: 'var(--app-radius)', padding: '3rem' }}>
                     <div className="bg-slate-900/50 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4 border border-slate-800"><UserPlus className="w-10 h-10 text-slate-700" /></div>
@@ -323,10 +327,13 @@ const AppContent: React.FC = () => {
       <TourOverlay tourStep={tourStep} setTourStep={setTourStep} completeTour={handleCompleteTour} activeTheme={activeTheme} />
       <SettingsModal isOpen={isSettingsModalOpen} onClose={closeModal} settings={settings} updateSetting={updateSetting} activeTheme={activeTheme} themes={THEMES} currencies={CURRENCIES} tourStep={tourStep} />
       <TypographyModal isOpen={isTypographyModalOpen} onClose={closeModal} currentFont={settings.fontStyle} onSelect={(font) => updateSetting('fontStyle', font)} activeTheme={activeTheme} />
-      <ActiveDealsModal isOpen={isActiveDealsModalOpen} onClose={closeModal} transactions={transactions} currency={settings.currency} activeTheme={activeTheme} onSelectDeal={(name) => navigateToProfile(name)} />
-      <DealModal isOpen={isModalOpen} onClose={closeModal} onSave={(data) => { addLoan(data); closeModal(); }} activeTheme={activeTheme} currency={settings.currency} initialName={selectedProfileName || ''} />
+      <ActiveDealsModal isOpen={isActiveDealsModalOpen} onClose={closeModal} transactions={transactions} currency={settings.currency} activeTheme={activeTheme} onSelectDeal={(profileId) => {
+          // Direct navigation by Profile ID
+          navigateToProfile(profileId);
+      }} />
+      <DealModal isOpen={isModalOpen} onClose={closeModal} onSave={(data) => { addLoan(data); setSearchQuery(''); closeModal(); }} activeTheme={activeTheme} currency={settings.currency} initialName={activeProfile ? activeProfile.name : ''} />
       <PaymentModal isOpen={isPaymentModalOpen} onClose={closeModal} onSave={(amount, date) => { addPayment(activeTxId, amount, date); closeModal(); }} activeTheme={activeTheme} currency={settings.currency} />
-      <EditDateModal isOpen={isEditDateModalOpen} onClose={closeModal} onSave={(date) => { updateDueDate(activeTxId, date); closeModal(); }} initialDate={activeTx ? activeTx.returnDate : ''} />
+      <EditDateModal isOpen={isEditDateModalOpen} onClose={closeModal} onSave={(date) => { updateDueDate(activeTxId, date); closeModal(); }} initialDate={activeTx?.returnDate || ''} />
       <DeleteModal isOpen={isDeleteModalOpen} onClose={closeModal} onConfirm={() => { deleteTransaction(activeTxId); closeModal(); }} />
     </div>
   );

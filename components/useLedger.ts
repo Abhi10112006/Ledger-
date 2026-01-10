@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Transaction, AppSettings, Repayment, InterestType, SummaryStats } from '../types';
 import { generateId } from '../utils/common';
@@ -107,6 +108,7 @@ export const useLedger = (tourStep: number) => {
   }) => {
     setTransactions(prev => [{
       id: generateId(),
+      profileId: generateId(), // Basic generation if this file is used standalone
       friendName: data.friendName.trim(), 
       principalAmount: data.amount,
       paidAmount: 0,
@@ -200,6 +202,7 @@ export const useLedger = (tourStep: number) => {
   const accounts = useMemo(() => {
     const simulationTx: Transaction = {
       id: 'sim-tx',
+      profileId: 'SIM-PROFILE',
       friendName: 'Example Client',
       principalAmount: 5000,
       paidAmount: 1500,
@@ -231,6 +234,7 @@ export const useLedger = (tourStep: number) => {
       const lastActivity = Math.max(...txs.map(t => new Date(t.startDate).getTime()));
       
       return {
+        id: txs[0].profileId || generateId(),
         name,
         transactions: txs.sort((a, b) => new Date(b.startDate).getTime() - new Date(a.startDate).getTime()),
         totalExposure: exposure,

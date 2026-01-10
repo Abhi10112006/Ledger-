@@ -1,6 +1,6 @@
 
-import React, { useState, useEffect } from 'react';
-import { PlusCircle, X, ArrowUpRight, ShieldCheck } from 'lucide-react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { PlusCircle, X, ArrowUpRight, ShieldCheck, Check, Search } from 'lucide-react';
 import { InterestType } from '../types';
 
 interface Props {
@@ -8,6 +8,7 @@ interface Props {
   onClose: () => void;
   onSave: (data: {
     friendName: string;
+    profileId?: string; // ID for linking
     friendPhone?: string;
     amount: number;
     startDate: string;
@@ -24,6 +25,7 @@ interface Props {
 
 const DealModal: React.FC<Props> = ({ isOpen, onClose, onSave, activeTheme, currency, initialName = '' }) => {
   const [friendName, setFriendName] = useState('');
+  const [selectedProfileId, setSelectedProfileId] = useState<string | null>(null);
   const [friendPhone, setFriendPhone] = useState('');
   const [amount, setAmount] = useState('');
   const [startDate, setStartDate] = useState(new Date().toISOString().split('T')[0]);
@@ -34,14 +36,59 @@ const DealModal: React.FC<Props> = ({ isOpen, onClose, onSave, activeTheme, curr
   const [interestType, setInterestType] = useState<InterestType>('none');
   const [interestFree, setInterestFree] = useState(false);
 
+  // Search Logic
+  const [searchResults, setSearchResults] = useState<any[]>([]);
+  
+  // NOTE: For this specific component we read localStorage to get current contacts list
+  // because this modal is isolated from the main accounts list state in many cases.
   useEffect(() => {
     if (isOpen) {
         setFriendName(initialName);
-        setFriendPhone(''); // Reset phone on new open
-        setStartTime(''); // Reset time
+        setFriendPhone('');
+        setStartTime('');
         setInterestFree(false);
+        setSelectedProfileId(null);
+        setSearchResults([]);
     }
   }, [isOpen, initialName]);
+
+  // Autocomplete Effect
+  useEffect(() => {
+    // Only search if user is typing, name exists, and they haven't picked an ID yet
+    if (!friendName || selectedProfileId || initialName) {
+        setSearchResults([]);
+        return;
+    }
+
+    try {
+        const saved = localStorage.getItem('abhi_ledger_session');
+        if (saved) {
+            const txs = JSON.parse(saved);
+            // Extract unique profiles
+            const uniqueProfiles = new Map();
+            txs.forEach((t: any) => {
+                // Determine ID (mimic logic from useLedger if migration hasn't run yet)
+                const pid = t.profileId || 'LEGACY'; 
+                if (!uniqueProfiles.has(pid)) {
+                    uniqueProfiles.set(pid, { id: pid, name: t.friendName });
+                }
+            });
+            
+            const results = Array.from(uniqueProfiles.values())
+                .filter((p: any) => p.name.toLowerCase().includes(friendName.toLowerCase()))
+                .slice(0, 3); // Limit to 3 suggestions
+            
+            setSearchResults(results);
+        }
+    } catch(e) {}
+
+  }, [friendName, selectedProfileId, initialName]);
+
+  const selectExisting = (profile: any) => {
+      setFriendName(profile.name);
+      setSelectedProfileId(profile.id);
+      setSearchResults([]);
+  };
 
   if (!isOpen) return null;
 
@@ -50,13 +97,13 @@ const DealModal: React.FC<Props> = ({ isOpen, onClose, onSave, activeTheme, curr
     if (!friendName || !amount) return;
     
     let finalStartDate = startDate;
-    // If time is provided, combine date and time (ISO format implicitly handled by useLedger logic if contains T)
     if (startTime) {
       finalStartDate = `${startDate}T${startTime}`;
     }
 
     onSave({
       friendName,
+      profileId: selectedProfileId || undefined, // undefined triggers generation of NEW ID in useLedger
       friendPhone,
       amount: parseFloat(amount),
       startDate: finalStartDate,
@@ -69,6 +116,7 @@ const DealModal: React.FC<Props> = ({ isOpen, onClose, onSave, activeTheme, curr
     
     // Reset and close
     setFriendName('');
+    setSelectedProfileId(null);
     setFriendPhone('');
     setAmount('');
     setStartDate(new Date().toISOString().split('T')[0]);
@@ -93,17 +141,48 @@ const DealModal: React.FC<Props> = ({ isOpen, onClose, onSave, activeTheme, curr
         </div>
         <form onSubmit={handleSubmit} className="p-8 space-y-6">
           
-          <div className="space-y-2">
+          <div className="space-y-2 relative">
               <label className="text-[10px] font-black text-slate-500 ml-1">Friend Name</label>
-              <input 
-                 required 
-                 autoFocus 
-                 placeholder="Name" 
-                 value={friendName} 
-                 onChange={e => setFriendName(e.target.value)} 
-                 readOnly={!!initialName}
-                 className={`w-full bg-slate-900 border border-slate-800 rounded-xl px-5 py-4 text-slate-100 placeholder-slate-700 ${initialName ? 'opacity-70 cursor-not-allowed' : ''}`} 
-              />
+              <div className="relative">
+                  <input 
+                    required 
+                    autoFocus 
+                    placeholder="Who are you paying?" 
+                    value={friendName} 
+                    onChange={e => {
+                        setFriendName(e.target.value);
+                        setSelectedProfileId(null); // Clear ID if user modifies name
+                    }}
+                    onBlur={() => {
+                        // Close dropdown when focus leaves (e.g. tabbing to Amount)
+                        // Timeout allows the click event on a result to fire first
+                        setTimeout(() => setSearchResults([]), 200);
+                    }}
+                    readOnly={!!initialName}
+                    className={`w-full bg-slate-900 border border-slate-800 rounded-xl px-5 py-4 text-slate-100 placeholder-slate-700 ${initialName ? 'opacity-70 cursor-not-allowed' : ''} ${selectedProfileId ? 'border-emerald-500/50 pl-10' : ''}`} 
+                  />
+                  {selectedProfileId && (
+                      <Check className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-emerald-500" />
+                  )}
+              </div>
+
+              {/* Autocomplete Dropdown */}
+              {searchResults.length > 0 && (
+                  <div className="absolute top-full left-0 right-0 mt-2 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl z-20 overflow-hidden">
+                      <div className="px-3 py-2 text-[9px] font-black uppercase text-slate-500 bg-slate-950/50">Found Existing Contacts</div>
+                      {searchResults.map(res => (
+                          <button
+                            key={res.id}
+                            type="button"
+                            onClick={() => selectExisting(res)}
+                            className="w-full text-left px-4 py-3 hover:bg-slate-800 flex items-center justify-between group transition-colors"
+                          >
+                              <span className="text-sm font-bold text-slate-200">{res.name}</span>
+                              <span className="text-[9px] font-mono text-slate-500 bg-slate-950 px-1.5 py-0.5 rounded border border-slate-800 group-hover:border-slate-600">#{res.id}</span>
+                          </button>
+                      ))}
+                  </div>
+              )}
           </div>
 
           <div className="grid grid-cols-2 gap-4">

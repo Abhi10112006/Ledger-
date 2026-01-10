@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Transaction, AppSettings, Repayment, InterestType, SummaryStats } from '../types';
-import { generateId } from '../utils/common';
+import { generateId, generateProfileId } from '../utils/common';
 import { calculateTrustScore, getTotalPayable, getSummaryStats } from '../utils/calculations';
 
 const STORAGE_KEY = 'abhi_ledger_session';
@@ -37,21 +37,27 @@ const sanitizeTransactions = (rawList: any[]): Transaction[] => {
   const now = new Date().toISOString();
 
   return rawList.map(t => {
-    // 1. Repair Dates: If date is invalid, default to Now
+    // 1. Repair Dates
     const safeDate = (dateStr: string) => {
       const d = new Date(dateStr);
       return !isNaN(d.getTime()) ? d.toISOString() : now;
     };
 
-    // 2. Repair Arrays: Ensure repayments is always an array
+    // 2. Repair Arrays
     const safeRepayments = Array.isArray(t.repayments) ? t.repayments.map((r: any) => ({
         id: r.id || generateId(),
         amount: Number(r.amount) || 0,
         date: safeDate(r.date)
     })) : [];
 
+    // 3. Ensure Profile ID (Migration Step)
+    // If profileId is missing, generate a deterministic one based on name
+    // This ensures existing data groups correctly after update.
+    const safeProfileId = t.profileId || generateProfileId(t.friendName || 'Unknown', false);
+
     return {
       id: t.id || generateId(),
+      profileId: safeProfileId,
       friendName: t.friendName || 'Unknown',
       friendPhone: t.friendPhone || '',
       principalAmount: Number(t.principalAmount) || 0,
@@ -141,6 +147,7 @@ export const useLedger = (tourStep: number, searchQuery: string = '') => {
 
   const addLoan = (data: {
     friendName: string;
+    profileId?: string; // Optional: If adding to existing profile
     friendPhone?: string;
     amount: number;
     startDate: string;
@@ -151,8 +158,14 @@ export const useLedger = (tourStep: number, searchQuery: string = '') => {
     interestFreeIfPaidByDueDate?: boolean;
   }) => {
     const hasTime = data.startDate.includes('T');
+    
+    // Logic: Use existing ID if provided, otherwise generate NEW RANDOM ID for new contact
+    // This allows "Rahul" (RAH-123) and "Rahul" (RAH-999) to coexist.
+    const pid = data.profileId || generateProfileId(data.friendName, true);
+
     setTransactions(prev => [{
       id: generateId(),
+      profileId: pid,
       friendName: data.friendName.trim(),
       friendPhone: data.friendPhone?.trim(),
       principalAmount: data.amount,
@@ -233,8 +246,11 @@ export const useLedger = (tourStep: number, searchQuery: string = '') => {
     }));
   };
 
-  const deleteProfile = (friendName: string) => {
-    setTransactions(prev => prev.filter(t => t.friendName.trim().toLowerCase() !== friendName.trim().toLowerCase()));
+  const deleteProfile = (nameOrId: string) => {
+    // Robust delete: Check if it matches ID or Name (legacy)
+    setTransactions(prev => prev.filter(t => 
+        t.profileId !== nameOrId && t.friendName !== nameOrId
+    ));
   };
 
   const handleExport = useCallback(() => {
@@ -276,21 +292,28 @@ export const useLedger = (tourStep: number, searchQuery: string = '') => {
   // --- DERIVED STATE ---
 
   const accounts = useMemo(() => {
-    // Grouping
+    // Grouping - Now Keyed by PROFILE ID
     const grouped: Record<string, Transaction[]> = {};
+    
     transactions.forEach(t => {
-      const name = t.friendName.trim();
-      if (!grouped[name]) grouped[name] = [];
-      grouped[name].push(t);
+      // Use profileId as the primary grouping key
+      const key = t.profileId; 
+      if (!grouped[key]) grouped[key] = [];
+      grouped[key].push(t);
     });
 
-    let accountList = Object.entries(grouped).map(([name, txs]) => {
+    let accountList = Object.entries(grouped).map(([id, txs]) => {
       const exposure = txs.reduce((acc, t) => acc + (getTotalPayable(t) - t.paidAmount), 0);
-      const trust = calculateTrustScore(name, transactions);
+      const name = txs[0].friendName; // Get name from first transaction
+      
+      // FIX: Use ID (the loop key) instead of Name for trust calculation
+      const trust = calculateTrustScore(id, transactions); 
+      
       const lastActivity = Math.max(...txs.map(t => new Date(t.startDate).getTime()));
       
       return {
-        name,
+        id: id,
+        name: name,
         transactions: txs.sort((a, b) => new Date(b.startDate).getTime() - new Date(a.startDate).getTime()),
         totalExposure: exposure,
         trustScore: trust,
@@ -304,6 +327,7 @@ export const useLedger = (tourStep: number, searchQuery: string = '') => {
         if (query) {
             accountList = accountList.filter(acc => 
                 acc.name.toLowerCase().includes(query) || 
+                acc.id.toLowerCase().includes(query) ||
                 acc.transactions.some(t => 
                     t.notes.toLowerCase().includes(query) ||
                     t.principalAmount.toString().includes(query)

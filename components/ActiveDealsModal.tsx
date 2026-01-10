@@ -10,7 +10,7 @@ interface Props {
   transactions: Transaction[];
   currency: string;
   activeTheme: any;
-  onSelectDeal?: (profileName: string) => void;
+  onSelectDeal?: (profileId: string) => void;
 }
 
 const ActiveDealsModal: React.FC<Props> = ({ isOpen, onClose, transactions, currency, activeTheme, onSelectDeal }) => {
@@ -52,8 +52,8 @@ const ActiveDealsModal: React.FC<Props> = ({ isOpen, onClose, transactions, curr
                   onClick={(e) => {
                       e.stopPropagation();
                       if(onSelectDeal) {
-                          // Trim the name to ensure it matches the profile key in App state
-                          onSelectDeal(deal.friendName.trim());
+                          // Pass ID for direct navigation
+                          onSelectDeal(deal.profileId);
                           onClose();
                       }
                   }}
@@ -63,10 +63,14 @@ const ActiveDealsModal: React.FC<Props> = ({ isOpen, onClose, transactions, curr
                 >
                   <div className="flex-1">
                      <div className="flex items-center gap-2">
-                         {/* Removed hover:underline as requested */}
                          <div className={`font-bold text-sm sm:text-base ${isOverdue ? 'text-rose-200' : 'text-slate-200'}`}>
                             {deal.friendName}
                          </div>
+                         {deal.profileId && (
+                            <span className="text-[9px] font-mono text-slate-600 bg-slate-950 px-1 rounded border border-slate-800">
+                                #{deal.profileId}
+                            </span>
+                         )}
                          <ArrowRight className="w-3 h-3 text-slate-600 opacity-0 group-hover:opacity-100 transition-opacity" />
                      </div>
                      <div className="flex items-center gap-2 mt-1">

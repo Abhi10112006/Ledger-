@@ -21,7 +21,7 @@ const formatDate = (date: Date, includeTime = false) => {
   }
 };
 
-const createStatementDoc = (friendName: string, allTransactions: Transaction[], settings: AppSettings): jsPDF => {
+const createStatementDoc = (profileId: string, friendName: string, allTransactions: Transaction[], settings: AppSettings): jsPDF => {
   const doc = new jsPDF();
   const pageWidth = doc.internal.pageSize.width;
   const pageHeight = doc.internal.pageSize.height;
@@ -68,12 +68,10 @@ const createStatementDoc = (friendName: string, allTransactions: Transaction[], 
   doc.setFontSize(7);
   doc.text("EYES ONLY // NO COPY", stampX, 26, { align: 'center', angle: -5 });
 
-  // ROBUST FILTERING
-  const friendTx = allTransactions.filter(t => 
-      t.friendName.trim().toLowerCase() === friendName.trim().toLowerCase()
-  );
+  // ROBUST FILTERING BY ID
+  const friendTx = allTransactions.filter(t => t.profileId === profileId);
   
-  const breakdown = getTrustBreakdown(friendName, allTransactions, settings.currency);
+  const breakdown = getTrustBreakdown(profileId, allTransactions, settings.currency);
 
   // Financial & Timeline Calculations
   let totalBorrowed = 0;
@@ -157,11 +155,12 @@ const createStatementDoc = (friendName: string, allTransactions: Transaction[], 
   doc.setFont('courier', 'normal');
   // Monospace alignment with formal terms
   doc.text(`CLIENT   : ${friendName.toUpperCase()}`, 14, 30);
-  doc.text(`AGENT    : ${settings.userName.toUpperCase()}`, 14, 35);
-  doc.text(`DATE     : ${formatDate(new Date())}`, 14, 40);
+  doc.text(`ID       : ${profileId}`, 14, 35);
+  doc.text(`AGENT    : ${settings.userName.toUpperCase()}`, 14, 40);
+  doc.text(`DATE     : ${formatDate(new Date())}`, 14, 45);
 
   // --- SUMMARY GRID ---
-  const startY = 55;
+  const startY = 60;
   const boxHeight = 35;
   
   // Net Calculation
@@ -358,18 +357,18 @@ const createStatementDoc = (friendName: string, allTransactions: Transaction[], 
   return doc;
 };
 
-export const generateStatementPDF = (friendName: string, allTransactions: Transaction[], settings: AppSettings) => {
+export const generateStatementPDF = (profileId: string, friendName: string, allTransactions: Transaction[], settings: AppSettings) => {
   try {
-    const doc = createStatementDoc(friendName, allTransactions, settings);
-    doc.save(`DOSSIER_${friendName.replace(/\s+/g, '_').toUpperCase()}.pdf`);
+    const doc = createStatementDoc(profileId, friendName, allTransactions, settings);
+    doc.save(`DOSSIER_${friendName.replace(/\s+/g, '_').toUpperCase()}_${profileId}.pdf`);
   } catch (error) {
     console.error("PDF Generation Failed:", error);
     alert("Could not generate PDF. Please check console for details.");
   }
 };
 
-export const generateStatementFile = (friendName: string, allTransactions: Transaction[], settings: AppSettings): File => {
-  const doc = createStatementDoc(friendName, allTransactions, settings);
+export const generateStatementFile = (profileId: string, friendName: string, allTransactions: Transaction[], settings: AppSettings): File => {
+  const doc = createStatementDoc(profileId, friendName, allTransactions, settings);
   const blob = doc.output('blob');
   return new File([blob], `Statement_${friendName}.pdf`, { type: 'application/pdf' });
 };

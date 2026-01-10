@@ -9,6 +9,7 @@ export interface Repayment {
 
 export interface Transaction {
   id: string;
+  profileId: string; // Unique Identifier for the person (e.g. RAH-452)
   friendName: string;
   friendPhone?: string; // Contact number for SMS
   principalAmount: number;
