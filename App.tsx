@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Plus, Search, UserPlus } from 'lucide-react';
 import { useLedger } from './hooks/useLedger';
 import { generateStatementPDF } from './utils/pdfGenerator';
@@ -48,11 +48,6 @@ const App: React.FC = () => {
   const [activeTxId, setActiveTxId] = useState<string | null>(null);
   const [selectedProfileName, setSelectedProfileName] = useState<string | null>(null);
 
-  // Back Button / Exit Logic State
-  const [showExitToast, setShowExitToast] = useState(false);
-  const lastBackPress = useRef<number>(0);
-  const isBackingFromApp = useRef(false);
-
   const {
     transactions, settings, isLoggedIn, deferredPrompt, accounts, stats,
     setIsLoggedIn, updateSetting, addLoan, addPayment, updateDueDate,
@@ -63,15 +58,10 @@ const App: React.FC = () => {
   const activeTx = transactions.find(t => t.id === activeTxId);
   const activeProfile = accounts.find(a => a.name === selectedProfileName);
 
-  // Helper: Is any modal currently visible?
-  const isAnyModalOpen = isModalOpen || isPaymentModalOpen || isDeleteModalOpen || 
-                        isEditDateModalOpen || isSettingsModalOpen || isTypographyModalOpen || 
-                        isActiveDealsModalOpen || isSponsorModalOpen || (tourStep !== -1);
-
   // --- NAVIGATION CONTROLLER ---
   
-  // Close all modals without affecting history (internal use)
-  const clearModalsState = useCallback(() => {
+  // Close all modals (State only, no history manipulation)
+  const closeModal = useCallback(() => {
     setIsModalOpen(false);
     setIsPaymentModalOpen(false);
     setIsDeleteModalOpen(false);
@@ -84,71 +74,13 @@ const App: React.FC = () => {
     if (tourStep !== -1) setTourStep(-1);
   }, [tourStep]);
 
-  // Public close function that handles history
-  const closeModal = useCallback(() => {
-    isBackingFromApp.current = true;
-    window.history.back();
-  }, []);
-
   const navigateToProfile = (name: string) => {
-    window.history.pushState({ key: 'profile', id: name }, '', '');
     setSelectedProfileName(name);
   };
 
   const handleBackAction = useCallback(() => {
-    isBackingFromApp.current = true;
-    window.history.back();
+    setSelectedProfileName(null);
   }, []);
-
-  // --- NATIVE BACK BUTTON LOGIC ---
-  useEffect(() => {
-    // Initial history setup: [Root] -> [Home]
-    if (!window.history.state || window.history.state.key !== 'home') {
-      window.history.replaceState({ key: 'root' }, '', '');
-      window.history.pushState({ key: 'home' }, '', '');
-    }
-
-    const onPopState = (e: PopStateEvent) => {
-      // Logic Priority:
-      // 1. If Modal is open -> Close it and stay on page
-      if (isAnyModalOpen || isMobileMenuOpen) {
-        clearModalsState();
-        return;
-      }
-
-      // 2. If Profile is open -> Close it and go back to home
-      if (selectedProfileName) {
-        setSelectedProfileName(null);
-        return;
-      }
-
-      // 3. Home Screen Exit logic
-      if (!e.state || e.state.key === 'root') {
-        const now = Date.now();
-        if (now - lastBackPress.current < 2000) {
-          // Double tap! We let the browser actually go back from root, which exits.
-          window.history.back();
-        } else {
-          lastBackPress.current = now;
-          setShowExitToast(true);
-          // Push 'home' back on the stack to "trap" the next back button
-          window.history.pushState({ key: 'home' }, '', '');
-          setTimeout(() => setShowExitToast(false), 2000);
-        }
-      }
-    };
-
-    window.addEventListener('popstate', onPopState);
-    return () => window.removeEventListener('popstate', onPopState);
-  }, [isAnyModalOpen, isMobileMenuOpen, selectedProfileName, clearModalsState]);
-
-  // Sync state for modals: whenever we open a modal, we MUST push a state
-  useEffect(() => {
-    if (isAnyModalOpen && !isBackingFromApp.current) {
-        window.history.pushState({ key: 'modal' }, '', '');
-    }
-    isBackingFromApp.current = false;
-  }, [isAnyModalOpen]);
 
   // Initialization effects
   useEffect(() => {
@@ -176,7 +108,7 @@ const App: React.FC = () => {
     }
   }, [tourStep]);
 
-  // Correctly finish tour using history back
+  // Finish tour
   const handleCompleteTour = useCallback(() => {
      localStorage.setItem(TOUR_KEY, 'true');
      closeModal();
@@ -256,18 +188,16 @@ const App: React.FC = () => {
         </>
       )}
       
-      <div className={`fixed bottom-8 left-1/2 -translate-x-1/2 bg-slate-800 text-white px-6 py-3 rounded-full shadow-2xl z-[5000] transition-all duration-300 pointer-events-none ${showExitToast ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}><p className="text-xs font-bold uppercase tracking-widest">Press back again to exit</p></div>
-
       {/* Modals */}
       <SponsorModal isOpen={isSponsorModalOpen} onClose={closeModal} activeTheme={activeTheme} />
       <TourOverlay tourStep={tourStep} setTourStep={setTourStep} completeTour={handleCompleteTour} activeTheme={activeTheme} />
       <SettingsModal isOpen={isSettingsModalOpen} onClose={closeModal} settings={settings} updateSetting={updateSetting} activeTheme={activeTheme} themes={THEMES} currencies={CURRENCIES} tourStep={tourStep} />
       <TypographyModal isOpen={isTypographyModalOpen} onClose={closeModal} currentFont={settings.fontStyle} onSelect={(font) => updateSetting('fontStyle', font)} activeTheme={activeTheme} />
       <ActiveDealsModal isOpen={isActiveDealsModalOpen} onClose={closeModal} transactions={transactions} currency={settings.currency} activeTheme={activeTheme} onSelectDeal={(name) => navigateToProfile(name)} />
-      <DealModal isOpen={isModalOpen} onClose={closeModal} onSave={(data) => { addLoan(data); clearModalsState(); }} activeTheme={activeTheme} currency={settings.currency} initialName={selectedProfileName || ''} />
-      <PaymentModal isOpen={isPaymentModalOpen} onClose={closeModal} onSave={(amount, date) => { addPayment(activeTxId, amount, date); clearModalsState(); }} activeTheme={activeTheme} currency={settings.currency} />
-      <EditDateModal isOpen={isEditDateModalOpen} onClose={closeModal} onSave={(date) => { updateDueDate(activeTxId, date); clearModalsState(); }} initialDate={activeTx ? activeTx.returnDate : ''} />
-      <DeleteModal isOpen={isDeleteModalOpen} onClose={closeModal} onConfirm={() => { deleteTransaction(activeTxId); clearModalsState(); }} />
+      <DealModal isOpen={isModalOpen} onClose={closeModal} onSave={(data) => { addLoan(data); closeModal(); }} activeTheme={activeTheme} currency={settings.currency} initialName={selectedProfileName || ''} />
+      <PaymentModal isOpen={isPaymentModalOpen} onClose={closeModal} onSave={(amount, date) => { addPayment(activeTxId, amount, date); closeModal(); }} activeTheme={activeTheme} currency={settings.currency} />
+      <EditDateModal isOpen={isEditDateModalOpen} onClose={closeModal} onSave={(date) => { updateDueDate(activeTxId, date); closeModal(); }} initialDate={activeTx ? activeTx.returnDate : ''} />
+      <DeleteModal isOpen={isDeleteModalOpen} onClose={closeModal} onConfirm={() => { deleteTransaction(activeTxId); closeModal(); }} />
     </div>
   );
 };
