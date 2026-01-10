@@ -78,10 +78,6 @@ export const useLedger = (tourStep: number, searchQuery: string = '') => {
             setSettings(newSettings);
             await saveSettingsToDB(newSettings);
           }
-          
-          // Optional: Clear legacy storage after successful migration
-          // localStorage.removeItem(STORAGE_KEY);
-          // localStorage.removeItem(SETTINGS_KEY);
         }
       } catch (e) {
         console.error("Database Initialization Failed:", e);
@@ -129,11 +125,8 @@ export const useLedger = (tourStep: number, searchQuery: string = '') => {
 
   // --- PERSISTENCE HANDLERS ---
   
-  // Unlike LocalStorage where we save the whole array on every change,
-  // with IDB we want to be more granular or use specific save functions.
-  // However, for keeping the app logic simple during migration, we will use specific 
-  // helpers inside the actions below, and only use this effect for Settings.
-
+  // NOTE: We only automatically persist Settings via Effect.
+  // Transactions are persisted explicitly in action handlers to prevent race conditions.
   useEffect(() => {
     if (isDbLoaded) {
       saveSettingsToDB(settings);
@@ -143,11 +136,8 @@ export const useLedger = (tourStep: number, searchQuery: string = '') => {
   // --- ACTIONS ---
 
   const handleInstallClick = async () => {
-    // Detect if Android
     const isAndroid = /Android/i.test(navigator.userAgent);
-
     if (isAndroid) {
-        // Direct APK Download
         const link = document.createElement('a');
         link.href = '/app.apk';
         link.setAttribute('download', 'AbhiLedger.apk');
@@ -155,7 +145,6 @@ export const useLedger = (tourStep: number, searchQuery: string = '') => {
         link.click();
         document.body.removeChild(link);
     } else {
-        // Desktop/iOS PWA Install Prompt
         if (!deferredPrompt) return;
         deferredPrompt.prompt();
         const { outcome } = await deferredPrompt.userChoice;
@@ -343,8 +332,7 @@ export const useLedger = (tourStep: number, searchQuery: string = '') => {
     reader.readAsText(file);
   }, []);
 
-  // --- DERIVED STATE (No Changes Needed Here) ---
-
+  // --- DERIVED STATE ---
   const accounts = useMemo(() => {
     // Grouping
     const grouped: Record<string, Transaction[]> = {};

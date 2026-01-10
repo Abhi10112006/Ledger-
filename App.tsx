@@ -113,8 +113,6 @@ const App: React.FC = () => {
       // 1. If Modal is open -> Close it and stay on page
       if (isAnyModalOpen || isMobileMenuOpen) {
         clearModalsState();
-        // If the user used hardware back, we are already synced. 
-        // If we called window.back(), we are also synced.
         return;
       }
 
@@ -125,7 +123,6 @@ const App: React.FC = () => {
       }
 
       // 3. Home Screen Exit logic
-      // We check if we've hit the 'root' state
       if (!e.state || e.state.key === 'root') {
         const now = Date.now();
         if (now - lastBackPress.current < 2000) {
@@ -178,6 +175,12 @@ const App: React.FC = () => {
       setIsSettingsModalOpen(false);
     }
   }, [tourStep]);
+
+  // Correctly finish tour using history back
+  const handleCompleteTour = useCallback(() => {
+     localStorage.setItem(TOUR_KEY, 'true');
+     closeModal();
+  }, [closeModal]);
 
   if (!isLoggedIn) {
     return (
@@ -257,7 +260,7 @@ const App: React.FC = () => {
 
       {/* Modals */}
       <SponsorModal isOpen={isSponsorModalOpen} onClose={closeModal} activeTheme={activeTheme} />
-      <TourOverlay tourStep={tourStep} setTourStep={setTourStep} completeTour={() => { setTourStep(-1); localStorage.setItem(TOUR_KEY, 'true'); }} activeTheme={activeTheme} />
+      <TourOverlay tourStep={tourStep} setTourStep={setTourStep} completeTour={handleCompleteTour} activeTheme={activeTheme} />
       <SettingsModal isOpen={isSettingsModalOpen} onClose={closeModal} settings={settings} updateSetting={updateSetting} activeTheme={activeTheme} themes={THEMES} currencies={CURRENCIES} tourStep={tourStep} />
       <TypographyModal isOpen={isTypographyModalOpen} onClose={closeModal} currentFont={settings.fontStyle} onSelect={(font) => updateSetting('fontStyle', font)} activeTheme={activeTheme} />
       <ActiveDealsModal isOpen={isActiveDealsModalOpen} onClose={closeModal} transactions={transactions} currency={settings.currency} activeTheme={activeTheme} onSelectDeal={(name) => navigateToProfile(name)} />
