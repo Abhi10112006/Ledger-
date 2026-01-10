@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { ChevronRight, ShieldCheck, AlertCircle } from 'lucide-react';
+import { ChevronRight } from 'lucide-react';
 import { AppSettings } from '../types';
 import TrustScoreBadge from './TrustScoreBadge';
 
@@ -31,7 +31,7 @@ const AccountRow: React.FC<Props> = ({ account, settings, activeTheme, onClick }
         </div>
         
         <div className="space-y-0.5">
-          <h3 className="font-bold text-slate-100 text-lg">{account.name}</h3>
+          <h3 className="font-bold text-slate-100 text-lg leading-tight">{account.name}</h3>
           <div className="flex items-center gap-2">
             <TrustScoreBadge 
                 score={account.trustScore}
@@ -40,8 +40,8 @@ const AccountRow: React.FC<Props> = ({ account, settings, activeTheme, onClick }
                 currency={settings.currency}
             />
             {account.transactions.length > 0 && (
-               <span className="text-[10px] text-slate-500 font-medium">
-                 {account.transactions.length} Loans
+               <span className="text-[10px] text-slate-500 font-bold uppercase tracking-tighter opacity-60">
+                 {account.transactions.length} Contracts
                </span>
             )}
           </div>
@@ -52,13 +52,13 @@ const AccountRow: React.FC<Props> = ({ account, settings, activeTheme, onClick }
         <div className="text-right">
           {account.totalExposure > 0 ? (
             <>
-              <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-0.5">To Collect</p>
+              <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-0.5">Liability</p>
               <p className={`text-lg font-mono font-black ${isOverdue ? 'text-rose-400' : 'text-emerald-400'}`}>
                 {settings.currency}{Math.round(account.totalExposure).toLocaleString('en-IN')}
               </p>
             </>
           ) : (
-             <span className="text-xs font-bold text-slate-600 uppercase tracking-widest">Settled</span>
+             <span className="text-xs font-bold text-slate-600 uppercase tracking-widest bg-slate-800/50 px-2 py-1 rounded-md">Settled</span>
           )}
         </div>
         <ChevronRight className="w-5 h-5 text-slate-600 group-hover:text-white transition-colors" />

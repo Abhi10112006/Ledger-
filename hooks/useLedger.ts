@@ -29,6 +29,46 @@ const DEFAULT_SETTINGS: AppSettings = {
 
 export type SortOption = 'name' | 'exposure' | 'trust' | 'recent';
 
+// --- DATA SANITIZER HELPER ---
+// This acts as a "Firewall" for your data. It repairs bad data before the app uses it.
+const sanitizeTransactions = (rawList: any[]): Transaction[] => {
+  if (!Array.isArray(rawList)) return [];
+
+  const now = new Date().toISOString();
+
+  return rawList.map(t => {
+    // 1. Repair Dates: If date is invalid, default to Now
+    const safeDate = (dateStr: string) => {
+      const d = new Date(dateStr);
+      return !isNaN(d.getTime()) ? d.toISOString() : now;
+    };
+
+    // 2. Repair Arrays: Ensure repayments is always an array
+    const safeRepayments = Array.isArray(t.repayments) ? t.repayments.map((r: any) => ({
+        id: r.id || generateId(),
+        amount: Number(r.amount) || 0,
+        date: safeDate(r.date)
+    })) : [];
+
+    return {
+      id: t.id || generateId(),
+      friendName: t.friendName || 'Unknown',
+      friendPhone: t.friendPhone || '',
+      principalAmount: Number(t.principalAmount) || 0,
+      paidAmount: Number(t.paidAmount) || 0,
+      startDate: safeDate(t.startDate),
+      returnDate: safeDate(t.returnDate),
+      notes: t.notes || '',
+      interestType: t.interestType || 'none',
+      interestRate: Number(t.interestRate) || 0,
+      isCompleted: !!t.isCompleted,
+      repayments: safeRepayments,
+      hasTime: !!t.hasTime,
+      interestFreeIfPaidByDueDate: !!t.interestFreeIfPaidByDueDate
+    };
+  });
+};
+
 export const useLedger = (tourStep: number, searchQuery: string = '') => {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [settings, setSettings] = useState<AppSettings>(DEFAULT_SETTINGS);
@@ -38,13 +78,16 @@ export const useLedger = (tourStep: number, searchQuery: string = '') => {
 
   // --- INITIALIZATION ---
   useEffect(() => {
-    // Load Transactions
+    // 1. Load & Sanitize Transactions
     const savedTx = localStorage.getItem(STORAGE_KEY);
     if (savedTx) {
       try {
         const parsed = JSON.parse(savedTx);
-        if (Array.isArray(parsed)) {
-          setTransactions(parsed);
+        // CRITICAL: Sanitize immediately to prevent crash loops
+        const cleanData = sanitizeTransactions(parsed);
+        
+        if (cleanData.length > 0) {
+          setTransactions(cleanData);
           setIsLoggedIn(true);
         }
       } catch (e) {
@@ -52,15 +95,13 @@ export const useLedger = (tourStep: number, searchQuery: string = '') => {
       }
     }
 
-    // Load Settings
+    // 2. Load Settings
     const savedSettings = localStorage.getItem(SETTINGS_KEY);
     if (savedSettings) {
       try {
         const parsed = JSON.parse(savedSettings);
         setSettings({ ...DEFAULT_SETTINGS, ...parsed });
-      } catch (e) {
-        console.error("Failed to load settings", e);
-      }
+      } catch (e) { console.error("Failed settings load", e); }
     }
 
     const handleBeforeInstallPrompt = (e: any) => {
@@ -69,17 +110,7 @@ export const useLedger = (tourStep: number, searchQuery: string = '') => {
     };
 
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-    
-    // --- DAILY REMINDER SYSTEM ---
-    if ('Notification' in window) {
-      if (Notification.permission === 'default') {
-        Notification.requestPermission();
-      }
-    }
-
-    return () => {
-      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-    };
+    return () => window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
   }, []);
 
   // --- PERSISTENCE ---
@@ -93,40 +124,14 @@ export const useLedger = (tourStep: number, searchQuery: string = '') => {
     localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
   }, [settings]);
 
-  // --- CHECK DUE DATES ---
-  useEffect(() => {
-    if (isLoggedIn && transactions.length > 0 && 'Notification' in window && Notification.permission === 'granted') {
-       const today = new Date().toISOString().split('T')[0];
-       const dueToday = transactions.filter(t => !t.isCompleted && t.returnDate.startsWith(today));
-       
-       if (dueToday.length > 0) {
-          const names = dueToday.map(t => t.friendName).join(', ');
-          new Notification("Collection Reminder", {
-             body: `You have pending collections today from: ${names}. Don't forget to send a message!`,
-             icon: 'https://cdn-icons-png.flaticon.com/512/2910/2910768.png'
-          });
-       }
-    }
-  }, [isLoggedIn, transactions]);
-
   // --- ACTIONS ---
 
   const handleInstallClick = async () => {
-    const isAndroid = /Android/i.test(navigator.userAgent);
-    if (isAndroid) {
-        const link = document.createElement('a');
-        link.href = '/app.apk';
-        link.setAttribute('download', 'AbhiLedger.apk');
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-    } else {
-        if (!deferredPrompt) return;
-        deferredPrompt.prompt();
-        const { outcome } = await deferredPrompt.userChoice;
-        if (outcome === 'accepted') {
-            setDeferredPrompt(null);
-        }
+    if (!deferredPrompt) return;
+    deferredPrompt.prompt();
+    const { outcome } = await deferredPrompt.userChoice;
+    if (outcome === 'accepted') {
+      setDeferredPrompt(null);
     }
   };
 
@@ -146,8 +151,7 @@ export const useLedger = (tourStep: number, searchQuery: string = '') => {
     interestFreeIfPaidByDueDate?: boolean;
   }) => {
     const hasTime = data.startDate.includes('T');
-    
-    const newTx: Transaction = {
+    setTransactions(prev => [{
       id: generateId(),
       friendName: data.friendName.trim(),
       friendPhone: data.friendPhone?.trim(),
@@ -162,9 +166,7 @@ export const useLedger = (tourStep: number, searchQuery: string = '') => {
       repayments: [],
       hasTime: hasTime,
       interestFreeIfPaidByDueDate: data.interestFreeIfPaidByDueDate
-    };
-
-    setTransactions(prev => [newTx, ...prev]);
+    }, ...prev]);
   };
 
   const addPayment = (activeTxId: string | null, amount: number, date: string) => {
@@ -217,16 +219,14 @@ export const useLedger = (tourStep: number, searchQuery: string = '') => {
 
         const updatedRepayments = t.repayments.filter(r => r.id !== repId);
         const updatedPaidAmount = t.paidAmount - repaymentToRemove.amount;
-        
         const tempTx = { ...t, repayments: updatedRepayments, paidAmount: updatedPaidAmount };
         const totalPayable = getTotalPayable(tempTx);
-        const isCompleted = updatedPaidAmount >= (totalPayable - 0.1);
 
         return {
           ...t,
           repayments: updatedRepayments,
           paidAmount: Math.max(0, updatedPaidAmount),
-          isCompleted
+          isCompleted: updatedPaidAmount >= (totalPayable - 0.1)
         };
       }
       return t;
@@ -257,44 +257,24 @@ export const useLedger = (tourStep: number, searchQuery: string = '') => {
         const content = e.target?.result as string;
         const data = JSON.parse(content);
         if (Array.isArray(data)) {
-          // --- SANITIZE DATA ---
-          // This ensures that even if an old backup is imported, missing fields
-          // (like repayments array) are filled in to prevent the "Blank Screen" crash.
-          const sanitizedData = data.map((t: any) => ({
-             ...t,
-             repayments: Array.isArray(t.repayments) ? t.repayments : [],
-             paidAmount: typeof t.paidAmount === 'number' ? t.paidAmount : 0,
-             principalAmount: typeof t.principalAmount === 'number' ? t.principalAmount : 0,
-             id: t.id || generateId(),
-             friendName: t.friendName || 'Unknown',
-             startDate: t.startDate || new Date().toISOString(),
-             returnDate: t.returnDate || new Date().toISOString(),
-             interestType: t.interestType || 'none',
-             interestRate: t.interestRate || 0,
-             isCompleted: t.isCompleted || false,
-             notes: t.notes || ''
-          }));
-
-          // Save immediately to local storage to persist success
-          localStorage.setItem(STORAGE_KEY, JSON.stringify(sanitizedData));
-          
-          setTransactions(sanitizedData);
+          const sanitized = sanitizeTransactions(data);
+          setTransactions(sanitized);
           setIsLoggedIn(true);
-          
-          event.target.value = '';
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(sanitized));
           alert("Backup restored successfully!");
         } else {
           alert("Invalid backup format.");
         }
       } catch (err) {
-        console.error(err);
         alert("Failed to parse the file.");
       }
+      event.target.value = '';
     };
     reader.readAsText(file);
   }, []);
 
   // --- DERIVED STATE ---
+
   const accounts = useMemo(() => {
     // Grouping
     const grouped: Record<string, Transaction[]> = {};
@@ -304,7 +284,6 @@ export const useLedger = (tourStep: number, searchQuery: string = '') => {
       grouped[name].push(t);
     });
 
-    // Transform into Account objects
     let accountList = Object.entries(grouped).map(([name, txs]) => {
       const exposure = txs.reduce((acc, t) => acc + (getTotalPayable(t) - t.paidAmount), 0);
       const trust = calculateTrustScore(name, transactions);
@@ -333,7 +312,6 @@ export const useLedger = (tourStep: number, searchQuery: string = '') => {
         }
     }
 
-    // 2. Sorting
     return accountList.sort((a, b) => {
       switch (sortBy) {
         case 'name': return a.name.localeCompare(b.name);

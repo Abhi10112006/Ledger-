@@ -2,6 +2,8 @@
 import { Transaction, SummaryStats, InterestType } from '../types';
 
 export const calculateDaysBetween = (start: Date, end: Date): number => {
+  if (isNaN(start.getTime()) || isNaN(end.getTime())) return 0;
+
   // Normalize to UTC midnight to avoid DST/Timezone offset issues affecting day count
   const oneDay = 1000 * 60 * 60 * 24;
   const startUTC = Date.UTC(start.getFullYear(), start.getMonth(), start.getDate());
@@ -11,15 +13,19 @@ export const calculateDaysBetween = (start: Date, end: Date): number => {
 
 export const calculateInterest = (t: Transaction): number => {
   if (t.interestRate <= 0) return 0;
+  
+  const returnDate = new Date(t.returnDate);
+  if (isNaN(returnDate.getTime())) return 0; // Safety check
 
   // --- CONDITIONAL WAIVER LOGIC ---
   if (t.interestFreeIfPaidByDueDate) {
-    const dueDate = new Date(t.returnDate);
+    const dueDate = returnDate;
     const now = new Date();
 
     // 1. Check if Principal was fully repaid ON or BEFORE the Due Date
-    const paidByDue = t.repayments.reduce((acc, r) => {
-        if (new Date(r.date) <= dueDate) return acc + r.amount;
+    const paidByDue = (t.repayments || []).reduce((acc, r) => {
+        const rDate = new Date(r.date);
+        if (!isNaN(rDate.getTime()) && rDate <= dueDate) return acc + r.amount;
         return acc;
     }, 0);
 
@@ -29,8 +35,6 @@ export const calculateInterest = (t: Transaction): number => {
     // 2. If not yet paid off, check if we are still within the Grace Period
     // If today is before due date, we show 0 interest to reflect the potential benefit
     if (now <= dueDate) return 0;
-    
-    // If neither condition met (Overdue and not paid enough), fall through to standard interest calculation below.
   }
   // --------------------------------
 
@@ -40,6 +44,8 @@ export const calculateInterest = (t: Transaction): number => {
   }
 
   const start = new Date(t.startDate);
+  if (isNaN(start.getTime())) return 0;
+
   start.setHours(0,0,0,0);
   
   const now = new Date();
@@ -49,11 +55,12 @@ export const calculateInterest = (t: Transaction): number => {
   if (now <= start) return 0;
 
   // 1. Sort repayments chronologically
-  const sortedRepayments = t.repayments
+  const sortedRepayments = (t.repayments || [])
     .map(r => ({ 
       amount: r.amount, 
       date: new Date(r.date) 
     }))
+    .filter(r => !isNaN(r.date.getTime())) // Filter bad dates
     .sort((a, b) => a.date.getTime() - b.date.getTime());
 
   // Normalize repayment dates to midnight for consistent day-diff calculation
@@ -116,26 +123,14 @@ export interface TrustBreakdown {
   history: { date: string; event: string; status: string }[];
 }
 
-/**
- * Modern Credit Scoring System (0 - 100)
- * Logic factors:
- * - Base: 50 (Neutral)
- * - Repayment consistency: Weight 40%
- * - Overdue behavior: Weight 40% (Penalty-heavy)
- * - Historical completion: Weight 20%
- */
 export const calculateTrustScore = (friendName: string, transactions: Transaction[]): number => {
-  // We pass a default currency here as the score itself is currency agnostic, 
-  // but the breakdown function requires it.
   const breakdown = getTrustBreakdown(friendName, transactions, ''); 
   return breakdown.score;
 };
 
 export const getTrustBreakdown = (friendName: string, transactions: Transaction[], currency: string = '₹'): TrustBreakdown => {
-  // ROBUST FILTERING: Trim and lower case both to ensure matching happens 
-  // even if "Name " was saved but "Name" is displayed.
   const friendTx = transactions.filter(t => 
-    t.friendName.trim().toLowerCase() === friendName.trim().toLowerCase()
+    (t.friendName || '').trim().toLowerCase() === (friendName || '').trim().toLowerCase()
   );
 
   if (friendTx.length === 0) {
@@ -159,18 +154,23 @@ export const getTrustBreakdown = (friendName: string, transactions: Transaction[
 
   friendTx.forEach(t => {
     const due = new Date(t.returnDate);
+    const start = new Date(t.startDate);
     
     // Track History
-    history.push({ 
-      date: new Date(t.startDate).toLocaleDateString(), 
-      event: `Loan of ${currency}${t.principalAmount}`, 
-      status: 'Disbursed' 
-    });
+    if (!isNaN(start.getTime())) {
+      history.push({ 
+        date: start.toLocaleDateString(), 
+        event: `Loan of ${currency}${t.principalAmount}`, 
+        status: 'Disbursed' 
+      });
+    }
 
-    t.repayments.forEach(r => {
+    (t.repayments || []).forEach(r => {
       totalPayments++;
       const payDate = new Date(r.date);
-      const isLate = payDate > due;
+      if (isNaN(payDate.getTime())) return;
+
+      const isLate = !isNaN(due.getTime()) && payDate > due;
       if (isLate) latePayments++; else onTimePayments++;
       
       history.push({ 
@@ -183,10 +183,13 @@ export const getTrustBreakdown = (friendName: string, transactions: Transaction[
     if (t.isCompleted) {
       completedDeals++;
       const lastPayment = t.repayments[t.repayments.length - 1];
-      if (lastPayment && new Date(lastPayment.date) <= due) {
-        score += 8; // On-time completion bonus
+      if (lastPayment) {
+        const lpDate = new Date(lastPayment.date);
+        if (!isNaN(lpDate.getTime()) && !isNaN(due.getTime()) && lpDate <= due) {
+          score += 8; // On-time completion bonus
+        }
       }
-    } else if (now > due) {
+    } else if (!isNaN(due.getTime()) && now > due) {
       const days = calculateDaysBetween(due, now);
       maxDaysOverdue = Math.max(maxDaysOverdue, days);
     }
@@ -238,7 +241,8 @@ export const getSummaryStats = (transactions: Transaction[]): SummaryStats => {
       acc.pending += balance;
       acc.received += t.paidAmount;
       acc.activeCount += 1;
-      if (now > new Date(t.returnDate)) {
+      const due = new Date(t.returnDate);
+      if (!isNaN(due.getTime()) && now > due) {
         acc.overdueCount += 1;
       }
     }
