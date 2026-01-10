@@ -16,6 +16,12 @@ const AccountRow: React.FC<Props> = ({ account, settings, activeTheme, onClick }
     return !t.isCompleted && new Date() > new Date(t.returnDate);
   });
 
+  const getAvatarBg = (score: number) => {
+    if (score >= 75) return 'bg-emerald-500';
+    if (score >= 50) return 'bg-amber-500';
+    return 'bg-rose-500';
+  };
+
   return (
     <div 
       onClick={onClick}
@@ -23,7 +29,7 @@ const AccountRow: React.FC<Props> = ({ account, settings, activeTheme, onClick }
     >
       <div className="flex items-center gap-4">
         {/* Avatar */}
-        <div className={`w-12 h-12 rounded-full ${activeTheme.bg} text-slate-950 flex items-center justify-center font-black text-xl shadow-lg relative`}>
+        <div className={`w-12 h-12 rounded-full ${getAvatarBg(account.trustScore)} text-slate-950 flex items-center justify-center font-black text-xl shadow-lg relative`}>
           {account.name.charAt(0).toUpperCase()}
           {isOverdue && (
             <span className="absolute -top-1 -right-1 w-4 h-4 bg-rose-500 rounded-full border-2 border-slate-900 animate-pulse"></span>
@@ -52,7 +58,7 @@ const AccountRow: React.FC<Props> = ({ account, settings, activeTheme, onClick }
         <div className="text-right">
           {account.totalExposure > 0 ? (
             <>
-              <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-0.5">Liability</p>
+              <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-0.5">To Pay</p>
               <p className={`text-lg font-mono font-black ${isOverdue ? 'text-rose-400' : 'text-emerald-400'}`}>
                 {settings.currency}{Math.round(account.totalExposure).toLocaleString('en-IN')}
               </p>
