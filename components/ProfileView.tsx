@@ -42,6 +42,9 @@ const ProfileView: React.FC<Props> = ({
     repId?: string;
   } | null>(null);
 
+  // State to track which transaction card is expanded to show actions
+  const [activeItemKey, setActiveItemKey] = useState<string | null>(null);
+
   // 1. Flatten History: Combine Loans (Starts) and Repayments into one timeline
   const historyItems = account.transactions.flatMap(tx => {
     const items = [];
@@ -311,76 +314,86 @@ const ProfileView: React.FC<Props> = ({
                <div className="h-px bg-slate-800 flex-1"></div>
           </div>
 
-           {historyItems.map((item, idx) => (
-             <div 
-               key={`${item.id}-${idx}-${item.repId || 'main'}`}
-               className="glass p-4 rounded-2xl flex items-center justify-between border border-transparent hover:border-white/5 transition-all group"
-             >
-                <div className="flex items-center gap-4">
-                   <div className={`p-2.5 rounded-xl ${item.type === 'LOAN' ? 'bg-rose-500/10 text-rose-500' : 'bg-emerald-500/10 text-emerald-500'}`}>
-                      {item.type === 'LOAN' ? <ArrowUpRight className="w-5 h-5" /> : <ArrowDownLeft className="w-5 h-5" />}
-                   </div>
-                   <div>
-                      <div className="text-sm font-bold text-slate-200">
-                         {item.type === 'LOAN' ? 'You gave' : 'You got'}
-                      </div>
-                      <div className="flex items-center gap-2 text-[10px] text-slate-500 font-mono mt-0.5">
-                         <Calendar className="w-3 h-3" />
-                         {item.date.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: '2-digit' })}
-                         {item.type === 'LOAN' && item.rawTx.hasTime && (
-                           <span className="text-slate-400 ml-1">
-                               {item.date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
-                           </span>
-                         )}
-                         {item.type === 'LOAN' && item.rawTx.isCompleted && (
-                           <span className="bg-slate-800 px-1 rounded text-slate-400">SETTLED</span>
-                         )}
-                      </div>
-                   </div>
-                </div>
-                <div className="flex items-center gap-2">
-                    <div className="text-right mr-2">
-                       <div className={`font-mono font-bold text-lg ${item.type === 'LOAN' ? 'text-rose-400' : 'text-emerald-400'}`}>
-                          {settings.currency}{item.amount.toLocaleString('en-IN')}
-                       </div>
-                       {item.type === 'LOAN' && (
-                         <div className="text-[9px] text-slate-600 uppercase tracking-widest mt-0.5 truncate max-w-[100px]">
-                           {item.note}
-                         </div>
-                       )}
-                    </div>
-                    
-                    {/* EDIT DATE BUTTON - Only for Loans */}
-                    {item.type === 'LOAN' && (
-                        <button
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                onUpdateDueDate(item.id);
-                            }}
-                            className="p-2 text-slate-600 hover:text-blue-400 hover:bg-blue-500/10 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
-                            title="Edit Due Date"
-                        >
-                            <Edit className="w-4 h-4" />
-                        </button>
-                    )}
+           {historyItems.map((item, idx) => {
+             const itemKey = `${item.id}-${item.repId || 'main'}`;
+             const isActive = activeItemKey === itemKey;
 
-                    {/* DELETE BUTTON */}
-                    <button 
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            if (item.type === 'LOAN') {
-                                setDeleteConfirm({ type: 'TRANSACTION', txId: item.id });
-                            } else {
-                                setDeleteConfirm({ type: 'REPAYMENT', txId: item.id, repId: item.repId! });
-                            }
-                        }}
-                        className="p-2 text-slate-600 hover:text-rose-500 hover:bg-rose-500/10 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
-                    >
-                        <Trash2 className="w-4 h-4" />
-                    </button>
-                </div>
-             </div>
-           ))}
+             return (
+              <div 
+                key={itemKey}
+                onClick={() => setActiveItemKey(isActive ? null : itemKey)}
+                className={`glass p-4 rounded-2xl flex items-center justify-between border transition-all cursor-pointer group active:scale-[0.98] ${isActive ? 'border-white/10 bg-slate-900/60' : 'border-transparent hover:border-white/5'}`}
+              >
+                  <div className="flex items-center gap-4">
+                    <div className={`p-2.5 rounded-xl ${item.type === 'LOAN' ? 'bg-rose-500/10 text-rose-500' : 'bg-emerald-500/10 text-emerald-500'}`}>
+                        {item.type === 'LOAN' ? <ArrowUpRight className="w-5 h-5" /> : <ArrowDownLeft className="w-5 h-5" />}
+                    </div>
+                    <div>
+                        <div className="text-sm font-bold text-slate-200">
+                          {item.type === 'LOAN' ? 'You gave' : 'You got'}
+                        </div>
+                        <div className="flex items-center gap-2 text-[10px] text-slate-500 font-mono mt-0.5">
+                          <Calendar className="w-3 h-3" />
+                          {item.date.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: '2-digit' })}
+                          {item.type === 'LOAN' && item.rawTx.hasTime && (
+                            <span className="text-slate-400 ml-1">
+                                {item.date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                            </span>
+                          )}
+                          {item.type === 'LOAN' && item.rawTx.isCompleted && (
+                            <span className="bg-slate-800 px-1 rounded text-slate-400">SETTLED</span>
+                          )}
+                        </div>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center">
+                      <div className="text-right mr-3">
+                        <div className={`font-mono font-bold text-lg ${item.type === 'LOAN' ? 'text-rose-400' : 'text-emerald-400'}`}>
+                            {settings.currency}{item.amount.toLocaleString('en-IN')}
+                        </div>
+                        {item.type === 'LOAN' && (
+                          <div className="text-[9px] text-slate-600 uppercase tracking-widest mt-0.5 truncate max-w-[100px]">
+                            {item.note}
+                          </div>
+                        )}
+                      </div>
+                      
+                      {/* ACTION BUTTONS WITH ANIMATION */}
+                      <div className={`flex items-center gap-2 transition-all duration-300 ease-out overflow-hidden ${isActive ? 'max-w-[120px] opacity-100 translate-x-0' : 'max-w-0 opacity-0 translate-x-8'}`}>
+                          {/* EDIT DATE BUTTON - Only for Loans */}
+                          {item.type === 'LOAN' && (
+                              <button
+                                  onClick={(e) => {
+                                      e.stopPropagation();
+                                      onUpdateDueDate(item.id);
+                                  }}
+                                  className="p-2 text-slate-400 hover:text-blue-400 hover:bg-blue-500/10 rounded-lg transition-colors"
+                                  title="Edit Due Date"
+                              >
+                                  <Edit className="w-4 h-4" />
+                              </button>
+                          )}
+
+                          {/* DELETE BUTTON */}
+                          <button 
+                              onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (item.type === 'LOAN') {
+                                      setDeleteConfirm({ type: 'TRANSACTION', txId: item.id });
+                                  } else {
+                                      setDeleteConfirm({ type: 'REPAYMENT', txId: item.id, repId: item.repId! });
+                                  }
+                              }}
+                              className="p-2 text-slate-400 hover:text-rose-500 hover:bg-rose-500/10 rounded-lg transition-colors"
+                          >
+                              <Trash2 className="w-4 h-4" />
+                          </button>
+                      </div>
+                  </div>
+              </div>
+             );
+           })}
            
            {historyItems.length === 0 && (
               <div className="text-center py-12 text-slate-600 text-sm font-mono opacity-50">
@@ -402,7 +415,7 @@ const ProfileView: React.FC<Props> = ({
              disabled={account.totalExposure <= 0}
              className={`p-4 rounded-2xl font-black uppercase tracking-widest shadow-lg transition-all flex items-center justify-center gap-2 ${account.totalExposure <= 0 ? 'bg-slate-800 text-slate-500 cursor-not-allowed' : 'bg-emerald-600 text-white shadow-emerald-900/20 hover:bg-emerald-500 active:scale-[0.98]'}`}
            >
-             <ArrowDownLeft className="w-5 h-5" /> Get Money
+             <ArrowDownLeft className="w-5 h-5" /> Got Money
            </button>
         </div>
       </div>

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback, Component } from 'react';
 import { Plus, Search, UserPlus, AlertOctagon, RefreshCw } from 'lucide-react';
 import { useLedger } from './hooks/useLedger';
@@ -41,7 +40,7 @@ interface ErrorBoundaryState {
 }
 
 // --- ERROR BOUNDARY COMPONENT ---
-class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
+class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
   state: ErrorBoundaryState = {
     hasError: false,
     error: null
