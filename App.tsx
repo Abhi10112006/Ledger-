@@ -58,9 +58,8 @@ const App: React.FC = () => {
   const activeTx = transactions.find(t => t.id === activeTxId);
   const activeProfile = accounts.find(a => a.name === selectedProfileName);
 
-  // --- NAVIGATION CONTROLLER ---
+  // --- NAVIGATION CONTROLLER (STATE ONLY) ---
   
-  // Close all modals (State only, no history manipulation)
   const closeModal = useCallback(() => {
     setIsModalOpen(false);
     setIsPaymentModalOpen(false);
@@ -92,15 +91,20 @@ const App: React.FC = () => {
       if (params.get('action') !== 'new') setIsSponsorModalOpen(true);
     }
 
+    // Auto-open modal if URL param exists (e.g. from shortcut)
     const params = new URLSearchParams(window.location.search);
     if (params.get('action') === 'new') {
       setTimeout(() => setIsModalOpen(true), 500);
-      window.history.replaceState({}, document.title, "");
     }
   }, []);
 
-  // Tour sync for settings
+  // Tour sync for settings & View State
   useEffect(() => {
+    if (tourStep !== -1) {
+       // Force close profile view if tour starts so dashboard elements are visible
+       setSelectedProfileName(null);
+    }
+
     if (tourStep >= 6 && tourStep <= 8) {
       setIsSettingsModalOpen(true);
     } else if (tourStep === -1) {
@@ -166,7 +170,8 @@ const App: React.FC = () => {
                   <h2 className="text-2xl font-black text-slate-200 tracking-tight">People</h2>
                   <p className="text-xs text-slate-500 font-bold uppercase tracking-widest mt-1">{accounts.length} Friends added</p>
                 </div>
-                <div className="relative group flex-grow sm:w-64">
+                {/* ADDED ID: tour-search */}
+                <div id="tour-search" className="relative group flex-grow sm:w-64">
                     <div className={`absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none transition-colors ${searchQuery ? activeTheme.text : 'text-slate-500'}`}><Search className="h-4 w-4" /></div>
                     <input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="block w-full pl-10 pr-3 py-2.5 bg-slate-900/50 border border-slate-800 rounded-xl text-xs font-mono text-slate-100 placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-slate-700 focus:border-slate-700 transition-all uppercase tracking-wider" placeholder="Search Name..." />
                 </div>
@@ -184,7 +189,8 @@ const App: React.FC = () => {
               </div>
             </div>
           </main>
-          <button onClick={() => setIsModalOpen(true)} className={`fixed bottom-8 right-6 md:right-8 w-16 h-16 md:w-18 md:h-18 ${activeTheme.bg} hover:brightness-110 text-slate-950 rounded-[2rem] flex items-center justify-center shadow-2xl active:scale-90 transition-all group z-30`}><Plus className="w-8 h-8 md:w-10 md:h-10 group-hover:rotate-90 transition-transform duration-300" /></button>
+          {/* ADDED ID: tour-add-profile */}
+          <button id="tour-add-profile" onClick={() => setIsModalOpen(true)} className={`fixed bottom-8 right-6 md:right-8 w-16 h-16 md:w-18 md:h-18 ${activeTheme.bg} hover:brightness-110 text-slate-950 rounded-[2rem] flex items-center justify-center shadow-2xl active:scale-90 transition-all group z-30`}><Plus className="w-8 h-8 md:w-10 md:h-10 group-hover:rotate-90 transition-transform duration-300" /></button>
         </>
       )}
       

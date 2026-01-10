@@ -12,6 +12,7 @@ const DEFAULT_SETTINGS: AppSettings = {
   themeColor: 'emerald',
   background: 'solid',
   currency: '₹',
+  language: 'en',
   
   // Visual Engine Defaults
   baseColor: 'slate',
@@ -256,14 +257,37 @@ export const useLedger = (tourStep: number, searchQuery: string = '') => {
         const content = e.target?.result as string;
         const data = JSON.parse(content);
         if (Array.isArray(data)) {
-          setTransactions(data);
+          // --- SANITIZE DATA ---
+          // This ensures that even if an old backup is imported, missing fields
+          // (like repayments array) are filled in to prevent the "Blank Screen" crash.
+          const sanitizedData = data.map((t: any) => ({
+             ...t,
+             repayments: Array.isArray(t.repayments) ? t.repayments : [],
+             paidAmount: typeof t.paidAmount === 'number' ? t.paidAmount : 0,
+             principalAmount: typeof t.principalAmount === 'number' ? t.principalAmount : 0,
+             id: t.id || generateId(),
+             friendName: t.friendName || 'Unknown',
+             startDate: t.startDate || new Date().toISOString(),
+             returnDate: t.returnDate || new Date().toISOString(),
+             interestType: t.interestType || 'none',
+             interestRate: t.interestRate || 0,
+             isCompleted: t.isCompleted || false,
+             notes: t.notes || ''
+          }));
+
+          // Save immediately to local storage to persist success
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(sanitizedData));
+          
+          setTransactions(sanitizedData);
           setIsLoggedIn(true);
-          // With LocalStorage, we just set state; the useEffect handles the persistence
+          
           event.target.value = '';
+          alert("Backup restored successfully!");
         } else {
           alert("Invalid backup format.");
         }
       } catch (err) {
+        console.error(err);
         alert("Failed to parse the file.");
       }
     };

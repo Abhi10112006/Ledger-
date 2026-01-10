@@ -107,6 +107,9 @@ const TourOverlay: React.FC<Props> = ({ tourStep, setTourStep, completeTour, act
         const targetEl = document.getElementById(currentStep.targetId!);
         
         if (targetEl) {
+          // Scroll target into view smoothly
+          targetEl.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' });
+          
           const rect = targetEl.getBoundingClientRect();
           const padding = 8;
           setSpotlightStyle({
@@ -119,8 +122,8 @@ const TourOverlay: React.FC<Props> = ({ tourStep, setTourStep, completeTour, act
           });
           setHasTarget(true);
         } else {
-          // Retry mechanism for modals that animate in
-          if (attempts < 20) { // Increased attempts for smoother modal transition
+          // Retry mechanism for modals that animate in or complex DOM updates
+          if (attempts < 20) {
             attempts++;
             setTimeout(findTarget, 50);
           } else {
