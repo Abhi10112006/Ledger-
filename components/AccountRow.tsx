@@ -2,6 +2,7 @@
 import React from 'react';
 import { ChevronRight, ShieldCheck, AlertCircle } from 'lucide-react';
 import { AppSettings } from '../types';
+import TrustScoreBadge from './TrustScoreBadge';
 
 interface Props {
   account: any;
@@ -14,14 +15,6 @@ const AccountRow: React.FC<Props> = ({ account, settings, activeTheme, onClick }
   const isOverdue = account.transactions.some((t: any) => {
     return !t.isCompleted && new Date() > new Date(t.returnDate);
   });
-
-  const getScoreColor = (score: number) => {
-    if (score >= 90) return 'text-cyan-400';
-    if (score >= 75) return 'text-emerald-400';
-    if (score >= 50) return 'text-amber-400';
-    if (score >= 25) return 'text-orange-400';
-    return 'text-rose-400';
-  };
 
   return (
     <div 
@@ -40,9 +33,12 @@ const AccountRow: React.FC<Props> = ({ account, settings, activeTheme, onClick }
         <div className="space-y-0.5">
           <h3 className="font-bold text-slate-100 text-lg">{account.name}</h3>
           <div className="flex items-center gap-2">
-            <span className={`text-[10px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded-md bg-slate-800 ${getScoreColor(account.trustScore)}`}>
-              Trust: {account.trustScore}
-            </span>
+            <TrustScoreBadge 
+                score={account.trustScore}
+                friendName={account.name}
+                allTransactions={account.transactions}
+                currency={settings.currency}
+            />
             {account.transactions.length > 0 && (
                <span className="text-[10px] text-slate-500 font-medium">
                  {account.transactions.length} Loans

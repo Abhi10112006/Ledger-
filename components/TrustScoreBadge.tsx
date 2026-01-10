@@ -32,6 +32,12 @@ const TrustScoreBadge: React.FC<Props> = ({ score, friendName, allTransactions =
     return { label: 'Critical', color: 'text-rose-400 border-rose-500/30 bg-rose-500/10 animate-pulse', icon: <ShieldAlert className="w-3.5 h-3.5" /> };
   };
 
+  const getDescription = () => {
+    if (safeScore >= 75) return "This person is good to give money.";
+    if (safeScore >= 50) return "This person is fair/ok to give money.";
+    return "This person is bad to give money.";
+  };
+
   const info = getInfo();
 
   const handleClose = (e?: React.MouseEvent) => {
@@ -88,8 +94,8 @@ const TrustScoreBadge: React.FC<Props> = ({ score, friendName, allTransactions =
               <div className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest shadow-lg ${info.color}`}>
                 {info.label} Performance
               </div>
-              <p className="text-slate-400 text-[11px] leading-relaxed max-w-[220px]">
-                Shows how good this friend is at paying back money on time.
+              <p className="text-slate-300 font-bold text-sm leading-relaxed max-w-[220px]">
+                {getDescription()}
               </p>
             </div>
 
