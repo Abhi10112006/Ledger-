@@ -2,6 +2,7 @@
 import React from 'react';
 import { CheckCircle2, Wallet, AlertCircle, PieChart } from 'lucide-react';
 import { SummaryStats, AppSettings } from '../types';
+import { motion } from 'framer-motion';
 
 interface Props {
   stats: SummaryStats;
@@ -16,7 +17,10 @@ const DashboardStats: React.FC<Props> = ({ stats, settings, activeTheme, tourSte
   const recoveryRate = totalVolume > 0 ? Math.round((stats.received / totalVolume) * 100) : 0;
 
   return (
-    <div 
+    <motion.div 
+      initial={{ opacity: 0, y: -20, scale: 0.95 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      transition={{ duration: 0.5, type: 'spring' }}
       id="tour-stats"
       className={`relative transition-all duration-300 ${tourStep === 1 ? `z-[60] scale-105 ring-4 ${activeTheme.ring} ring-offset-8 ring-offset-slate-950 rounded-[2rem]` : ''}`}
     >
@@ -82,9 +86,11 @@ const DashboardStats: React.FC<Props> = ({ stats, settings, activeTheme, tourSte
                     </div>
 
                     {/* Active/Overdue Metric */}
-                    <div 
+                    <motion.div 
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
                         onClick={onShowActiveDeals}
-                        className={`p-4 rounded-2xl border flex flex-col justify-between transition-all cursor-pointer hover:scale-[1.02] active:scale-[0.98] ${stats.overdueCount > 0 ? 'bg-rose-500/10 border-rose-500/20 hover:bg-rose-500/20' : 'bg-slate-900/50 border-slate-800/50 hover:bg-slate-800'}`}
+                        className={`p-4 rounded-2xl border flex flex-col justify-between cursor-pointer ${stats.overdueCount > 0 ? 'bg-rose-500/10 border-rose-500/20 hover:bg-rose-500/20' : 'bg-slate-900/50 border-slate-800/50 hover:bg-slate-800'}`}
                     >
                         <div className={`text-[9px] font-black uppercase tracking-widest mb-2 flex items-center gap-1.5 ${stats.overdueCount > 0 ? 'text-rose-400' : 'text-slate-500'}`}>
                              {stats.overdueCount > 0 ? <AlertCircle className="w-3 h-3" /> : <PieChart className="w-3 h-3" />}
@@ -93,11 +99,11 @@ const DashboardStats: React.FC<Props> = ({ stats, settings, activeTheme, tourSte
                         <div className={`text-lg font-bold font-mono truncate ${stats.overdueCount > 0 ? 'text-rose-400' : 'text-slate-300'}`}>
                              {stats.overdueCount > 0 ? `${stats.overdueCount} Overdue` : `${stats.activeCount} Active`}
                         </div>
-                    </div>
+                    </motion.div>
                 </div>
             </div>
         </div>
-    </div>
+    </motion.div>
   );
 };
 

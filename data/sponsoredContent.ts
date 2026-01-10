@@ -1,4 +1,6 @@
 
+export type AdFrequency = 'always' | 'once_session' | 'once_daily' | 'once_weekly';
+
 export interface AdContent {
   id: string;
   title: string;
@@ -6,59 +8,38 @@ export interface AdContent {
   buttonText: string;
   link: string;
   isActive: boolean;
-  image?: string; // Optional: URL to an image (Displayed if no video is provided)
-  video?: string; // Optional: URL to a video (YouTube or MP4). Takes precedence over image.
+  
+  // Visuals
+  image?: string; 
+  video?: string; 
+  
+  // Logic Engine
+  weight: number; // 1 (Low) to 10 (High) - Probability of showing
+  frequency: AdFrequency; // How often to show to the same user
+  expiresAt?: string; // ISO Date string to auto-disable
 }
-
-/**
- * ------------------------------------------------------------------
- *  SPONSORSHIP CONTROL PROTOCOL
- * ------------------------------------------------------------------
- * 
- *  HOW TO ADD A NEW ADVERTISEMENT:
- *  1. Add a new object to the `SPONSORED_CONTENT` array below.
- *  2. Set `isActive: true` on the ad you want to display.
- *  3. Ensure only ONE ad is active at a time (The system picks the first active one).
- * 
- *  MEDIA AUTO-DETECTION:
- *  - If you provide a `video` URL, the system prioritizes it.
- *    - Supported Video Formats: YouTube Links (e.g., https://youtu.be/...) or Direct MP4 URLs.
- *  - If `video` is empty/undefined, the system looks for an `image` URL.
- *  - If both are missing, only text is displayed.
- * 
- *  HOW TO REMOVE/DISABLE ADS:
- *  - Simply set `isActive: false` on all items.
- * 
- * ------------------------------------------------------------------
- */
 
 export const SPONSORED_CONTENT: AdContent[] = [
   {
-    id: 'personal_branding_1',
-    title: 'X',
-    message: 'Follow me on X (Twitter).',
-    buttonText: 'X',
+    id: 'personal_branding_x',
+    title: 'Connect on X',
+    message: 'Follow the architect behind this system. Updates, tech talks, and cyber aesthetics.',
+    buttonText: 'Follow @Abhinav_1289Y',
     link: 'https://x.com/Abhinav_1289Y',
-    isActive: true, // <--- Toggle this to true/false to show/hide
-    
-    // CASE 1: VIDEO AD (YouTube Example)
-    // video: 'https://www.youtube.com/watch?v=g_hZm2b8ZO0',
-    
-    // CASE 2: VIDEO AD (Direct MP4 Example) - Takes precedence if uncommented
-    // video: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4',
-
-    // CASE 3: IMAGE AD (Fallback if video is commented out or empty)
-    // NOTE: Ensure this is a DIRECT link (ends in .jpg, .png). 
-    // If using ImgBB, right-click the image on the site and "Copy Image Address".
-    image: 'https://ik.imagekit.io/zns4fcz0c5/Screenshot_20260107_182702~2.jpg'
+    isActive: true,
+    weight: 10,
+    frequency: 'once_daily',
+    image: 'https://i.ibb.co/MDgtHBfP/Screenshot-20260107-182702-2.jpg'
   },
   {
-    id: 'placeholder_ad_02',
-    title: 'Cyber Deck Upgrade',
-    message: 'Enhance your terminal with the latest hardware implants. Zero latency, infinite storage.',
-    buttonText: 'Check Specs',
-    link: 'https://example.com/hardware',
-    isActive: false,
-    image: 'https://images.unsplash.com/photo-1550751827-4bd374c3f58b?q=80&w=1000&auto=format&fit=crop' 
+    id: 'feature_highlight_backup',
+    title: 'Secure Your Data',
+    message: 'System Reminder: Have you exported your backup lately? Keep your ledger safe.',
+    buttonText: 'Backup Now',
+    link: '/?action=backup', // Internal action link handled by app
+    isActive: true,
+    weight: 5,
+    frequency: 'once_weekly',
+    image: 'https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?q=80&w=1000&auto=format&fit=crop'
   }
 ];

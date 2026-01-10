@@ -13,15 +13,11 @@ const DEFAULT_SETTINGS: AppSettings = {
   background: 'solid',
   currency: '₹',
   language: 'en',
-  
-  // Visual Engine Defaults
   baseColor: 'slate',
   glowIntensity: 0.5,
   glassBlur: 16,
   glassOpacity: 0.5,
   enableGrain: false,
-
-  // Interface Tuner Defaults
   density: 'comfortable',
   cornerRadius: 'pill',
   fontStyle: 'sans'
@@ -29,39 +25,32 @@ const DEFAULT_SETTINGS: AppSettings = {
 
 export type SortOption = 'name' | 'exposure' | 'trust' | 'recent';
 
-// --- DATA SANITIZER HELPER ---
-// This acts as a "Firewall" for your data. It repairs bad data before the app uses it.
 const sanitizeTransactions = (rawList: any[]): Transaction[] => {
   if (!Array.isArray(rawList)) return [];
-
   const now = new Date().toISOString();
 
   return rawList.map(t => {
-    // 1. Repair Dates
     const safeDate = (dateStr: string) => {
       const d = new Date(dateStr);
       return !isNaN(d.getTime()) ? d.toISOString() : now;
     };
 
-    // 2. Repair Arrays
     const safeRepayments = Array.isArray(t.repayments) ? t.repayments.map((r: any) => ({
         id: r.id || generateId(),
         amount: Number(r.amount) || 0,
         date: safeDate(r.date)
     })) : [];
 
-    // 3. Ensure Profile ID (Migration Step)
-    // If profileId is missing, generate a deterministic one based on name
-    // This ensures existing data groups correctly after update.
     const safeProfileId = t.profileId || generateProfileId(t.friendName || 'Unknown', false);
+    const calculatedPaid = safeRepayments.reduce((sum: number, r: any) => sum + r.amount, 0);
 
-    return {
+    const tempTx: Transaction = {
       id: t.id || generateId(),
       profileId: safeProfileId,
       friendName: t.friendName || 'Unknown',
       friendPhone: t.friendPhone || '',
       principalAmount: Number(t.principalAmount) || 0,
-      paidAmount: Number(t.paidAmount) || 0,
+      paidAmount: calculatedPaid,
       startDate: safeDate(t.startDate),
       returnDate: safeDate(t.returnDate),
       notes: t.notes || '',
@@ -72,6 +61,14 @@ const sanitizeTransactions = (rawList: any[]): Transaction[] => {
       hasTime: !!t.hasTime,
       interestFreeIfPaidByDueDate: !!t.interestFreeIfPaidByDueDate
     };
+
+    const totalPayable = getTotalPayable(tempTx);
+    // Auto-repair completion if it's actually finished but not marked
+    if (!tempTx.isCompleted && calculatedPaid >= (totalPayable - 1.0)) {
+        tempTx.isCompleted = true;
+    }
+
+    return tempTx;
   });
 };
 
@@ -82,16 +79,12 @@ export const useLedger = (tourStep: number, searchQuery: string = '') => {
   const [sortBy, setSortBy] = useState<SortOption>('recent');
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
 
-  // --- INITIALIZATION ---
   useEffect(() => {
-    // 1. Load & Sanitize Transactions
     const savedTx = localStorage.getItem(STORAGE_KEY);
     if (savedTx) {
       try {
         const parsed = JSON.parse(savedTx);
-        // CRITICAL: Sanitize immediately to prevent crash loops
         const cleanData = sanitizeTransactions(parsed);
-        
         if (cleanData.length > 0) {
           setTransactions(cleanData);
           setIsLoggedIn(true);
@@ -101,7 +94,6 @@ export const useLedger = (tourStep: number, searchQuery: string = '') => {
       }
     }
 
-    // 2. Load Settings
     const savedSettings = localStorage.getItem(SETTINGS_KEY);
     if (savedSettings) {
       try {
@@ -119,7 +111,6 @@ export const useLedger = (tourStep: number, searchQuery: string = '') => {
     return () => window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
   }, []);
 
-  // --- PERSISTENCE ---
   useEffect(() => {
     if (isLoggedIn) {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(transactions));
@@ -129,8 +120,6 @@ export const useLedger = (tourStep: number, searchQuery: string = '') => {
   useEffect(() => {
     localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
   }, [settings]);
-
-  // --- ACTIONS ---
 
   const handleInstallClick = async () => {
     if (!deferredPrompt) return;
@@ -147,7 +136,7 @@ export const useLedger = (tourStep: number, searchQuery: string = '') => {
 
   const addLoan = (data: {
     friendName: string;
-    profileId?: string; // Optional: If adding to existing profile
+    profileId?: string;
     friendPhone?: string;
     amount: number;
     startDate: string;
@@ -158,9 +147,6 @@ export const useLedger = (tourStep: number, searchQuery: string = '') => {
     interestFreeIfPaidByDueDate?: boolean;
   }) => {
     const hasTime = data.startDate.includes('T');
-    
-    // Logic: Use existing ID if provided, otherwise generate NEW RANDOM ID for new contact
-    // This allows "Rahul" (RAH-123) and "Rahul" (RAH-999) to coexist.
     const pid = data.profileId || generateProfileId(data.friendName, true);
 
     setTransactions(prev => [{
@@ -168,13 +154,13 @@ export const useLedger = (tourStep: number, searchQuery: string = '') => {
       profileId: pid,
       friendName: data.friendName.trim(),
       friendPhone: data.friendPhone?.trim(),
-      principalAmount: data.amount,
+      principalAmount: Number(data.amount),
       paidAmount: 0,
       startDate: new Date(data.startDate).toISOString(),
       returnDate: new Date(data.returnDate).toISOString(),
       notes: data.notes,
       interestType: data.interestType,
-      interestRate: data.interestRate,
+      interestRate: Number(data.interestRate),
       isCompleted: false,
       repayments: [],
       hasTime: hasTime,
@@ -182,22 +168,23 @@ export const useLedger = (tourStep: number, searchQuery: string = '') => {
     }, ...prev]);
   };
 
+  // Add specific payment to specific transaction (Entry Button)
   const addPayment = (activeTxId: string | null, amount: number, date: string) => {
     if (!activeTxId) return;
-    
     setTransactions(prev => prev.map(t => {
       if (t.id === activeTxId) {
+        const amt = Number(amount);
         const newRepayment: Repayment = { 
           id: generateId(), 
-          amount: amount, 
+          amount: amt, 
           date: new Date(date).toISOString() 
         };
         const updatedRepayments = [...t.repayments, newRepayment];
-        const updatedPaidAmount = t.paidAmount + amount;
+        const updatedPaidAmount = Number(t.paidAmount) + amt;
 
         const tempTx = { ...t, repayments: updatedRepayments, paidAmount: updatedPaidAmount };
         const totalPayable = getTotalPayable(tempTx);
-        const isCompleted = updatedPaidAmount >= (totalPayable - 0.1);
+        const isCompleted = updatedPaidAmount >= (totalPayable - 0.5); 
 
         return {
           ...t,
@@ -208,6 +195,98 @@ export const useLedger = (tourStep: number, searchQuery: string = '') => {
       }
       return t;
     }));
+  };
+
+  // WATERFALL LOGIC: Distribute payment across user's loans (Oldest -> Newest)
+  const addProfilePayment = (profileId: string, totalAmount: number, date: string) => {
+    setTransactions(prev => {
+      // 1. Identify Target Transactions
+      const userTxs = prev.filter(t => t.profileId === profileId);
+      
+      // 2. Sort: Active loans first (Oldest to Newest), then Completed ones (Newest to Oldest)
+      // We prioritize paying off the oldest ACTIVE debt.
+      const sortedTxs = userTxs.sort((a, b) => {
+         if (a.isCompleted === b.isCompleted) {
+            return new Date(a.startDate).getTime() - new Date(b.startDate).getTime();
+         }
+         return a.isCompleted ? 1 : -1; // Active first
+      });
+
+      const userTxIds = new Set(sortedTxs.map(t => t.id));
+      let remainingMoney = Number(totalAmount);
+      const isoDate = new Date(date).toISOString();
+
+      const updatedTransactions = prev.map(t => {
+         // Skip other people's transactions
+         if (!userTxIds.has(t.id)) return t;
+
+         // If we have no money left, stop modifying
+         if (remainingMoney <= 0) return t;
+
+         // Calculate Pending
+         const totalPayable = getTotalPayable(t);
+         const pending = totalPayable - t.paidAmount;
+
+         // How much to pay here?
+         let payAmount = 0;
+         
+         if (t.isCompleted) {
+            // Even if completed, if we have excess money at the end, we might dump it in the last transaction.
+            // But usually we don't pay completed ones unless it's the ONLY transaction.
+            return t; 
+         } else {
+             // Pay up to the pending amount or whatever we have left
+             payAmount = Math.min(remainingMoney, pending);
+             // If due to float precision pending is < 0.5, treat as 0
+             if (pending < 0.5) payAmount = 0;
+         }
+
+         // If we calculate 0 payment but still have money, it means this tx is effectively paid. Move to next.
+         if (payAmount <= 0) return t;
+
+         // Apply Payment
+         remainingMoney -= payAmount;
+         
+         const newRepayment: Repayment = { id: generateId(), amount: payAmount, date: isoDate };
+         const updatedRepayments = [...t.repayments, newRepayment];
+         const updatedPaid = t.paidAmount + payAmount;
+         const isCompleted = updatedPaid >= (totalPayable - 0.5);
+
+         return {
+            ...t,
+            repayments: updatedRepayments,
+            paidAmount: updatedPaid,
+            isCompleted
+         };
+      });
+
+      // 3. OVERPAYMENT HANDLING
+      // If we looped through all active transactions and still have money (remainingMoney > 0)
+      // We apply the excess to the VERY LAST transaction (Newest) of the user, making it overpaid/credit.
+      if (remainingMoney > 0.1 && userTxs.length > 0) {
+          // Find the newest transaction (last in our sorted list by date)
+          const newestTx = sortedTxs[sortedTxs.length - 1];
+          
+          return updatedTransactions.map(t => {
+              if (t.id === newestTx.id) {
+                  const newRepayment: Repayment = { id: generateId(), amount: remainingMoney, date: isoDate };
+                  const updatedRepayments = [...t.repayments, newRepayment];
+                  const updatedPaid = t.paidAmount + remainingMoney;
+                  
+                  // Force complete if it wasn't already
+                  return {
+                      ...t,
+                      repayments: updatedRepayments,
+                      paidAmount: updatedPaid,
+                      isCompleted: true
+                  };
+              }
+              return t;
+          });
+      }
+
+      return updatedTransactions;
+    });
   };
 
   const updateDueDate = (activeTxId: string | null, newDueDate: string) => {
@@ -231,7 +310,8 @@ export const useLedger = (tourStep: number, searchQuery: string = '') => {
         if (!repaymentToRemove) return t;
 
         const updatedRepayments = t.repayments.filter(r => r.id !== repId);
-        const updatedPaidAmount = t.paidAmount - repaymentToRemove.amount;
+        const updatedPaidAmount = Number(t.paidAmount) - Number(repaymentToRemove.amount);
+        
         const tempTx = { ...t, repayments: updatedRepayments, paidAmount: updatedPaidAmount };
         const totalPayable = getTotalPayable(tempTx);
 
@@ -239,7 +319,7 @@ export const useLedger = (tourStep: number, searchQuery: string = '') => {
           ...t,
           repayments: updatedRepayments,
           paidAmount: Math.max(0, updatedPaidAmount),
-          isCompleted: updatedPaidAmount >= (totalPayable - 0.1)
+          isCompleted: updatedPaidAmount >= (totalPayable - 0.5)
         };
       }
       return t;
@@ -247,7 +327,6 @@ export const useLedger = (tourStep: number, searchQuery: string = '') => {
   };
 
   const deleteProfile = (nameOrId: string) => {
-    // Robust delete: Check if it matches ID or Name (legacy)
     setTransactions(prev => prev.filter(t => 
         t.profileId !== nameOrId && t.friendName !== nameOrId
     ));
@@ -266,7 +345,6 @@ export const useLedger = (tourStep: number, searchQuery: string = '') => {
   const handleImport = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
-
     const reader = new FileReader();
     reader.onload = (e) => {
       try {
@@ -289,54 +367,48 @@ export const useLedger = (tourStep: number, searchQuery: string = '') => {
     reader.readAsText(file);
   }, []);
 
-  // --- DERIVED STATE ---
-
-  const accounts = useMemo(() => {
-    // Grouping - Now Keyed by PROFILE ID
+  const { accounts, allAccounts } = useMemo(() => {
     const grouped: Record<string, Transaction[]> = {};
-    
     transactions.forEach(t => {
-      // Use profileId as the primary grouping key
       const key = t.profileId; 
       if (!grouped[key]) grouped[key] = [];
       grouped[key].push(t);
     });
 
-    let accountList = Object.entries(grouped).map(([id, txs]) => {
-      const exposure = txs.reduce((acc, t) => acc + (getTotalPayable(t) - t.paidAmount), 0);
-      const name = txs[0].friendName; // Get name from first transaction
-      
-      // FIX: Use ID (the loop key) instead of Name for trust calculation
+    const accountList = Object.entries(grouped).map(([id, txs]) => {
+      const exposure = txs.reduce((acc, t) => {
+        if (t.isCompleted) return acc;
+        return acc + (getTotalPayable(t) - (Number(t.paidAmount) || 0));
+      }, 0);
+
+      const name = txs[0].friendName; 
       const trust = calculateTrustScore(id, transactions); 
-      
       const lastActivity = Math.max(...txs.map(t => new Date(t.startDate).getTime()));
       
       return {
         id: id,
         name: name,
         transactions: txs.sort((a, b) => new Date(b.startDate).getTime() - new Date(a.startDate).getTime()),
-        totalExposure: exposure,
+        totalExposure: Math.max(0, exposure),
         trustScore: trust,
         lastActivity
       };
     });
+    
+    const baseList = [...accountList].sort((a, b) => b.lastActivity - a.lastActivity);
 
-    // 1. Filter based on Search Query
+    let filteredList = [...accountList];
     if (searchQuery) {
         const query = searchQuery.trim().toLowerCase();
         if (query) {
-            accountList = accountList.filter(acc => 
+            filteredList = filteredList.filter(acc => 
                 acc.name.toLowerCase().includes(query) || 
-                acc.id.toLowerCase().includes(query) ||
-                acc.transactions.some(t => 
-                    t.notes.toLowerCase().includes(query) ||
-                    t.principalAmount.toString().includes(query)
-                )
+                acc.id.toLowerCase().includes(query)
             );
         }
     }
 
-    return accountList.sort((a, b) => {
+    filteredList.sort((a, b) => {
       switch (sortBy) {
         case 'name': return a.name.localeCompare(b.name);
         case 'exposure': return b.totalExposure - a.totalExposure;
@@ -344,29 +416,15 @@ export const useLedger = (tourStep: number, searchQuery: string = '') => {
         case 'recent': default: return b.lastActivity - a.lastActivity;
       }
     });
+
+    return { accounts: filteredList, allAccounts: baseList };
   }, [transactions, sortBy, tourStep, searchQuery]);
 
   const stats = getSummaryStats(transactions);
 
   return {
-    transactions,
-    settings,
-    isLoggedIn,
-    deferredPrompt,
-    sortBy,
-    accounts,
-    stats,
-    setIsLoggedIn,
-    setSortBy,
-    updateSetting,
-    addLoan,
-    addPayment,
-    updateDueDate,
-    deleteTransaction,
-    deleteRepayment,
-    deleteProfile,
-    handleExport,
-    handleImport,
-    handleInstallClick
+    transactions, settings, isLoggedIn, deferredPrompt, sortBy, accounts, allAccounts, stats,
+    setIsLoggedIn, setSortBy, updateSetting, addLoan, addPayment, addProfilePayment, updateDueDate,
+    deleteTransaction, deleteRepayment, deleteProfile, handleExport, handleImport, handleInstallClick
   };
 };

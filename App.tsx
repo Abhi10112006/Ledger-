@@ -1,8 +1,8 @@
-import React, { useState, useEffect, useCallback, Component } from 'react';
-import { Plus, Search, UserPlus, AlertOctagon, RefreshCw } from 'lucide-react';
+
+import React, { useState, useEffect, useCallback } from 'react';
+import { Plus, Search, UserPlus } from 'lucide-react';
 import { useLedger } from './hooks/useLedger';
-import { generateStatementPDF } from './utils/pdfGenerator';
-import TrustScoreBadge from './components/TrustScoreBadge';
+import { useAdManager } from './hooks/useAdManager';
 import Navbar from './components/Navbar';
 import DashboardStats from './components/DashboardStats';
 import SettingsModal from './components/SettingsModal';
@@ -17,7 +17,8 @@ import AccountRow from './components/AccountRow';
 import ProfileView from './components/ProfileView';
 import TypographyModal from './components/TypographyModal';
 import ActiveDealsModal from './components/ActiveDealsModal';
-import { ThemeColor } from './types';
+import ErrorBoundary from './components/ErrorBoundary';
+import { motion, AnimatePresence } from 'framer-motion';
 
 const TOUR_KEY = 'abhi_ledger_tour_complete_v8';
 const CURRENCIES = ['₹', '$', '€', '£', '¥'];
@@ -30,50 +31,13 @@ const THEMES: Record<string, any> = {
   amber: { name: 'Solar Amber', bg: 'bg-amber-500', text: 'text-amber-400', border: 'border-amber-500/30', ring: 'ring-amber-500/30', shadow: 'shadow-amber-500/20', gradient: 'from-amber-600 via-amber-400 to-orange-400', hex: '#f59e0b', rgb: '245, 158, 11' }
 };
 
-interface ErrorBoundaryProps {
-  children?: React.ReactNode;
-}
-
-interface ErrorBoundaryState {
-  hasError: boolean;
-  error: any;
-}
-
-// --- ERROR BOUNDARY COMPONENT ---
-class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
-  state: ErrorBoundaryState = {
-    hasError: false,
-    error: null
-  };
-
-  static getDerivedStateFromError(error: any): ErrorBoundaryState {
-    return { hasError: true, error };
-  }
-
-  render() {
-    if (this.state.hasError) {
-      return (
-        <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center p-6 text-center text-slate-100">
-           <AlertOctagon className="w-16 h-16 text-rose-500 mb-4" />
-           <h1 className="text-2xl font-black mb-2">System Failure</h1>
-           <p className="text-slate-400 mb-6 max-w-xs">Something went wrong. Don't worry, your data is saved safely.</p>
-           <button 
-             onClick={() => window.location.reload()} 
-             className="px-6 py-3 bg-slate-800 rounded-xl font-bold flex items-center gap-2 hover:bg-slate-700"
-           >
-             <RefreshCw className="w-4 h-4" /> Reboot System
-           </button>
-        </div>
-      );
-    }
-    return this.props.children;
-  }
-}
-
 const AppContent: React.FC = () => {
-  // UI State
   const [tourStep, setTourStep] = useState<number>(-1);
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  
+  // Modal States - SEPARATED for Dashboard vs Profile
+  const [isDashboardDealModalOpen, setIsDashboardDealModalOpen] = useState(false);
+  const [isProfileDealModalOpen, setIsProfileDealModalOpen] = useState(false);
+  
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isEditDateModalOpen, setIsEditDateModalOpen] = useState(false);
@@ -81,56 +45,58 @@ const AppContent: React.FC = () => {
   const [isTypographyModalOpen, setIsTypographyModalOpen] = useState(false);
   const [isActiveDealsModalOpen, setIsActiveDealsModalOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [isSponsorModalOpen, setIsSponsorModalOpen] = useState(false);
+  // Sponsor Modal state is now managed by hook, but we pass props
   
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTxId, setActiveTxId] = useState<string | null>(null);
-  
-  // Use Profile ID for selection instead of Name to handle duplicates
   const [selectedProfileId, setSelectedProfileId] = useState<string | null>(null);
 
   const {
-    transactions, settings, isLoggedIn, deferredPrompt, accounts, stats,
-    setIsLoggedIn, updateSetting, addLoan, addPayment, updateDueDate,
+    transactions, settings, isLoggedIn, deferredPrompt, accounts, allAccounts, stats,
+    setIsLoggedIn, updateSetting, addLoan, addPayment, addProfilePayment, updateDueDate,
     deleteTransaction, deleteRepayment, deleteProfile, handleExport, handleImport, handleInstallClick
   } = useLedger(tourStep, searchQuery);
 
+  // Initialize Ad Manager
+  const { currentAd, isAdOpen, closeAd, checkEligibility } = useAdManager(isLoggedIn);
+
   const activeTheme = THEMES[settings.themeColor] || THEMES.emerald;
   const activeTx = transactions.find(t => t.id === activeTxId);
-  
-  // Find profile by ID (more robust)
-  const activeProfile = accounts.find(a => a.id === selectedProfileId);
+  const activeProfile = allAccounts.find(a => a.id === selectedProfileId);
 
-  // --- NAVIGATION CONTROLLER (HISTORY API) ---
-  
-  // Helper to safely modify history without creating loops
   const pushHistoryState = (stateName: string) => {
-    // Only push if not already there to avoid duplicates
     if (window.history.state?.view !== stateName) {
       window.history.pushState({ view: stateName }, '', window.location.search);
     }
   };
 
   const closeModal = useCallback(() => {
-    // 1. Reset Internal State
-    setIsModalOpen(false);
+    setIsDashboardDealModalOpen(false);
+    setIsProfileDealModalOpen(false);
     setIsPaymentModalOpen(false);
     setIsDeleteModalOpen(false);
     setIsEditDateModalOpen(false);
     setIsSettingsModalOpen(false);
     setIsTypographyModalOpen(false);
     setIsActiveDealsModalOpen(false);
-    setIsSponsorModalOpen(false);
     setIsMobileMenuOpen(false);
-    if (tourStep !== -1) setTourStep(-1);
+    closeAd();
     
-    // 2. If we were deep in history, go back (only if this call wasn't triggered by popstate)
-    // We handle the 'back' action implicitly via the popstate listener below.
-    // If this function is called manually (e.g. clicking 'X'), we should also probably go back if history has state.
-    if (window.history.state?.view) {
+    if (window.history.state?.view === 'modal') {
         window.history.back();
     }
-  }, [tourStep]);
+  }, [closeAd]);
+
+  const handleLogout = useCallback(() => {
+    // 1. Reset all UI states to ensure clean login next time
+    setIsMobileMenuOpen(false);
+    setIsSettingsModalOpen(false);
+    setIsTypographyModalOpen(false);
+    closeAd();
+    
+    // 2. Actually log out
+    setIsLoggedIn(false);
+  }, [closeAd, setIsLoggedIn]);
 
   const navigateToProfile = (profileId: string) => {
     setSelectedProfileId(profileId);
@@ -146,103 +112,109 @@ const AppContent: React.FC = () => {
     }
   }, [selectedProfileId]);
 
-  // Handle Browser Back Button (Hardware Back on Android)
   useEffect(() => {
     const handlePopState = (event: PopStateEvent) => {
-      // If we popped back to null/root state
-      if (!event.state || !event.state.view) {
-        // Close everything
-        setIsModalOpen(false);
+      const view = event.state?.view;
+      if (!view) {
+        setIsDashboardDealModalOpen(false);
+        setIsProfileDealModalOpen(false);
         setIsPaymentModalOpen(false);
         setIsDeleteModalOpen(false);
         setIsEditDateModalOpen(false);
         setIsSettingsModalOpen(false);
         setIsTypographyModalOpen(false);
         setIsActiveDealsModalOpen(false);
-        setIsSponsorModalOpen(false);
         setIsMobileMenuOpen(false);
+        closeAd();
         setSelectedProfileId(null);
-      } else if (event.state.view === 'profile') {
-        // We are at profile level, ensure modals are closed
-        setIsModalOpen(false);
-        // ... close other modals if necessary ...
+      } else if (view === 'profile') {
+        setIsDashboardDealModalOpen(false);
+        setIsProfileDealModalOpen(false);
+        setIsPaymentModalOpen(false);
+        setIsDeleteModalOpen(false);
+        setIsEditDateModalOpen(false);
+        setIsSettingsModalOpen(false);
+        setIsTypographyModalOpen(false);
+        setIsActiveDealsModalOpen(false);
+        setIsMobileMenuOpen(false);
+        closeAd();
+        // Important: We stay on the profile
       }
     };
 
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
-  }, []);
+  }, [closeAd]);
 
-  // Modal Open Wrappers that Push History
   const openModal = (setter: React.Dispatch<React.SetStateAction<boolean>>) => {
     setter(true);
     pushHistoryState('modal');
   };
 
-  // Initialization effects
+  const handlePaymentSave = (amount: number, date: string) => {
+      if (activeTxId) {
+          // If we have a specific Transaction ID, pay just that one
+          addPayment(activeTxId, amount, date);
+      } else if (selectedProfileId) {
+          // If no specific TxID but we are in a profile, do a Waterfall Payment
+          addProfilePayment(selectedProfileId, amount, date);
+      }
+      closeModal();
+  };
+
   useEffect(() => {
+    if (!isLoggedIn) return;
     const tourComplete = localStorage.getItem(TOUR_KEY);
     if (!tourComplete) {
-      setTimeout(() => setTourStep(0), 1500);
+      const timer = setTimeout(() => setTourStep(0), 1500);
+      return () => clearTimeout(timer);
     } else {
+      // Check for Ads if tour is complete
       const params = new URLSearchParams(window.location.search);
-      if (params.get('action') !== 'new') setIsSponsorModalOpen(true);
+      // Don't show ad if we are directly adding a new transaction
+      if (params.get('action') !== 'new') {
+         checkEligibility();
+      }
     }
-
-    const params = new URLSearchParams(window.location.search);
-    if (params.get('action') === 'new') {
-      setTimeout(() => openModal(setIsModalOpen), 500);
+    if (new URLSearchParams(window.location.search).get('action') === 'new') {
+      setTimeout(() => openModal(setIsDashboardDealModalOpen), 500);
     }
-  }, []);
+  }, [isLoggedIn, checkEligibility]);
 
-  // Tour sync for settings & View State
+  // Tour Automation Effect
   useEffect(() => {
+    if (tourStep === -1) return;
+
     const isMobile = window.innerWidth < 768;
 
-    if (tourStep !== -1) {
-       setSelectedProfileId(null);
-    }
-
-    // STEPS NEEDING MOBILE MENU: 
-    // 4: Settings (tour-settings)
-    // 5: Fonts (tour-typography)
-    // 9: Backup (tour-backup)
-    if ([4, 5, 9].includes(tourStep)) {
-       if (isMobile) {
-          setIsMobileMenuOpen(true);
-       }
-    } else {
-       // Close menu for other steps (Stats, Search, etc.) to clean up view
+    // Steps 0-3: Dashboard (Ensure clean state)
+    if (tourStep <= 3) {
        setIsMobileMenuOpen(false);
+       setIsSettingsModalOpen(false);
+    }
+    // Steps 4 (Settings Btn), 5 (Fonts Btn), 9 (Backup Btn): Navbar Items
+    else if (tourStep === 4 || tourStep === 5 || tourStep === 9) {
+       if (isMobile) {
+           setIsMobileMenuOpen(true);
+       }
+       setIsSettingsModalOpen(false); 
+    }
+    // Steps 6-8: Inside Settings Modal
+    else if (tourStep >= 6 && tourStep <= 8) {
+       setIsMobileMenuOpen(false); // Close menu
+       setIsSettingsModalOpen(true); // Open modal
     }
 
-    // STEPS NEEDING SETTINGS MODAL:
-    // 6: Look & Feel
-    // 7: Colors
-    // 8: Cool Effects
-    if (tourStep >= 6 && tourStep <= 8) {
-      setIsSettingsModalOpen(true);
-      setIsMobileMenuOpen(false);
-    } else {
-      // Ensure settings modal is closed for other steps (e.g. step 9)
-      // This is crucial for the backup button to be clickable/visible in the menu
-      if (tourStep !== -1) {
-         setIsSettingsModalOpen(false);
-      }
-      
-      if (tourStep === -1) {
-        setIsSettingsModalOpen(false);
-        setIsMobileMenuOpen(false);
-      }
-    }
   }, [tourStep]);
 
-  // Finish tour
   const handleCompleteTour = useCallback(() => {
      localStorage.setItem(TOUR_KEY, 'true');
-     // Reset state directly
      setTourStep(-1);
-  }, []);
+     setIsMobileMenuOpen(false); // Ensure menu closes after tour
+     setIsSettingsModalOpen(false); // Ensure modal closes after tour
+     // Try showing ad after tour
+     checkEligibility();
+  }, [checkEligibility]);
 
   if (!isLoggedIn) {
     return (
@@ -254,7 +226,6 @@ const AppContent: React.FC = () => {
     );
   }
 
-  // Visual Engine Helpers
   const getRadius = () => settings.cornerRadius === 'sharp' ? '0px' : settings.cornerRadius === 'round' ? '0.75rem' : '2rem';
   const getPadding = () => settings.density === 'compact' ? '1rem' : '1.5rem';
   const getFontClass = () => ({ mono: 'font-mono-app', sans: 'font-sans-app', system: 'font-system-app', serif: 'font-serif-app', comic: 'font-comic-app' }[settings.fontStyle] || 'font-sans-app');
@@ -267,83 +238,131 @@ const AppContent: React.FC = () => {
        {settings.enableGrain && <div className="grain-overlay"></div>}
        {settings.background === 'nebula' && <div className={`fixed top-0 left-0 right-0 h-[50vh] ${activeTheme.bg}/10 blur-[120px] pointer-events-none rounded-b-full`}></div>}
 
-      {/* Safety Check: Only show profile if data exists. If deleted, it falls back to Dashboard */}
-      {selectedProfileId && activeProfile ? (
-        <div className="max-w-4xl mx-auto px-6 pt-safe">
-           <ProfileView 
-              account={activeProfile} settings={settings} activeTheme={activeTheme}
-              onBack={handleBackAction}
-              onGive={() => openModal(setIsModalOpen)}
-              onReceive={(txId) => { setActiveTxId(txId); openModal(setIsPaymentModalOpen); }}
-              onDeleteTransaction={deleteTransaction} onDeleteRepayment={deleteRepayment}
-              onDeleteProfile={() => { deleteProfile(activeProfile.id); handleBackAction(); }}
-              onUpdateDueDate={(txId) => { setActiveTxId(txId); openModal(setIsEditDateModalOpen); }}
-           />
-        </div>
-      ) : (
-        <>
-          <Navbar 
-            settings={settings} activeTheme={activeTheme} tourStep={tourStep} setTourStep={setTourStep}
-            onOpenTutorialSelection={() => setTourStep(0)} setIsSettingsModalOpen={(v) => v ? openModal(setIsSettingsModalOpen) : setIsSettingsModalOpen(false)}
-            handleExport={handleExport} setIsLoggedIn={setIsLoggedIn} deferredPrompt={deferredPrompt}
-            handleInstallClick={handleInstallClick} onOpenTypographyModal={() => openModal(setIsTypographyModalOpen)}
-            isMobileMenuOpen={isMobileMenuOpen} setIsMobileMenuOpen={(v) => v ? openModal(setIsMobileMenuOpen) : setIsMobileMenuOpen(false)}
-          />
-          <main className="max-w-4xl mx-auto px-6 space-y-8 pt-24 pb-8 md:pl-32 md:pt-12 md:pr-6 relative transition-all duration-300">
-            <DashboardStats stats={stats} settings={settings} activeTheme={activeTheme} tourStep={tourStep} onShowActiveDeals={() => openModal(setIsActiveDealsModalOpen)} />
-            <div className="space-y-6">
-              <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 border-b border-slate-800/50 pb-6 mt-12">
-                <div>
-                  <h2 className="text-2xl font-black text-slate-200 tracking-tight">People</h2>
-                  <p className="text-xs text-slate-500 font-bold uppercase tracking-widest mt-1">{accounts.length} Friends added</p>
-                </div>
-                {/* ADDED ID: tour-search */}
-                <div id="tour-search" className="relative group flex-grow sm:w-64">
-                    <div className={`absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none transition-colors ${searchQuery ? activeTheme.text : 'text-slate-500'}`}><Search className="h-4 w-4" /></div>
-                    <input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="block w-full pl-10 pr-3 py-2.5 bg-slate-900/50 border border-slate-800 rounded-xl text-xs font-mono text-slate-100 placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-slate-700 focus:border-slate-700 transition-all uppercase tracking-wider" placeholder="Search Name..." />
-                </div>
+      {/* --- DASHBOARD LAYER (ALWAYS RENDERED) --- */}
+      <div>
+        <Navbar 
+          settings={settings} activeTheme={activeTheme} tourStep={tourStep} setTourStep={setTourStep}
+          onOpenTutorialSelection={() => setTourStep(0)} setIsSettingsModalOpen={(v) => v ? openModal(setIsSettingsModalOpen) : setIsSettingsModalOpen(false)}
+          handleExport={handleExport} onLogout={handleLogout} deferredPrompt={deferredPrompt}
+          handleInstallClick={handleInstallClick} onOpenTypographyModal={() => openModal(setIsTypographyModalOpen)}
+          isMobileMenuOpen={isMobileMenuOpen} setIsMobileMenuOpen={(v) => v ? openModal(setIsMobileMenuOpen) : setIsMobileMenuOpen(false)}
+        />
+        <main className="max-w-4xl mx-auto px-6 space-y-8 pt-24 pb-8 md:pl-32 md:pt-12 md:pr-6 relative">
+          <DashboardStats stats={stats} settings={settings} activeTheme={activeTheme} tourStep={tourStep} onShowActiveDeals={() => openModal(setIsActiveDealsModalOpen)} />
+          <div className="space-y-6">
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 border-b border-slate-800/50 pb-6 mt-12">
+              <div>
+                <h2 className="text-2xl font-black text-slate-200 tracking-tight">People</h2>
+                <p className="text-xs text-slate-500 font-bold uppercase tracking-widest mt-1">{accounts.length} Friends added</p>
               </div>
-              <div className="space-y-4">
-                {accounts.length > 0 ? accounts.map(account => (
-                  <AccountRow key={account.id} account={account} settings={settings} activeTheme={activeTheme} onClick={() => navigateToProfile(account.id)} />
-                )) : (
-                  <div className="glass border-slate-800/40 border-dashed border-2 text-center" style={{ borderRadius: 'var(--app-radius)', padding: '3rem' }}>
-                    <div className="bg-slate-900/50 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4 border border-slate-800"><UserPlus className="w-10 h-10 text-slate-700" /></div>
-                    <h3 className="text-xl font-bold text-slate-300 mb-2">No Friends Added</h3>
-                    <button onClick={() => { setSearchQuery(''); openModal(setIsModalOpen); }} className={`px-8 py-3 ${activeTheme.bg} text-slate-950 rounded-xl font-bold hover:brightness-110 transition-all`}>Add a Friend</button>
-                  </div>
-                )}
+              <div id="tour-search" className="relative group flex-grow sm:w-64">
+                  <div className={`absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none transition-colors ${searchQuery ? activeTheme.text : 'text-slate-500'}`}><Search className="h-4 w-4" /></div>
+                  <input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="block w-full pl-10 pr-3 py-2.5 bg-slate-900/50 border border-slate-800 rounded-xl text-xs font-mono text-slate-100 placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-slate-700 focus:border-slate-700 transition-all uppercase tracking-wider" placeholder="Search Name..." />
               </div>
             </div>
-          </main>
-          {/* ADDED ID: tour-add-profile */}
-          <button id="tour-add-profile" onClick={() => openModal(setIsModalOpen)} className={`fixed bottom-8 right-6 md:right-8 w-16 h-16 md:w-18 md:h-18 ${activeTheme.bg} hover:brightness-110 text-slate-950 rounded-[2rem] flex items-center justify-center shadow-2xl active:scale-90 transition-all group z-30`}><Plus className="w-8 h-8 md:w-10 md:h-10 group-hover:rotate-90 transition-transform duration-300" /></button>
-        </>
-      )}
+            <div className="space-y-4">
+              <AnimatePresence>
+                {accounts.length > 0 ? accounts.map((account, index) => (
+                  <AccountRow key={account.id} account={account} settings={settings} activeTheme={activeTheme} onClick={() => navigateToProfile(account.id)} index={index} />
+                )) : (
+                  <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="glass border-slate-800/40 border-dashed border-2 text-center" style={{ borderRadius: 'var(--app-radius)', padding: '3rem' }}>
+                    <div className="bg-slate-900/50 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4 border border-slate-800"><UserPlus className="w-10 h-10 text-slate-700" /></div>
+                    <h3 className="text-xl font-bold text-slate-300 mb-2">No Friends Added</h3>
+                    <button onClick={() => { setSearchQuery(''); openModal(setIsDashboardDealModalOpen); }} className={`px-8 py-3 ${activeTheme.bg} text-slate-950 rounded-xl font-bold hover:brightness-110 transition-all`}>Add a Friend</button>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+          </div>
+        </main>
+        
+        {/* DASHBOARD FAB: Independent of Profile - Opens Clean Modal */}
+        <motion.button 
+          id="tour-add-profile" 
+          onClick={() => openModal(setIsDashboardDealModalOpen)} 
+          whileHover={{ scale: 1.1, rotate: 90 }} 
+          whileTap={{ scale: 0.9 }} 
+          className={`fixed bottom-8 right-6 md:right-8 w-16 h-16 md:w-18 md:h-18 ${activeTheme.bg} hover:brightness-110 text-slate-950 rounded-[2rem] flex items-center justify-center shadow-2xl transition-all group z-30`}
+        >
+          <Plus className="w-8 h-8 md:w-10 md:h-10 transition-transform duration-300" />
+        </motion.button>
+      </div>
+
+      {/* --- PROFILE LAYER (SLIDE OVER) --- */}
+      <AnimatePresence>
+        {selectedProfileId && activeProfile && (
+          <motion.div 
+            key="profile-layer" 
+            className="fixed inset-0 z-[100] isolate"
+            initial={{ x: '100%' }} 
+            animate={{ x: 0 }} 
+            exit={{ x: '100%' }}
+            transition={{ type: "spring", stiffness: 300, damping: 30 }}
+            style={{ backgroundColor: 'transparent' }}
+          >
+             <ProfileView 
+                account={activeProfile} settings={settings} activeTheme={activeTheme}
+                onBack={handleBackAction}
+                // Specific Profile Give Button - Opens Pre-filled Modal
+                onGive={() => openModal(setIsProfileDealModalOpen)}
+                onReceive={(txId) => { 
+                    setActiveTxId(txId); // Can be null now for waterfall
+                    openModal(setIsPaymentModalOpen); 
+                }}
+                onDeleteTransaction={deleteTransaction} onDeleteRepayment={deleteRepayment}
+                onDeleteProfile={() => { deleteProfile(activeProfile.id); handleBackAction(); }}
+                onUpdateDueDate={(txId) => { setActiveTxId(txId); openModal(setIsEditDateModalOpen); }}
+             />
+          </motion.div>
+        )}
+      </AnimatePresence>
       
-      {/* Modals */}
-      <SponsorModal isOpen={isSponsorModalOpen} onClose={closeModal} activeTheme={activeTheme} />
+      <SponsorModal isOpen={isAdOpen} onClose={closeAd} activeTheme={activeTheme} ad={currentAd} />
       <TourOverlay tourStep={tourStep} setTourStep={setTourStep} completeTour={handleCompleteTour} activeTheme={activeTheme} />
       <SettingsModal isOpen={isSettingsModalOpen} onClose={closeModal} settings={settings} updateSetting={updateSetting} activeTheme={activeTheme} themes={THEMES} currencies={CURRENCIES} tourStep={tourStep} />
       <TypographyModal isOpen={isTypographyModalOpen} onClose={closeModal} currentFont={settings.fontStyle} onSelect={(font) => updateSetting('fontStyle', font)} activeTheme={activeTheme} />
-      <ActiveDealsModal isOpen={isActiveDealsModalOpen} onClose={closeModal} transactions={transactions} currency={settings.currency} activeTheme={activeTheme} onSelectDeal={(profileId) => {
-          // Direct navigation by Profile ID
-          navigateToProfile(profileId);
-      }} />
-      <DealModal isOpen={isModalOpen} onClose={closeModal} onSave={(data) => { addLoan(data); setSearchQuery(''); closeModal(); }} activeTheme={activeTheme} currency={settings.currency} initialName={activeProfile ? activeProfile.name : ''} />
-      <PaymentModal isOpen={isPaymentModalOpen} onClose={closeModal} onSave={(amount, date) => { addPayment(activeTxId, amount, date); closeModal(); }} activeTheme={activeTheme} currency={settings.currency} />
+      <ActiveDealsModal isOpen={isActiveDealsModalOpen} onClose={closeModal} transactions={transactions} currency={settings.currency} activeTheme={activeTheme} onSelectDeal={navigateToProfile} />
+      
+      {/* 1. Dashboard Modal: Clean State for new friends/loans */}
+      <DealModal 
+        isOpen={isDashboardDealModalOpen} 
+        onClose={closeModal} 
+        onSave={(data) => { 
+           addLoan(data); 
+           setSearchQuery(''); 
+           closeModal(); 
+        }} 
+        activeTheme={activeTheme} 
+        currency={settings.currency} 
+        initialName="" 
+        initialProfileId={undefined} 
+      />
+
+      {/* 2. Profile Modal: Locked to the specific user to prevent errors */}
+      <DealModal 
+        isOpen={isProfileDealModalOpen} 
+        onClose={closeModal} 
+        onSave={(data) => { 
+           addLoan(data); 
+           closeModal(); 
+        }} 
+        activeTheme={activeTheme} 
+        currency={settings.currency} 
+        initialName={activeProfile ? activeProfile.name : ''} 
+        initialProfileId={activeProfile ? activeProfile.id : undefined} 
+      />
+
+      <PaymentModal isOpen={isPaymentModalOpen} onClose={closeModal} onSave={handlePaymentSave} activeTheme={activeTheme} currency={settings.currency} />
       <EditDateModal isOpen={isEditDateModalOpen} onClose={closeModal} onSave={(date) => { updateDueDate(activeTxId, date); closeModal(); }} initialDate={activeTx?.returnDate || ''} />
       <DeleteModal isOpen={isDeleteModalOpen} onClose={closeModal} onConfirm={() => { deleteTransaction(activeTxId); closeModal(); }} />
     </div>
   );
 };
 
-const App: React.FC = () => {
-  return (
-    <ErrorBoundary>
-      <AppContent />
-    </ErrorBoundary>
-  );
-}
+const App: React.FC = () => (
+  <ErrorBoundary>
+    <AppContent />
+  </ErrorBoundary>
+);
 
 export default App;

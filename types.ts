@@ -1,3 +1,4 @@
+import React from 'react';
 
 export type InterestType = 'none' | 'daily' | 'monthly' | 'yearly';
 
@@ -64,4 +65,14 @@ export interface AppSettings {
   density: Density;
   cornerRadius: CornerRadius;
   fontStyle: FontStyle;
+}
+
+// Error Boundary Types
+export interface ErrorBoundaryProps {
+  children?: React.ReactNode;
+}
+
+export interface ErrorBoundaryState {
+  hasError: boolean;
+  error: any;
 }

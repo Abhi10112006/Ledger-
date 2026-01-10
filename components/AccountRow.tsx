@@ -3,15 +3,17 @@ import React from 'react';
 import { ChevronRight } from 'lucide-react';
 import { AppSettings } from '../types';
 import TrustScoreBadge from './TrustScoreBadge';
+import { motion } from 'framer-motion';
 
 interface Props {
   account: any;
   settings: AppSettings;
   activeTheme: any;
   onClick: () => void;
+  index?: number;
 }
 
-const AccountRow: React.FC<Props> = ({ account, settings, activeTheme, onClick }) => {
+const AccountRow: React.FC<Props> = ({ account, settings, activeTheme, onClick, index = 0 }) => {
   const isOverdue = account.transactions.some((t: any) => {
     return !t.isCompleted && new Date() > new Date(t.returnDate);
   });
@@ -23,9 +25,15 @@ const AccountRow: React.FC<Props> = ({ account, settings, activeTheme, onClick }
   };
 
   return (
-    <div 
+    <motion.div 
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -20 }}
+      transition={{ delay: index * 0.05, duration: 0.3 }}
+      whileHover={{ scale: 1.02 }}
+      whileTap={{ scale: 0.98 }}
       onClick={onClick}
-      className="glass p-4 rounded-2xl flex items-center justify-between group active:scale-[0.98] transition-all cursor-pointer border border-transparent hover:border-white/5"
+      className="glass p-4 rounded-2xl flex items-center justify-between group cursor-pointer border border-transparent hover:border-white/5"
     >
       <div className="flex items-center gap-4">
         {/* Avatar */}
@@ -77,7 +85,7 @@ const AccountRow: React.FC<Props> = ({ account, settings, activeTheme, onClick }
         </div>
         <ChevronRight className="w-5 h-5 text-slate-600 group-hover:text-white transition-colors" />
       </div>
-    </div>
+    </motion.div>
   );
 };
 
