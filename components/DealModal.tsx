@@ -23,9 +23,19 @@ interface Props {
   currency: string;
   initialName?: string;
   initialProfileId?: string;
+  existingAccounts?: { id: string; name: string }[];
 }
 
-const DealModal: React.FC<Props> = ({ isOpen, onClose, onSave, activeTheme, currency, initialName = '', initialProfileId }) => {
+const DealModal: React.FC<Props> = ({ 
+    isOpen, 
+    onClose, 
+    onSave, 
+    activeTheme, 
+    currency, 
+    initialName = '', 
+    initialProfileId,
+    existingAccounts = []
+}) => {
   const [friendName, setFriendName] = useState('');
   const [selectedProfileId, setSelectedProfileId] = useState<string | null>(null);
   const [friendPhone, setFriendPhone] = useState('');
@@ -61,24 +71,13 @@ const DealModal: React.FC<Props> = ({ isOpen, onClose, onSave, activeTheme, curr
         setSearchResults([]);
         return;
     }
-    try {
-        const saved = localStorage.getItem('abhi_ledger_session');
-        if (saved) {
-            const txs = JSON.parse(saved);
-            const uniqueProfiles = new Map();
-            txs.forEach((t: any) => {
-                const pid = t.profileId || 'LEGACY'; 
-                if (!uniqueProfiles.has(pid)) {
-                    uniqueProfiles.set(pid, { id: pid, name: t.friendName });
-                }
-            });
-            const results = Array.from(uniqueProfiles.values())
-                .filter((p: any) => p.name.toLowerCase().includes(friendName.toLowerCase()))
-                .slice(0, 3);
-            setSearchResults(results);
-        }
-    } catch(e) {}
-  }, [friendName, selectedProfileId, initialName]);
+    
+    const results = existingAccounts
+        .filter(acc => acc.name.toLowerCase().includes(friendName.toLowerCase()))
+        .slice(0, 3);
+        
+    setSearchResults(results);
+  }, [friendName, selectedProfileId, initialName, existingAccounts]);
 
   const selectExisting = (profile: any) => {
       setFriendName(profile.name);

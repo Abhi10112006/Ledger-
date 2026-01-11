@@ -339,6 +339,7 @@ const AppContent: React.FC = () => {
         currency={settings.currency} 
         initialName="" 
         initialProfileId={undefined} 
+        existingAccounts={allAccounts}
       />
 
       <DealModal 
@@ -352,6 +353,7 @@ const AppContent: React.FC = () => {
         currency={settings.currency} 
         initialName={activeProfile ? activeProfile.name : ''} 
         initialProfileId={activeProfile ? activeProfile.id : undefined} 
+        existingAccounts={allAccounts}
       />
 
       <PaymentModal isOpen={isPaymentModalOpen} onClose={closeModal} onSave={handlePaymentSave} activeTheme={activeTheme} currency={settings.currency} />
