@@ -157,14 +157,31 @@ const ProfileView: React.FC<Props> = ({
     setIsSharing(false);
 
     if (platform === 'whatsapp') {
+      const cleanNum = phoneNumber ? phoneNumber.replace(/[^\d]/g, '') : '';
+      const encodedMsg = encodeURIComponent(message);
       let link = '';
-      if (phoneNumber) {
-        const cleanNum = phoneNumber.replace(/[^\d]/g, '');
-        link = `https://wa.me/${cleanNum}?text=${encodeURIComponent(message)}`;
+
+      // Check for mobile device to use direct app scheme
+      const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+
+      if (isMobile) {
+          // Use whatsapp:// scheme for direct app open on mobile
+          if (cleanNum) {
+              link = `whatsapp://send?phone=${cleanNum}&text=${encodedMsg}`;
+          } else {
+              link = `whatsapp://send?text=${encodedMsg}`;
+          }
+          // Using window.location.href avoids opening a new tab/window and triggers the app intent
+          window.location.href = link;
       } else {
-        link = `https://wa.me/?text=${encodeURIComponent(message)}`;
+          // Fallback to Web WhatsApp for desktop
+          if (cleanNum) {
+              link = `https://web.whatsapp.com/send?phone=${cleanNum}&text=${encodedMsg}`;
+          } else {
+              link = `https://web.whatsapp.com/send?text=${encodedMsg}`;
+          }
+          window.open(link, '_blank');
       }
-      window.open(link, '_blank');
     } else {
       const link = phoneNumber 
         ? `sms:${phoneNumber}?body=${encodeURIComponent(message)}`
@@ -284,11 +301,11 @@ const ProfileView: React.FC<Props> = ({
 
   const handleConfirmDelete = () => {
     if (!deleteConfirm) return;
-    if (deleteConfirm.type === 'PROFILE') {
+    if (deleteConfirm.type === 'PROFILE' && onDeleteProfile) {
         onDeleteProfile();
-    } else if (deleteConfirm.type === 'TRANSACTION' && deleteConfirm.txId) {
+    } else if (deleteConfirm.type === 'TRANSACTION' && deleteConfirm.txId && onDeleteTransaction) {
         onDeleteTransaction(deleteConfirm.txId);
-    } else if (deleteConfirm.type === 'REPAYMENT' && deleteConfirm.txId && deleteConfirm.repId) {
+    } else if (deleteConfirm.type === 'REPAYMENT' && deleteConfirm.txId && deleteConfirm.repId && onDeleteRepayment) {
         onDeleteRepayment(deleteConfirm.txId, deleteConfirm.repId);
     }
     setDeleteConfirm(null);

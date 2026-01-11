@@ -3,6 +3,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Plus, Search, UserPlus } from 'lucide-react';
 import { useLedger } from './hooks/useLedger';
 import { useAdManager } from './hooks/useAdManager';
+import { getMeta, saveMeta } from './utils/db';
 import Navbar from './components/Navbar';
 import DashboardStats from './components/DashboardStats';
 import SettingsModal from './components/SettingsModal';
@@ -165,19 +166,27 @@ const AppContent: React.FC = () => {
 
   useEffect(() => {
     if (!isLoggedIn) return;
-    const tourComplete = localStorage.getItem(TOUR_KEY);
-    if (!tourComplete) {
-      const timer = setTimeout(() => setTourStep(0), 1500);
-      return () => clearTimeout(timer);
-    } else {
-      const params = new URLSearchParams(window.location.search);
-      if (params.get('action') !== 'new') {
-         checkEligibility();
-      }
-    }
+    
+    let timer: any;
+    const checkStatus = async () => {
+        const tourComplete = await getMeta<boolean>(TOUR_KEY);
+        if (!tourComplete) {
+            timer = setTimeout(() => setTourStep(0), 1500);
+        } else {
+            const params = new URLSearchParams(window.location.search);
+            if (params.get('action') !== 'new') {
+                checkEligibility();
+            }
+        }
+    };
+    
+    checkStatus();
+
     if (new URLSearchParams(window.location.search).get('action') === 'new') {
       setTimeout(() => openModal(setIsDashboardDealModalOpen), 500);
     }
+    
+    return () => clearTimeout(timer);
   }, [isLoggedIn, checkEligibility]);
 
   // Tour Automation Effect
@@ -203,8 +212,8 @@ const AppContent: React.FC = () => {
 
   }, [tourStep]);
 
-  const handleCompleteTour = useCallback(() => {
-     localStorage.setItem(TOUR_KEY, 'true');
+  const handleCompleteTour = useCallback(async () => {
+     await saveMeta(TOUR_KEY, true);
      setTourStep(-1);
      setIsMobileMenuOpen(false); // Ensure menu closes after tour
      setIsSettingsModalOpen(false); // Ensure modal closes after tour

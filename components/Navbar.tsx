@@ -3,6 +3,7 @@ import React from 'react';
 import { Zap, MonitorDown, Settings, HelpCircle, Download, LogOut, AlertTriangle, Menu, X, Type } from 'lucide-react';
 import { AppSettings } from '../types';
 import { motion, AnimatePresence } from 'framer-motion';
+import { resetDB } from '../utils/db';
 
 interface Props {
   settings: AppSettings;
@@ -37,7 +38,8 @@ const Navbar: React.FC<Props> = ({
 }) => {
   const [showResetConfirm, setShowResetConfirm] = React.useState(false);
 
-  const handleFactoryReset = () => {
+  const handleFactoryReset = async () => {
+    await resetDB();
     localStorage.clear();
     window.location.reload();
   };

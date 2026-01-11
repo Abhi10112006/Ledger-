@@ -33,6 +33,46 @@ export const initDB = (): Promise<IDBDatabase> => {
   });
 };
 
+// --- CORE UTILS ---
+
+export const resetDB = async () => {
+    try {
+        const db = await initDB();
+        const tx = db.transaction([STORE_TX, STORE_SETTINGS], 'readwrite');
+        tx.objectStore(STORE_TX).clear();
+        tx.objectStore(STORE_SETTINGS).clear();
+        return new Promise((resolve) => {
+            tx.oncomplete = () => resolve(true);
+            tx.onerror = () => resolve(false);
+        });
+    } catch (e) {
+        console.error("DB Reset failed", e);
+        return false;
+    }
+};
+
+export const getMeta = async <T>(key: string): Promise<T | null> => {
+    try {
+        const db = await initDB();
+        const tx = db.transaction(STORE_SETTINGS, 'readonly');
+        const store = tx.objectStore(STORE_SETTINGS);
+        const result = await promisifyRequest(store.get(key));
+        return result ? result.value : null;
+    } catch (e) {
+        return null;
+    }
+};
+
+export const saveMeta = async (key: string, value: any) => {
+    const db = await initDB();
+    const tx = db.transaction(STORE_SETTINGS, 'readwrite');
+    const store = tx.objectStore(STORE_SETTINGS);
+    store.put({ id: key, value });
+    return new Promise((resolve) => {
+        tx.oncomplete = () => resolve(true);
+    });
+};
+
 // --- TRANSACTION OPERATIONS ---
 
 export const getAllTransactions = async (): Promise<Transaction[]> => {
