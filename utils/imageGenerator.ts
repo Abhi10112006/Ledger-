@@ -488,7 +488,8 @@ export const generateLoanCard = async (
   drawRow("Due Date", fmtDate(returnDate));
   
   if (interestRate > 0) {
-      drawRow("Interest", `${interestRate}% ${interestType}`);
+      const typeStr = interestType === 'none' ? 'Fixed (Flat)' : interestType.charAt(0).toUpperCase() + interestType.slice(1);
+      drawRow("Interest", `${interestRate}% ${typeStr}`);
   } else {
       drawRow("Interest", "None (0%)");
   }

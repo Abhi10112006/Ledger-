@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { X, Save, Calendar, DollarSign } from 'lucide-react';
+import { X, Save, Calendar, Hash } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 interface Props {
@@ -71,7 +71,7 @@ const EditDateModal: React.FC<Props> = ({ isOpen, onClose, onSave, initialDate, 
             <form onSubmit={handleSubmit} className="space-y-6">
               <div className="space-y-2">
                  <div className="flex items-center gap-2 text-[10px] font-black text-slate-500 uppercase ml-1">
-                    <DollarSign className="w-3 h-3" /> Amount
+                    <Hash className="w-3 h-3" /> Amount
                  </div>
                  <input 
                    required 
