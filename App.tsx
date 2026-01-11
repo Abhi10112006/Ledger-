@@ -45,15 +45,15 @@ const AppContent: React.FC = () => {
   const [isTypographyModalOpen, setIsTypographyModalOpen] = useState(false);
   const [isActiveDealsModalOpen, setIsActiveDealsModalOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  // Sponsor Modal state is now managed by hook, but we pass props
   
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTxId, setActiveTxId] = useState<string | null>(null);
+  const [activeRepaymentId, setActiveRepaymentId] = useState<string | null>(null);
   const [selectedProfileId, setSelectedProfileId] = useState<string | null>(null);
 
   const {
     transactions, settings, isLoggedIn, deferredPrompt, accounts, allAccounts, stats,
-    setIsLoggedIn, updateSetting, addLoan, addPayment, addProfilePayment, updateDueDate,
+    setIsLoggedIn, updateSetting, addLoan, addPayment, addProfilePayment, editTransaction, editRepayment,
     deleteTransaction, deleteRepayment, deleteProfile, handleExport, handleImport, handleInstallClick
   } = useLedger(tourStep, searchQuery);
 
@@ -62,6 +62,7 @@ const AppContent: React.FC = () => {
 
   const activeTheme = THEMES[settings.themeColor] || THEMES.emerald;
   const activeTx = transactions.find(t => t.id === activeTxId);
+  const activeRepayment = activeTx?.repayments.find(r => r.id === activeRepaymentId);
   const activeProfile = allAccounts.find(a => a.id === selectedProfileId);
 
   const pushHistoryState = (stateName: string) => {
@@ -80,6 +81,7 @@ const AppContent: React.FC = () => {
     setIsTypographyModalOpen(false);
     setIsActiveDealsModalOpen(false);
     setIsMobileMenuOpen(false);
+    setActiveRepaymentId(null);
     closeAd();
     
     if (window.history.state?.view === 'modal') {
@@ -127,6 +129,7 @@ const AppContent: React.FC = () => {
         setIsMobileMenuOpen(false);
         closeAd();
         setSelectedProfileId(null);
+        setActiveRepaymentId(null);
       } else if (view === 'profile') {
         setIsDashboardDealModalOpen(false);
         setIsProfileDealModalOpen(false);
@@ -138,7 +141,7 @@ const AppContent: React.FC = () => {
         setIsActiveDealsModalOpen(false);
         setIsMobileMenuOpen(false);
         closeAd();
-        // Important: We stay on the profile
+        setActiveRepaymentId(null);
       }
     };
 
@@ -153,10 +156,8 @@ const AppContent: React.FC = () => {
 
   const handlePaymentSave = (amount: number, date: string) => {
       if (activeTxId) {
-          // If we have a specific Transaction ID, pay just that one
           addPayment(activeTxId, amount, date);
       } else if (selectedProfileId) {
-          // If no specific TxID but we are in a profile, do a Waterfall Payment
           addProfilePayment(selectedProfileId, amount, date);
       }
       closeModal();
@@ -169,9 +170,7 @@ const AppContent: React.FC = () => {
       const timer = setTimeout(() => setTourStep(0), 1500);
       return () => clearTimeout(timer);
     } else {
-      // Check for Ads if tour is complete
       const params = new URLSearchParams(window.location.search);
-      // Don't show ad if we are directly adding a new transaction
       if (params.get('action') !== 'new') {
          checkEligibility();
       }
@@ -187,19 +186,16 @@ const AppContent: React.FC = () => {
 
     const isMobile = window.innerWidth < 768;
 
-    // Steps 0-3: Dashboard (Ensure clean state)
     if (tourStep <= 3) {
        setIsMobileMenuOpen(false);
        setIsSettingsModalOpen(false);
     }
-    // Steps 4 (Settings Btn), 5 (Fonts Btn), 9 (Backup Btn): Navbar Items
     else if (tourStep === 4 || tourStep === 5 || tourStep === 9) {
        if (isMobile) {
            setIsMobileMenuOpen(true);
        }
        setIsSettingsModalOpen(false); 
     }
-    // Steps 6-8: Inside Settings Modal
     else if (tourStep >= 6 && tourStep <= 8) {
        setIsMobileMenuOpen(false); // Close menu
        setIsSettingsModalOpen(true); // Open modal
@@ -212,7 +208,6 @@ const AppContent: React.FC = () => {
      setTourStep(-1);
      setIsMobileMenuOpen(false); // Ensure menu closes after tour
      setIsSettingsModalOpen(false); // Ensure modal closes after tour
-     // Try showing ad after tour
      checkEligibility();
   }, [checkEligibility]);
 
@@ -238,7 +233,7 @@ const AppContent: React.FC = () => {
        {settings.enableGrain && <div className="grain-overlay"></div>}
        {settings.background === 'nebula' && <div className={`fixed top-0 left-0 right-0 h-[50vh] ${activeTheme.bg}/10 blur-[120px] pointer-events-none rounded-b-full`}></div>}
 
-      {/* --- DASHBOARD LAYER (ALWAYS RENDERED) --- */}
+      {/* --- DASHBOARD LAYER --- */}
       <div>
         <Navbar 
           settings={settings} activeTheme={activeTheme} tourStep={tourStep} setTourStep={setTourStep}
@@ -276,7 +271,6 @@ const AppContent: React.FC = () => {
           </div>
         </main>
         
-        {/* DASHBOARD FAB: Independent of Profile - Opens Clean Modal */}
         <motion.button 
           id="tour-add-profile" 
           onClick={() => openModal(setIsDashboardDealModalOpen)} 
@@ -288,7 +282,7 @@ const AppContent: React.FC = () => {
         </motion.button>
       </div>
 
-      {/* --- PROFILE LAYER (SLIDE OVER) --- */}
+      {/* --- PROFILE LAYER --- */}
       <AnimatePresence>
         {selectedProfileId && activeProfile && (
           <motion.div 
@@ -303,15 +297,19 @@ const AppContent: React.FC = () => {
              <ProfileView 
                 account={activeProfile} settings={settings} activeTheme={activeTheme}
                 onBack={handleBackAction}
-                // Specific Profile Give Button - Opens Pre-filled Modal
                 onGive={() => openModal(setIsProfileDealModalOpen)}
                 onReceive={(txId) => { 
-                    setActiveTxId(txId); // Can be null now for waterfall
+                    setActiveTxId(txId);
                     openModal(setIsPaymentModalOpen); 
                 }}
                 onDeleteTransaction={deleteTransaction} onDeleteRepayment={deleteRepayment}
                 onDeleteProfile={() => { deleteProfile(activeProfile.id); handleBackAction(); }}
                 onUpdateDueDate={(txId) => { setActiveTxId(txId); openModal(setIsEditDateModalOpen); }}
+                onEditRepayment={(txId, repId) => { 
+                    setActiveTxId(txId); 
+                    setActiveRepaymentId(repId);
+                    openModal(setIsEditDateModalOpen); 
+                }}
              />
           </motion.div>
         )}
@@ -323,7 +321,6 @@ const AppContent: React.FC = () => {
       <TypographyModal isOpen={isTypographyModalOpen} onClose={closeModal} currentFont={settings.fontStyle} onSelect={(font) => updateSetting('fontStyle', font)} activeTheme={activeTheme} />
       <ActiveDealsModal isOpen={isActiveDealsModalOpen} onClose={closeModal} transactions={transactions} currency={settings.currency} activeTheme={activeTheme} onSelectDeal={navigateToProfile} />
       
-      {/* 1. Dashboard Modal: Clean State for new friends/loans */}
       <DealModal 
         isOpen={isDashboardDealModalOpen} 
         onClose={closeModal} 
@@ -338,7 +335,6 @@ const AppContent: React.FC = () => {
         initialProfileId={undefined} 
       />
 
-      {/* 2. Profile Modal: Locked to the specific user to prevent errors */}
       <DealModal 
         isOpen={isProfileDealModalOpen} 
         onClose={closeModal} 
@@ -353,7 +349,23 @@ const AppContent: React.FC = () => {
       />
 
       <PaymentModal isOpen={isPaymentModalOpen} onClose={closeModal} onSave={handlePaymentSave} activeTheme={activeTheme} currency={settings.currency} />
-      <EditDateModal isOpen={isEditDateModalOpen} onClose={closeModal} onSave={(date) => { updateDueDate(activeTxId, date); closeModal(); }} initialDate={activeTx?.returnDate || ''} />
+      
+      <EditDateModal 
+         isOpen={isEditDateModalOpen} 
+         onClose={closeModal} 
+         onSave={(amount, date) => { 
+            if (activeRepaymentId && activeTxId) {
+                editRepayment(activeTxId, activeRepaymentId, { amount, date });
+            } else {
+                editTransaction(activeTxId, { amount, date }); 
+            }
+            closeModal(); 
+         }} 
+         initialDate={activeRepaymentId ? (activeRepayment?.date || '') : (activeTx?.returnDate || '')} 
+         initialAmount={activeRepaymentId ? (activeRepayment?.amount || 0) : (activeTx?.principalAmount || 0)}
+         title={activeRepaymentId ? "Edit Payment" : "Edit Loan"}
+      />
+      
       <DeleteModal isOpen={isDeleteModalOpen} onClose={closeModal} onConfirm={() => { deleteTransaction(activeTxId); closeModal(); }} />
     </div>
   );

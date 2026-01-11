@@ -13,6 +13,7 @@ interface HistoryItemProps {
   onShareReceipt: (item: any) => void;
   onShareLoan: (item: any) => void;
   onUpdateDueDate: (id: string) => void;
+  onEditRepayment: (txId: string, repId: string) => void;
   onDelete: (type: 'TRANSACTION' | 'REPAYMENT', id: string, repId?: string) => void;
 }
 
@@ -25,6 +26,7 @@ const HistoryItem: React.FC<HistoryItemProps> = ({
   onShareReceipt,
   onShareLoan,
   onUpdateDueDate,
+  onEditRepayment,
   onDelete
 }) => {
   return (
@@ -81,18 +83,33 @@ const HistoryItem: React.FC<HistoryItemProps> = ({
                     className="flex items-center gap-2 overflow-hidden pl-2 border-l border-white/5"
                 >
                     {item.type === 'PAYMENT' && (
-                      <motion.button
-                          whileHover={{ scale: 1.1 }}
-                          whileTap={{ scale: 0.9 }}
-                          onClick={(e) => {
-                              e.stopPropagation();
-                              onShareReceipt(item);
-                          }}
-                          className="p-2 text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 rounded-lg flex items-center justify-center"
-                          title="Generate Receipt"
-                      >
-                          {sharingId === item.repId ? <Loader2 className="w-4 h-4 animate-spin" /> : <ImageIcon className="w-4 h-4" />}
-                      </motion.button>
+                      <>
+                        <motion.button
+                            whileHover={{ scale: 1.1 }}
+                            whileTap={{ scale: 0.9 }}
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                onShareReceipt(item);
+                            }}
+                            className="p-2 text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 rounded-lg flex items-center justify-center"
+                            title="Generate Receipt"
+                        >
+                            {sharingId === item.repId ? <Loader2 className="w-4 h-4 animate-spin" /> : <ImageIcon className="w-4 h-4" />}
+                        </motion.button>
+
+                        <motion.button
+                            whileHover={{ scale: 1.1 }}
+                            whileTap={{ scale: 0.9 }}
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                onEditRepayment(item.id, item.repId!);
+                            }}
+                            className="p-2 text-blue-400 bg-blue-500/10 hover:bg-blue-500/20 rounded-lg"
+                            title="Edit Payment"
+                        >
+                            <Edit className="w-4 h-4" />
+                        </motion.button>
+                      </>
                     )}
                     
                     {item.type === 'LOAN' && (
@@ -118,7 +135,7 @@ const HistoryItem: React.FC<HistoryItemProps> = ({
                                 onUpdateDueDate(item.id);
                             }}
                             className="p-2 text-blue-400 bg-blue-500/10 hover:bg-blue-500/20 rounded-lg"
-                            title="Edit Due Date"
+                            title="Edit Loan"
                         >
                             <Edit className="w-4 h-4" />
                         </motion.button>

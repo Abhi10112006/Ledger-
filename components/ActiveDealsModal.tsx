@@ -3,6 +3,7 @@ import React from 'react';
 import { X, AlertCircle, CheckCircle2, ArrowRight } from 'lucide-react';
 import { Transaction } from '../types';
 import { getTotalPayable } from '../utils/calculations';
+import { motion } from 'framer-motion';
 
 interface Props {
   isOpen: boolean;
@@ -23,6 +24,21 @@ const ActiveDealsModal: React.FC<Props> = ({ isOpen, onClose, transactions, curr
 
   const now = new Date();
 
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    show: {
+      opacity: 1,
+      transition: {
+        staggerChildren: 0.1
+      }
+    }
+  };
+
+  const itemVariants = {
+    hidden: { opacity: 0, x: -20 },
+    show: { opacity: 1, x: 0 }
+  };
+
   return (
     <div className="fixed inset-0 z-[3000] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">
       <div className="glass w-full max-w-lg rounded-[2.5rem] p-6 animate-in zoom-in-95 duration-200 border border-slate-800 shadow-2xl flex flex-col max-h-[85vh]">
@@ -38,7 +54,12 @@ const ActiveDealsModal: React.FC<Props> = ({ isOpen, onClose, transactions, curr
           </button>
         </div>
         
-        <div className="overflow-y-auto space-y-3 pr-2 scrollbar-hide">
+        <motion.div 
+            variants={containerVariants}
+            initial="hidden"
+            animate="show"
+            className="overflow-y-auto space-y-3 pr-2 scrollbar-hide"
+        >
           {activeDeals.length > 0 ? (
             activeDeals.map((deal) => {
                const total = getTotalPayable(deal);
@@ -47,12 +68,12 @@ const ActiveDealsModal: React.FC<Props> = ({ isOpen, onClose, transactions, curr
                const dueDateStr = new Date(deal.returnDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
 
                return (
-                <div 
+                <motion.div 
                   key={deal.id}
+                  variants={itemVariants}
                   onClick={(e) => {
                       e.stopPropagation();
                       if(onSelectDeal) {
-                          // Pass ID for direct navigation
                           onSelectDeal(deal.profileId);
                           onClose();
                       }
@@ -88,16 +109,16 @@ const ActiveDealsModal: React.FC<Props> = ({ isOpen, onClose, transactions, curr
                         {currency}{Math.round(remaining).toLocaleString('en-IN')}
                      </div>
                   </div>
-                </div>
+                </motion.div>
                );
             })
           ) : (
-            <div className="text-center py-10 text-slate-500">
+            <motion.div variants={itemVariants} className="text-center py-10 text-slate-500">
                <CheckCircle2 className="w-12 h-12 mx-auto mb-3 opacity-20" />
                <p className="text-sm">No active deals found.</p>
-            </div>
+            </motion.div>
           )}
-        </div>
+        </motion.div>
       </div>
     </div>
   );

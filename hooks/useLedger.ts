@@ -298,6 +298,57 @@ export const useLedger = (tourStep: number, searchQuery: string = '') => {
     } : t));
   };
 
+  const editTransaction = (activeTxId: string | null, newData: { amount: number, date: string }) => {
+    if (!activeTxId) return;
+    setTransactions(prev => prev.map(t => {
+        if (t.id === activeTxId) {
+            const newPrincipal = Number(newData.amount);
+            const newDate = new Date(newData.date).toISOString();
+            
+            // Construct temp to check total payable with new principal
+            // Note: If interest is calculated, getTotalPayable handles it based on principal
+            const tempTx = { ...t, principalAmount: newPrincipal, returnDate: newDate };
+            const totalPayable = getTotalPayable(tempTx);
+            const isCompleted = t.paidAmount >= (totalPayable - 0.5);
+
+            return {
+                ...t,
+                principalAmount: newPrincipal,
+                returnDate: newDate,
+                isCompleted,
+                notes: t.notes 
+            };
+        }
+        return t;
+    }));
+  };
+
+  const editRepayment = (txId: string, repId: string, newData: { amount: number, date: string }) => {
+    setTransactions(prev => prev.map(t => {
+      if (t.id === txId) {
+        const updatedRepayments = t.repayments.map(r => {
+            if (r.id === repId) {
+                return { ...r, amount: Number(newData.amount), date: new Date(newData.date).toISOString() };
+            }
+            return r;
+        });
+        
+        const newPaidAmount = updatedRepayments.reduce((sum, r) => sum + r.amount, 0);
+        const tempTx = { ...t, repayments: updatedRepayments, paidAmount: newPaidAmount };
+        const finalTotalPayable = getTotalPayable(tempTx);
+        const isCompleted = newPaidAmount >= (finalTotalPayable - 0.5);
+
+        return {
+          ...t,
+          repayments: updatedRepayments,
+          paidAmount: newPaidAmount,
+          isCompleted
+        };
+      }
+      return t;
+    }));
+  };
+
   const deleteTransaction = (activeTxId: string | null) => {
     if (!activeTxId) return;
     setTransactions(prev => prev.filter(t => t.id !== activeTxId)); 
@@ -424,7 +475,7 @@ export const useLedger = (tourStep: number, searchQuery: string = '') => {
 
   return {
     transactions, settings, isLoggedIn, deferredPrompt, sortBy, accounts, allAccounts, stats,
-    setIsLoggedIn, setSortBy, updateSetting, addLoan, addPayment, addProfilePayment, updateDueDate,
+    setIsLoggedIn, setSortBy, updateSetting, addLoan, addPayment, addProfilePayment, updateDueDate, editTransaction, editRepayment,
     deleteTransaction, deleteRepayment, deleteProfile, handleExport, handleImport, handleInstallClick
   };
 };

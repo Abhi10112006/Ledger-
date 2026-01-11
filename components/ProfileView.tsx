@@ -28,6 +28,7 @@ interface Props {
   onDeleteRepayment: (txId: string, repId: string) => void;
   onDeleteProfile: () => void;
   onUpdateDueDate: (txId: string) => void;
+  onEditRepayment: (txId: string, repId: string) => void;
 }
 
 const ProfileView: React.FC<Props> = ({ 
@@ -40,7 +41,8 @@ const ProfileView: React.FC<Props> = ({
   onDeleteTransaction,
   onDeleteRepayment,
   onDeleteProfile,
-  onUpdateDueDate
+  onUpdateDueDate,
+  onEditRepayment
 }) => {
   const [deleteConfirm, setDeleteConfirm] = useState<{
     type: 'PROFILE' | 'TRANSACTION' | 'REPAYMENT';
@@ -208,8 +210,6 @@ const ProfileView: React.FC<Props> = ({
             message = "Received right on time. Thanks! 👍";
         }
 
-        // WATERFALL LOGIC: Uses GLOBAL remaining debt (totalExposure) instead of transaction balance
-        // Explicitly ensuring it is treated as a number
         const remaining = Number(account.totalExposure) || 0;
         
         const imageFile = await generateReceiptCard(
@@ -294,71 +294,102 @@ const ProfileView: React.FC<Props> = ({
     setDeleteConfirm(null);
   };
 
+  // Animation Variants
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    show: {
+      opacity: 1,
+      transition: {
+        staggerChildren: 0.1,
+        delayChildren: 0.2
+      }
+    }
+  };
+
+  const itemVariants = {
+    hidden: { opacity: 0, y: 20 },
+    show: { opacity: 1, y: 0 }
+  };
+
   return (
     <div className="fixed inset-0 z-50 bg-slate-950 flex flex-col">
       <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808008_1px,transparent_1px),linear-gradient(to_bottom,#80808008_1px,transparent_1px)] bg-[size:24px_24px] pointer-events-none opacity-20"></div>
 
-      <div className="flex-1 flex flex-col w-full max-w-4xl mx-auto relative h-full">
+      <motion.div 
+         className="flex-1 flex flex-col w-full max-w-4xl mx-auto relative h-full"
+         variants={containerVariants}
+         initial="hidden"
+         animate="show"
+      >
         
         {/* HEADER */}
-        <ProfileHeader 
-           onBack={onBack}
-           onDelete={() => setDeleteConfirm({ type: 'PROFILE' })}
-           onShareSMS={() => handleShareMessage('sms')}
-           onShareWA={() => handleShareMessage('whatsapp')}
-           onGeneratePDF={() => generateStatementPDF(account.id, account.name, account.transactions, settings)}
-           isSharing={isSharing}
-           activeTheme={activeTheme}
-        />
+        <motion.div variants={itemVariants}>
+            <ProfileHeader 
+            onBack={onBack}
+            onDelete={() => setDeleteConfirm({ type: 'PROFILE' })}
+            onShareSMS={() => handleShareMessage('sms')}
+            onShareWA={() => handleShareMessage('whatsapp')}
+            onGeneratePDF={() => generateStatementPDF(account.id, account.name, account.transactions, settings)}
+            isSharing={isSharing}
+            activeTheme={activeTheme}
+            />
+        </motion.div>
 
         <div className="flex-1 overflow-y-auto min-h-0 space-y-3 pb-32 scrollbar-hide px-6">
           
           {/* STATS */}
-          <ProfileStats 
-             account={account} 
-             settings={settings} 
-             activeTheme={activeTheme} 
-             nextDueTx={nextDueTx} 
-             onSetReminder={handleSetReminder}
-          />
+          <motion.div variants={itemVariants}>
+            <ProfileStats 
+                account={account} 
+                settings={settings} 
+                activeTheme={activeTheme} 
+                nextDueTx={nextDueTx} 
+                onSetReminder={handleSetReminder}
+            />
+          </motion.div>
 
-          <div className="flex items-center gap-4 mb-4">
+          <motion.div variants={itemVariants} className="flex items-center gap-4 mb-4">
                <div className="h-px bg-slate-800 flex-1"></div>
                <span className="text-[10px] font-bold text-slate-600 uppercase tracking-widest">History</span>
                <div className="h-px bg-slate-800 flex-1"></div>
-          </div>
+          </motion.div>
 
            {/* HISTORY LIST */}
-           <AnimatePresence mode="popLayout">
-           {historyItems.map((item) => {
-             const itemKey = `${item.id}-${item.repId || 'main'}`;
-             return (
-               <HistoryItem 
-                 key={itemKey}
-                 item={item}
-                 isActive={activeItemKey === itemKey}
-                 onToggle={() => setActiveItemKey(activeItemKey === itemKey ? null : itemKey)}
-                 settings={settings}
-                 sharingId={sharingId}
-                 onShareReceipt={handleShareReceipt}
-                 onShareLoan={handleShareLoan}
-                 onUpdateDueDate={onUpdateDueDate}
-                 onDelete={(type, id, repId) => setDeleteConfirm({ type, txId: id, repId })}
-               />
-             );
-           })}
-           </AnimatePresence>
+           <motion.div variants={containerVariants} className="space-y-3">
+               <AnimatePresence mode="popLayout">
+               {historyItems.map((item) => {
+                 const itemKey = `${item.id}-${item.repId || 'main'}`;
+                 return (
+                   <motion.div key={itemKey} variants={itemVariants}>
+                       <HistoryItem 
+                         item={item}
+                         isActive={activeItemKey === itemKey}
+                         onToggle={() => setActiveItemKey(activeItemKey === itemKey ? null : itemKey)}
+                         settings={settings}
+                         sharingId={sharingId}
+                         onShareReceipt={handleShareReceipt}
+                         onShareLoan={handleShareLoan}
+                         onUpdateDueDate={onUpdateDueDate}
+                         onEditRepayment={onEditRepayment}
+                         onDelete={(type, id, repId) => setDeleteConfirm({ type, txId: id, repId })}
+                       />
+                   </motion.div>
+                 );
+               })}
+               </AnimatePresence>
+           </motion.div>
            
            {historyItems.length === 0 && (
-              <div className="text-center py-12 text-slate-600 text-sm font-mono opacity-50">
+              <motion.div variants={itemVariants} className="text-center py-12 text-slate-600 text-sm font-mono opacity-50">
                  NO RECORDS FOUND
-              </div>
+              </motion.div>
            )}
         </div>
 
         {/* BOTTOM ACTIONS */}
         <div className="absolute bottom-0 left-0 right-0 px-6 pb-[calc(env(safe-area-inset-bottom)+1rem)] pt-8 grid grid-cols-2 gap-4 bg-gradient-to-t from-slate-950 via-slate-950/95 to-transparent z-30 backdrop-blur-[2px]">
            <motion.button 
+             variants={itemVariants}
              whileHover={{ scale: 1.05 }}
              whileTap={{ scale: 0.95 }}
              onClick={onGive}
@@ -367,9 +398,9 @@ const ProfileView: React.FC<Props> = ({
              <ArrowUpRight className="w-5 h-5" /> Give Money
            </motion.button>
            <motion.button 
+             variants={itemVariants}
              whileHover={{ scale: 1.05 }}
              whileTap={{ scale: 0.95 }}
-             // Pass NULL to indicate a profile-wide waterfall payment
              onClick={() => onReceive(null)}
              disabled={account.totalExposure <= 0}
              className={`p-4 rounded-2xl font-black uppercase tracking-widest shadow-lg transition-all flex items-center justify-center gap-2 ${account.totalExposure <= 0 ? 'bg-slate-800 text-slate-500 cursor-not-allowed' : 'bg-emerald-600 text-white shadow-emerald-900/20 hover:bg-emerald-500'}`}
@@ -377,7 +408,7 @@ const ProfileView: React.FC<Props> = ({
              <ArrowDownLeft className="w-5 h-5" /> Got Money
            </motion.button>
         </div>
-      </div>
+      </motion.div>
 
       {/* DELETE CONFIRMATION OVERLAY */}
       {deleteConfirm && (

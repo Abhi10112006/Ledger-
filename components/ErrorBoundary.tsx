@@ -11,15 +11,15 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
     };
   }
 
-  public static getDerivedStateFromError(error: any): ErrorBoundaryState {
+  static getDerivedStateFromError(error: any): ErrorBoundaryState {
     return { hasError: true, error };
   }
 
-  public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
+  componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     console.error("ErrorBoundary caught an error:", error, errorInfo);
   }
 
-  public render(): ReactNode {
+  render(): ReactNode {
     if (this.state.hasError) {
       return (
         <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center p-6 text-center text-slate-100">
