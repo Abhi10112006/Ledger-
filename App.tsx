@@ -83,10 +83,6 @@ const AppContent: React.FC = () => {
     setIsMobileMenuOpen(false);
     setActiveRepaymentId(null);
     closeAd();
-    
-    if (window.history.state?.view === 'modal') {
-        window.history.back();
-    }
   }, [closeAd]);
 
   const handleLogout = useCallback(() => {
@@ -94,6 +90,10 @@ const AppContent: React.FC = () => {
     setIsMobileMenuOpen(false);
     setIsSettingsModalOpen(false);
     setIsTypographyModalOpen(false);
+    setIsDashboardDealModalOpen(false);
+    setIsProfileDealModalOpen(false);
+    setIsActiveDealsModalOpen(false);
+    setActiveRepaymentId(null);
     closeAd();
     
     // 2. Actually log out
