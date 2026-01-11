@@ -200,56 +200,70 @@ export const useLedger = (tourStep: number, searchQuery: string = '') => {
   // WATERFALL LOGIC: Distribute payment across user's loans (Oldest -> Newest)
   const addProfilePayment = (profileId: string, totalAmount: number, date: string) => {
     setTransactions(prev => {
-      // 1. Identify Target Transactions
+      // 1. Identify User Transactions
       const userTxs = prev.filter(t => t.profileId === profileId);
       
-      // 2. Sort: Active loans first (Oldest to Newest), then Completed ones (Newest to Oldest)
-      // We prioritize paying off the oldest ACTIVE debt.
-      const sortedTxs = userTxs.sort((a, b) => {
-         if (a.isCompleted === b.isCompleted) {
-            return new Date(a.startDate).getTime() - new Date(b.startDate).getTime();
+      // 2. Sort for Allocation: Oldest Active First
+      // Create a sorted list to determine WHO gets paid first. 
+      // Rule: Active debts before Completed debts. Within active, Oldest start date first.
+      const allocationOrder = [...userTxs].sort((a, b) => {
+         if (a.isCompleted !== b.isCompleted) {
+             return a.isCompleted ? 1 : -1; // Put active (false) before completed (true)
          }
-         return a.isCompleted ? 1 : -1; // Active first
+         return new Date(a.startDate).getTime() - new Date(b.startDate).getTime();
       });
 
-      const userTxIds = new Set(sortedTxs.map(t => t.id));
-      let remainingMoney = Number(totalAmount);
+      // 3. Allocate Money Map
+      // We calculate exactly how much goes to each transaction ID
+      let moneyToDistribute = Number(totalAmount);
+      const allocationMap = new Map<string, number>(); // txId -> amount
       const isoDate = new Date(date).toISOString();
 
-      const updatedTransactions = prev.map(t => {
-         // Skip other people's transactions
-         if (!userTxIds.has(t.id)) return t;
+      for (const tx of allocationOrder) {
+          if (moneyToDistribute <= 0) break;
 
-         // If we have no money left, stop modifying
-         if (remainingMoney <= 0) return t;
+          const totalPayable = getTotalPayable(tx);
+          const pending = totalPayable - tx.paidAmount;
 
-         // Calculate Pending
-         const totalPayable = getTotalPayable(t);
-         const pending = totalPayable - t.paidAmount;
+          // If strictly fully paid, skip. 
+          // (Small epsilon for float safety)
+          if (pending <= 0.01) continue; 
 
-         // How much to pay here?
-         let payAmount = 0;
-         
-         if (t.isCompleted) {
-            // Even if completed, if we have excess money at the end, we might dump it in the last transaction.
-            // But usually we don't pay completed ones unless it's the ONLY transaction.
-            return t; 
-         } else {
-             // Pay up to the pending amount or whatever we have left
-             payAmount = Math.min(remainingMoney, pending);
-             // If due to float precision pending is < 0.5, treat as 0
-             if (pending < 0.5) payAmount = 0;
-         }
+          const payAmount = Math.min(moneyToDistribute, pending);
+          
+          if (payAmount > 0) {
+              allocationMap.set(tx.id, payAmount);
+              moneyToDistribute -= payAmount;
+          }
+      }
 
-         // If we calculate 0 payment but still have money, it means this tx is effectively paid. Move to next.
-         if (payAmount <= 0) return t;
+      // 4. Overpayment Handling
+      // If money is STILL left after paying all active debts, apply credit to the LATEST transaction
+      if (moneyToDistribute > 0 && allocationOrder.length > 0) {
+          const latestTx = allocationOrder.reduce((latest, current) => {
+              return new Date(current.startDate).getTime() > new Date(latest.startDate).getTime() ? current : latest;
+          }, allocationOrder[0]);
+          
+          const currentAlloc = allocationMap.get(latestTx.id) || 0;
+          allocationMap.set(latestTx.id, currentAlloc + moneyToDistribute);
+      }
 
-         // Apply Payment
-         remainingMoney -= payAmount;
-         
-         const newRepayment: Repayment = { id: generateId(), amount: payAmount, date: isoDate };
+      // 5. Apply allocations to state
+      // We map over 'prev' to preserve the original state order, but update values based on our map
+      return prev.map(t => {
+         if (!allocationMap.has(t.id)) return t;
+
+         const addAmount = allocationMap.get(t.id)!;
+         const newRepayment: Repayment = { 
+            id: generateId(), 
+            amount: addAmount, 
+            date: isoDate 
+         };
          const updatedRepayments = [...t.repayments, newRepayment];
-         const updatedPaid = t.paidAmount + payAmount;
+         const updatedPaid = t.paidAmount + addAmount;
+         
+         // Recalculate completion
+         const totalPayable = getTotalPayable(t);
          const isCompleted = updatedPaid >= (totalPayable - 0.5);
 
          return {
@@ -259,33 +273,6 @@ export const useLedger = (tourStep: number, searchQuery: string = '') => {
             isCompleted
          };
       });
-
-      // 3. OVERPAYMENT HANDLING
-      // If we looped through all active transactions and still have money (remainingMoney > 0)
-      // We apply the excess to the VERY LAST transaction (Newest) of the user, making it overpaid/credit.
-      if (remainingMoney > 0.1 && userTxs.length > 0) {
-          // Find the newest transaction (last in our sorted list by date)
-          const newestTx = sortedTxs[sortedTxs.length - 1];
-          
-          return updatedTransactions.map(t => {
-              if (t.id === newestTx.id) {
-                  const newRepayment: Repayment = { id: generateId(), amount: remainingMoney, date: isoDate };
-                  const updatedRepayments = [...t.repayments, newRepayment];
-                  const updatedPaid = t.paidAmount + remainingMoney;
-                  
-                  // Force complete if it wasn't already
-                  return {
-                      ...t,
-                      repayments: updatedRepayments,
-                      paidAmount: updatedPaid,
-                      isCompleted: true
-                  };
-              }
-              return t;
-          });
-      }
-
-      return updatedTransactions;
     });
   };
 

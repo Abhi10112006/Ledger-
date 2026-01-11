@@ -36,7 +36,10 @@ const HistoryItem: React.FC<HistoryItemProps> = ({
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, scale: 0.95 }}
       onClick={onToggle}
-      className={`glass p-4 rounded-2xl flex items-center justify-between border cursor-pointer group active:scale-[0.98] ${isActive ? 'border-white/10 bg-slate-900/60' : 'border-transparent hover:border-white/5'}`}
+      whileHover={{ scale: 1.01 }}
+      whileTap={{ scale: 0.98 }}
+      transition={{ layout: { duration: 0.2 }, default: { duration: 0.1 } }}
+      className={`glass p-4 rounded-2xl flex items-center justify-between border cursor-pointer group transition-colors duration-300 ${isActive ? 'border-white/10 bg-slate-900/60' : 'border-transparent hover:bg-white/5 hover:border-white/5'}`}
     >
         <motion.div layout="position" className="flex items-center gap-4">
           <div className={`p-2.5 rounded-xl ${item.type === 'LOAN' ? 'bg-rose-500/10 text-rose-500' : 'bg-emerald-500/10 text-emerald-500'}`}>
@@ -81,6 +84,7 @@ const HistoryItem: React.FC<HistoryItemProps> = ({
                     exit={{ opacity: 0, width: 0, x: 20 }}
                     transition={{ type: "spring", stiffness: 400, damping: 30 }}
                     className="flex items-center gap-2 overflow-hidden pl-2 border-l border-white/5"
+                    onClick={(e) => e.stopPropagation()} // Prevent toggling row when clicking actions
                 >
                     {item.type === 'PAYMENT' && (
                       <>
