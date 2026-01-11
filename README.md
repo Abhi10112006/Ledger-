@@ -16,13 +16,13 @@ We didn't just build a calculator; we built a **Trust Engine**.
 
 ## ⚔️ MARKET DOMINANCE: WHY WE WIN
 
-While other apps are stuck in 2015, Abhi's Ledger is running in 2040s. Here is how we crush the competition:
+While other apps are stuck in 2015, Abhi's Ledger is running in 2077. Here is how we crush the competition:
 
 | Feature | ❌ The "Other" Apps | ✅ Abhi's Ledger |
 | :--- | :--- | :--- |
 | **Privacy** | Uploads your data to the cloud. | **100% Offline.** Your data never leaves your device. |
 | **Psychology** | Just numbers on a screen. | **Neural Trust Score.** We rate your friends' integrity (0-100). |
-| **Aesthetics** | Boring white & blue corporate UI. | **Visual Engine.** Neon, Glassmorphism, OLED modes, Film Grain, Smooth Animations. |
+| **Aesthetics** | Boring white & blue corporate UI. | **Visual Engine.** Neon, Glassmorphism, OLED modes, Film Grain. |
 | **Reports** | ugly screenshots. | **Agency-Style Dossiers.** Generate "Confidential" PDF reports. |
 | **Cost** | Subscriptions & Ads. | **Free.** Built for utility, not greed. |
 
@@ -54,8 +54,9 @@ Your finance app should look as good as your games.
 This is not a static product. It is a living system. We are constantly pushing updates to ensure **Abhi's Ledger** remains the absolute best offline tracker in the global market.
 
 **Incoming Transmissions (Roadmap):**
-*   [ ] Biometric Lock (Fingerprint)
-*   [ ] Automatic Google drive backup 
+*   [ ] Biometric Lock (FaceID/Fingerprint)
+*   [ ] Multi-Currency Conversion
+*   [ ] AI-Powered Spending Insights
 
 ---
 

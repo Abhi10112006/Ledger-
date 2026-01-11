@@ -7,7 +7,7 @@ const STORE_TX = 'transactions';
 const STORE_SETTINGS = 'settings';
 
 // Helper to wrap IndexedDB Request in a Promise
-const promisifyRequest = (request: IDBRequest): Promise<any> => {
+const promisifyRequest = <T>(request: IDBRequest<T>): Promise<T> => {
   return new Promise((resolve, reject) => {
     request.onsuccess = () => resolve(request.result);
     request.onerror = () => reject(request.error);
@@ -62,8 +62,9 @@ export const deleteTxFromDB = async (id: string) => {
   });
 };
 
-// Bulk save (useful for migration or re-ordering if needed)
+// Bulk save (useful for migration or batch updates)
 export const bulkSaveTransactions = async (transactions: Transaction[]) => {
+  if (transactions.length === 0) return;
   const db = await initDB();
   const tx = db.transaction(STORE_TX, 'readwrite');
   const store = tx.objectStore(STORE_TX);
@@ -91,4 +92,15 @@ export const saveSettingsToDB = async (settings: AppSettings) => {
   return new Promise((resolve) => {
     tx.oncomplete = () => resolve(true);
   });
+};
+
+// --- MIGRATION HELPER ---
+export const migrateLegacyData = async (legacyData: Transaction[]) => {
+    if(!legacyData || legacyData.length === 0) return;
+    try {
+        await bulkSaveTransactions(legacyData);
+        console.log("Migration successful: Moved " + legacyData.length + " items to IndexedDB.");
+    } catch (e) {
+        console.error("Migration failed", e);
+    }
 };

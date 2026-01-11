@@ -3,9 +3,18 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Transaction, AppSettings, Repayment, InterestType, SummaryStats } from '../types';
 import { generateId, generateProfileId } from '../utils/common';
 import { calculateTrustScore, getTotalPayable, getSummaryStats } from '../utils/calculations';
+import { 
+  getAllTransactions, 
+  saveTransaction, 
+  bulkSaveTransactions, 
+  deleteTxFromDB, 
+  getSettings, 
+  saveSettingsToDB,
+  migrateLegacyData
+} from '../utils/db';
 
-const STORAGE_KEY = 'abhi_ledger_session';
-const SETTINGS_KEY = 'abhi_ledger_settings_v2';
+const STORAGE_KEY_LEGACY = 'abhi_ledger_session';
+const SETTINGS_KEY_LEGACY = 'abhi_ledger_settings_v2';
 
 const DEFAULT_SETTINGS: AppSettings = {
   userName: "Abhi's Ledger",
@@ -25,6 +34,7 @@ const DEFAULT_SETTINGS: AppSettings = {
 
 export type SortOption = 'name' | 'exposure' | 'trust' | 'recent';
 
+// Helper to clean data structure
 const sanitizeTransactions = (rawList: any[]): Transaction[] => {
   if (!Array.isArray(rawList)) return [];
   const now = new Date().toISOString();
@@ -79,29 +89,54 @@ export const useLedger = (tourStep: number, searchQuery: string = '') => {
   const [sortBy, setSortBy] = useState<SortOption>('recent');
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
 
+  // --- INITIAL DATA LOAD (IndexedDB + Migration) ---
   useEffect(() => {
-    const savedTx = localStorage.getItem(STORAGE_KEY);
-    if (savedTx) {
+    const initData = async () => {
       try {
-        const parsed = JSON.parse(savedTx);
-        const cleanData = sanitizeTransactions(parsed);
-        if (cleanData.length > 0) {
-          setTransactions(cleanData);
-          setIsLoggedIn(true);
+        // 1. Load Settings
+        const dbSettings = await getSettings();
+        if (dbSettings) {
+          setSettings({ ...DEFAULT_SETTINGS, ...dbSettings });
+        } else {
+            // Try legacy settings migration
+            const legacySettings = localStorage.getItem(SETTINGS_KEY_LEGACY);
+            if(legacySettings) {
+                const parsed = JSON.parse(legacySettings);
+                const merged = { ...DEFAULT_SETTINGS, ...parsed };
+                setSettings(merged);
+                await saveSettingsToDB(merged);
+            }
+        }
+
+        // 2. Load Transactions
+        const dbTxs = await getAllTransactions();
+        
+        if (dbTxs.length > 0) {
+           setTransactions(dbTxs);
+           setIsLoggedIn(true);
+        } else {
+           // CHECK FOR LEGACY DATA MIGRATION (First run on new version)
+           const legacyTx = localStorage.getItem(STORAGE_KEY_LEGACY);
+           if (legacyTx) {
+              const parsed = JSON.parse(legacyTx);
+              const cleanData = sanitizeTransactions(parsed);
+              if (cleanData.length > 0) {
+                 await migrateLegacyData(cleanData);
+                 setTransactions(cleanData);
+                 setIsLoggedIn(true);
+                 // Clear legacy to save space after successful migration
+                 localStorage.removeItem(STORAGE_KEY_LEGACY); 
+              }
+           }
         }
       } catch (e) {
-        console.error("Failed to load transactions", e);
+        console.error("Critical Error: Failed to initialize DB", e);
       }
-    }
+    };
 
-    const savedSettings = localStorage.getItem(SETTINGS_KEY);
-    if (savedSettings) {
-      try {
-        const parsed = JSON.parse(savedSettings);
-        setSettings({ ...DEFAULT_SETTINGS, ...parsed });
-      } catch (e) { console.error("Failed settings load", e); }
-    }
+    initData();
 
+    // PWA Install Prompt
     const handleBeforeInstallPrompt = (e: any) => {
       e.preventDefault();
       setDeferredPrompt(e);
@@ -111,15 +146,11 @@ export const useLedger = (tourStep: number, searchQuery: string = '') => {
     return () => window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
   }, []);
 
-  useEffect(() => {
-    if (isLoggedIn) {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(transactions));
-    }
-  }, [transactions, isLoggedIn]);
-
-  useEffect(() => {
-    localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
-  }, [settings]);
+  // --- PERSISTENCE HANDLERS ---
+  
+  // Note: We no longer dump the whole array to localStorage in a useEffect.
+  // Instead, we update the DB individually in the action handlers below.
+  // This is much more performant for large datasets.
 
   const handleInstallClick = async () => {
     if (!deferredPrompt) return;
@@ -131,7 +162,11 @@ export const useLedger = (tourStep: number, searchQuery: string = '') => {
   };
 
   const updateSetting = (key: keyof AppSettings, value: any) => {
-    setSettings(prev => ({ ...prev, [key]: value }));
+    setSettings(prev => {
+        const next = { ...prev, [key]: value };
+        saveSettingsToDB(next); // Async save
+        return next;
+    });
   };
 
   const addLoan = (data: {
@@ -149,7 +184,7 @@ export const useLedger = (tourStep: number, searchQuery: string = '') => {
     const hasTime = data.startDate.includes('T');
     const pid = data.profileId || generateProfileId(data.friendName, true);
 
-    setTransactions(prev => [{
+    const newTx: Transaction = {
       id: generateId(),
       profileId: pid,
       friendName: data.friendName.trim(),
@@ -165,12 +200,17 @@ export const useLedger = (tourStep: number, searchQuery: string = '') => {
       repayments: [],
       hasTime: hasTime,
       interestFreeIfPaidByDueDate: data.interestFreeIfPaidByDueDate
-    }, ...prev]);
+    };
+
+    // Update UI immediately
+    setTransactions(prev => [newTx, ...prev]);
+    // Persist to DB
+    saveTransaction(newTx);
   };
 
-  // Add specific payment to specific transaction (Entry Button)
   const addPayment = (activeTxId: string | null, amount: number, date: string) => {
     if (!activeTxId) return;
+    
     setTransactions(prev => prev.map(t => {
       if (t.id === activeTxId) {
         const amt = Number(amount);
@@ -186,71 +226,59 @@ export const useLedger = (tourStep: number, searchQuery: string = '') => {
         const totalPayable = getTotalPayable(tempTx);
         const isCompleted = updatedPaidAmount >= (totalPayable - 0.5); 
 
-        return {
+        const updatedTx = {
           ...t,
           paidAmount: updatedPaidAmount,
           isCompleted,
           repayments: updatedRepayments
         };
+        
+        // Persist specific item
+        saveTransaction(updatedTx);
+        return updatedTx;
       }
       return t;
     }));
   };
 
-  // WATERFALL LOGIC: Distribute payment across user's loans (Oldest -> Newest)
   const addProfilePayment = (profileId: string, totalAmount: number, date: string) => {
     setTransactions(prev => {
       // 1. Identify User Transactions
       const userTxs = prev.filter(t => t.profileId === profileId);
       
-      // 2. Sort for Allocation: Oldest Active First
-      // Create a sorted list to determine WHO gets paid first. 
-      // Rule: Active debts before Completed debts. Within active, Oldest start date first.
+      // 2. Sort for Allocation
       const allocationOrder = [...userTxs].sort((a, b) => {
-         if (a.isCompleted !== b.isCompleted) {
-             return a.isCompleted ? 1 : -1; // Put active (false) before completed (true)
-         }
+         if (a.isCompleted !== b.isCompleted) return a.isCompleted ? 1 : -1;
          return new Date(a.startDate).getTime() - new Date(b.startDate).getTime();
       });
 
-      // 3. Allocate Money Map
-      // We calculate exactly how much goes to each transaction ID
       let moneyToDistribute = Number(totalAmount);
-      const allocationMap = new Map<string, number>(); // txId -> amount
+      const allocationMap = new Map<string, number>();
       const isoDate = new Date(date).toISOString();
 
       for (const tx of allocationOrder) {
           if (moneyToDistribute <= 0) break;
-
           const totalPayable = getTotalPayable(tx);
           const pending = totalPayable - tx.paidAmount;
-
-          // If strictly fully paid, skip. 
-          // (Small epsilon for float safety)
           if (pending <= 0.01) continue; 
-
           const payAmount = Math.min(moneyToDistribute, pending);
-          
           if (payAmount > 0) {
               allocationMap.set(tx.id, payAmount);
               moneyToDistribute -= payAmount;
           }
       }
 
-      // 4. Overpayment Handling
-      // If money is STILL left after paying all active debts, apply credit to the LATEST transaction
       if (moneyToDistribute > 0 && allocationOrder.length > 0) {
           const latestTx = allocationOrder.reduce((latest, current) => {
               return new Date(current.startDate).getTime() > new Date(latest.startDate).getTime() ? current : latest;
           }, allocationOrder[0]);
-          
           const currentAlloc = allocationMap.get(latestTx.id) || 0;
           allocationMap.set(latestTx.id, currentAlloc + moneyToDistribute);
       }
 
-      // 5. Apply allocations to state
-      // We map over 'prev' to preserve the original state order, but update values based on our map
-      return prev.map(t => {
+      const txToSave: Transaction[] = [];
+
+      const newTransactions = prev.map(t => {
          if (!allocationMap.has(t.id)) return t;
 
          const addAmount = allocationMap.get(t.id)!;
@@ -261,28 +289,43 @@ export const useLedger = (tourStep: number, searchQuery: string = '') => {
          };
          const updatedRepayments = [...t.repayments, newRepayment];
          const updatedPaid = t.paidAmount + addAmount;
-         
-         // Recalculate completion
          const totalPayable = getTotalPayable(t);
          const isCompleted = updatedPaid >= (totalPayable - 0.5);
 
-         return {
+         const updatedTx = {
             ...t,
             repayments: updatedRepayments,
             paidAmount: updatedPaid,
             isCompleted
          };
+         
+         txToSave.push(updatedTx);
+         return updatedTx;
       });
+
+      // Bulk persist the modified ones
+      if (txToSave.length > 0) {
+          bulkSaveTransactions(txToSave);
+      }
+
+      return newTransactions;
     });
   };
 
   const updateDueDate = (activeTxId: string | null, newDueDate: string) => {
     if (!activeTxId) return;
-    setTransactions(prev => prev.map(t => t.id === activeTxId ? {
-      ...t,
-      returnDate: new Date(newDueDate).toISOString(),
-      notes: `${t.notes}\n[System Log]: Deadline adjusted to ${newDueDate}`
-    } : t));
+    setTransactions(prev => prev.map(t => {
+        if (t.id === activeTxId) {
+            const updatedTx = {
+                ...t,
+                returnDate: new Date(newDueDate).toISOString(),
+                notes: `${t.notes}\n[System Log]: Deadline adjusted to ${newDueDate}`
+            };
+            saveTransaction(updatedTx);
+            return updatedTx;
+        }
+        return t;
+    }));
   };
 
   const editTransaction = (activeTxId: string | null, newData: { amount: number, date: string }) => {
@@ -292,19 +335,18 @@ export const useLedger = (tourStep: number, searchQuery: string = '') => {
             const newPrincipal = Number(newData.amount);
             const newDate = new Date(newData.date).toISOString();
             
-            // Construct temp to check total payable with new principal
-            // Note: If interest is calculated, getTotalPayable handles it based on principal
             const tempTx = { ...t, principalAmount: newPrincipal, returnDate: newDate };
             const totalPayable = getTotalPayable(tempTx);
             const isCompleted = t.paidAmount >= (totalPayable - 0.5);
 
-            return {
+            const updatedTx = {
                 ...t,
                 principalAmount: newPrincipal,
                 returnDate: newDate,
                 isCompleted,
-                notes: t.notes 
             };
+            saveTransaction(updatedTx);
+            return updatedTx;
         }
         return t;
     }));
@@ -325,12 +367,14 @@ export const useLedger = (tourStep: number, searchQuery: string = '') => {
         const finalTotalPayable = getTotalPayable(tempTx);
         const isCompleted = newPaidAmount >= (finalTotalPayable - 0.5);
 
-        return {
+        const updatedTx = {
           ...t,
           repayments: updatedRepayments,
           paidAmount: newPaidAmount,
           isCompleted
         };
+        saveTransaction(updatedTx);
+        return updatedTx;
       }
       return t;
     }));
@@ -339,6 +383,7 @@ export const useLedger = (tourStep: number, searchQuery: string = '') => {
   const deleteTransaction = (activeTxId: string | null) => {
     if (!activeTxId) return;
     setTransactions(prev => prev.filter(t => t.id !== activeTxId)); 
+    deleteTxFromDB(activeTxId);
   };
 
   const deleteRepayment = (txId: string, repId: string) => {
@@ -352,25 +397,36 @@ export const useLedger = (tourStep: number, searchQuery: string = '') => {
         
         const tempTx = { ...t, repayments: updatedRepayments, paidAmount: updatedPaidAmount };
         const totalPayable = getTotalPayable(tempTx);
-
-        return {
+        
+        const updatedTx = {
           ...t,
           repayments: updatedRepayments,
           paidAmount: Math.max(0, updatedPaidAmount),
           isCompleted: updatedPaidAmount >= (totalPayable - 0.5)
         };
+        saveTransaction(updatedTx);
+        return updatedTx;
       }
       return t;
     }));
   };
 
   const deleteProfile = (nameOrId: string) => {
-    setTransactions(prev => prev.filter(t => 
-        t.profileId !== nameOrId && t.friendName !== nameOrId
-    ));
+    setTransactions(prev => {
+        const txToDelete: string[] = [];
+        const newArr = prev.filter(t => {
+            const match = t.profileId === nameOrId || t.friendName === nameOrId;
+            if (match) txToDelete.push(t.id);
+            return !match;
+        });
+        // Background delete
+        txToDelete.forEach(id => deleteTxFromDB(id));
+        return newArr;
+    });
   };
 
   const handleExport = useCallback(() => {
+    // Note: We export from current RAM state, which should match DB
     const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(transactions));
     const downloadAnchorNode = document.createElement('a');
     downloadAnchorNode.setAttribute("href", dataStr);
@@ -384,7 +440,7 @@ export const useLedger = (tourStep: number, searchQuery: string = '') => {
     const file = event.target.files?.[0];
     if (!file) return;
     const reader = new FileReader();
-    reader.onload = (e) => {
+    reader.onload = async (e) => {
       try {
         const content = e.target?.result as string;
         const data = JSON.parse(content);
@@ -392,7 +448,7 @@ export const useLedger = (tourStep: number, searchQuery: string = '') => {
           const sanitized = sanitizeTransactions(data);
           setTransactions(sanitized);
           setIsLoggedIn(true);
-          localStorage.setItem(STORAGE_KEY, JSON.stringify(sanitized));
+          await bulkSaveTransactions(sanitized);
           alert("Backup restored successfully!");
         } else {
           alert("Invalid backup format.");
