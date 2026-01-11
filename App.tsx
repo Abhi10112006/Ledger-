@@ -315,7 +315,13 @@ const AppContent: React.FC = () => {
         )}
       </AnimatePresence>
       
-      <SponsorModal isOpen={isAdOpen} onClose={closeAd} activeTheme={activeTheme} ad={currentAd} />
+      <SponsorModal 
+        isOpen={isAdOpen} 
+        onClose={closeAd} 
+        activeTheme={activeTheme} 
+        ad={currentAd} 
+        onBackup={handleExport}
+      />
       <TourOverlay tourStep={tourStep} setTourStep={setTourStep} completeTour={handleCompleteTour} activeTheme={activeTheme} />
       <SettingsModal isOpen={isSettingsModalOpen} onClose={closeModal} settings={settings} updateSetting={updateSetting} activeTheme={activeTheme} themes={THEMES} currencies={CURRENCIES} tourStep={tourStep} />
       <TypographyModal isOpen={isTypographyModalOpen} onClose={closeModal} currentFont={settings.fontStyle} onSelect={(font) => updateSetting('fontStyle', font)} activeTheme={activeTheme} />

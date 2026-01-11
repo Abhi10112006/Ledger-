@@ -10,9 +10,10 @@ interface Props {
   onClose: () => void;
   ad: AdContent | null;
   activeTheme: any;
+  onBackup?: () => void;
 }
 
-const SponsorModal: React.FC<Props> = ({ isOpen, onClose, ad, activeTheme }) => {
+const SponsorModal: React.FC<Props> = ({ isOpen, onClose, ad, activeTheme, onBackup }) => {
   const [canClose, setCanClose] = useState(false);
   const [countdown, setCountdown] = useState(5);
 
@@ -147,9 +148,15 @@ const SponsorModal: React.FC<Props> = ({ isOpen, onClose, ad, activeTheme }) => 
                   <div className="space-y-4">
                     <motion.a 
                       href={ad.link}
-                      target="_blank"
+                      target={ad.id === 'feature_highlight_backup' ? "_self" : "_blank"}
                       rel="noopener noreferrer"
-                      onClick={onClose}
+                      onClick={(e) => {
+                          if (ad.id === 'feature_highlight_backup' && onBackup) {
+                              e.preventDefault();
+                              onBackup();
+                          }
+                          onClose();
+                      }}
                       whileTap={{ scale: 0.98 }}
                       whileHover={{ scale: 1.02 }}
                       className={`flex items-center justify-center gap-3 w-full py-4 rounded-2xl ${activeTheme.bg} text-slate-950 font-black uppercase tracking-widest text-xs shadow-xl transition-all group relative overflow-hidden`}
