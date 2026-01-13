@@ -479,7 +479,8 @@ const SettingsModal: React.FC<Props> = ({
                      
                      <div className="pt-4">
                         <a 
-                            href="mailto:abhiyaduvanshi@zohomail.in?subject=Sponsorship%20Inquiry%20:%20Abhi's%20Ledger" 
+                            href="https://abhis-ledger.vercel.app/" 
+                             target="_blank" rel="noopener noreferrer"
                             className={`relative inline-flex items-center justify-center px-6 py-3 text-xs font-bold ${activeTheme.text} uppercase tracking-widest border ${activeTheme.border} rounded-xl hover:bg-slate-900 transition-colors group overflow-hidden`}
                         >
                             <span className="relative z-10">Visit Official Frequency</span>
