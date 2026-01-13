@@ -469,12 +469,12 @@ const SettingsModal: React.FC<Props> = ({
                             transition={{ duration: 2, delay: 1, ease: "steps(20)" }}
                             className="overflow-hidden whitespace-nowrap inline-block align-bottom"
                         >
-                            SPONSORSHIP_CHANNELS_OPEN
+                            SYSTEM_HQ_ONLINE
                         </motion.span>
                         <span>/&gt;</span>
                      </p>
                      <p className="text-slate-400 text-sm max-w-xs mx-auto leading-relaxed">
-                        Interested in sponsoring this project or hiring the architect? Direct channels are now open.
+                        For bug reports, feature requests, and sponsorship protocols, establish connection with the mainframe.
                      </p>
                      
                      <div className="pt-4">
@@ -482,7 +482,7 @@ const SettingsModal: React.FC<Props> = ({
                             href="mailto:abhiyaduvanshi@zohomail.in?subject=Sponsorship%20Inquiry%20:%20Abhi's%20Ledger" 
                             className={`relative inline-flex items-center justify-center px-6 py-3 text-xs font-bold ${activeTheme.text} uppercase tracking-widest border ${activeTheme.border} rounded-xl hover:bg-slate-900 transition-colors group overflow-hidden`}
                         >
-                            <span className="relative z-10">Initiate Direct Transmission</span>
+                            <span className="relative z-10">Visit Official Frequency</span>
                             <div className={`absolute inset-0 ${activeTheme.bg} opacity-0 group-hover:opacity-10 transition-opacity`}></div>
                             <Sparkles className="w-4 h-4 ml-2 animate-pulse" />
                         </a>
