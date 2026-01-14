@@ -98,7 +98,7 @@ const DashboardStats: React.FC<Props> = ({ stats, settings, activeTheme, tourSte
                     >
                         {/* Interactive Hint */}
                         <div className="absolute top-3 right-3 transition-opacity opacity-50 group-hover:opacity-100">
-                            <ChevronRight className={`w-4 h-4 ${stats.overdueCount > 0 ? 'text-rose-400' : 'text-slate-400'}`} />
+                            <ChevronRight className={`w-3 h-3 ${stats.overdueCount > 0 ? 'text-rose-400' : 'text-slate-400'}`} />
                         </div>
 
                         <div className={`text-[9px] font-black uppercase tracking-widest mb-2 flex items-center gap-1.5 ${stats.overdueCount > 0 ? 'text-rose-400' : 'text-slate-500 group-hover:text-slate-300'}`}>
