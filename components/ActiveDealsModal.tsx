@@ -106,7 +106,7 @@ const ActiveDealsModal: React.FC<Props> = ({ isOpen, onClose, transactions, curr
                                   #{deal.profileId}
                               </span>
                            )}
-                           <ArrowRight className="w-3 h-3 text-slate-600 opacity-0 group-hover:opacity-100 transition-opacity" />
+                           <ArrowRight className="w-3 h-3 text-slate-600" />
                        </div>
                        <div className="flex items-center gap-2 mt-1">
                           <span className={`text-[9px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded ${isOverdue ? 'bg-rose-500/20 text-rose-400' : 'bg-slate-800 text-slate-500'}`}>

@@ -90,21 +90,20 @@ const DashboardStats: React.FC<Props> = ({ stats, settings, activeTheme, tourSte
                         whileHover={{ scale: 1.02 }}
                         whileTap={{ scale: 0.98 }}
                         onClick={onShowActiveDeals}
-                        className={`p-4 rounded-2xl border flex flex-col justify-between cursor-pointer transition-all relative overflow-hidden group
+                        className={`p-4 rounded-2xl border flex flex-col justify-between cursor-pointer transition-all group
                             ${stats.overdueCount > 0 
                                 ? 'bg-rose-500/10 border-rose-500/30 hover:bg-rose-500/20 shadow-[0_0_20px_rgba(244,63,94,0.15)] hover:shadow-[0_0_30px_rgba(244,63,94,0.25)]' 
                                 : 'bg-slate-900/50 border-slate-700 hover:border-slate-500 hover:bg-slate-800 shadow-lg hover:shadow-xl'
                             }`}
                     >
-                        {/* Interactive Hint */}
-                        <div className="absolute top-3 right-3 transition-opacity opacity-50 group-hover:opacity-100">
-                            <ChevronRight className={`w-3 h-3 ${stats.overdueCount > 0 ? 'text-rose-400' : 'text-slate-400'}`} />
+                        <div className="flex justify-between items-center mb-2">
+                            <div className={`text-[9px] font-black uppercase tracking-widest flex items-center gap-1.5 ${stats.overdueCount > 0 ? 'text-rose-400' : 'text-slate-500 group-hover:text-slate-300'}`}>
+                                {stats.overdueCount > 0 ? <AlertCircle className="w-3 h-3" /> : <PieChart className="w-3 h-3" />}
+                                {stats.overdueCount > 0 ? 'Action Required' : 'Active Deals'}
+                            </div>
+                            <ChevronRight className={`w-4 h-4 transition-opacity opacity-50 group-hover:opacity-100 ${stats.overdueCount > 0 ? 'text-rose-400' : 'text-slate-400'}`} />
                         </div>
 
-                        <div className={`text-[9px] font-black uppercase tracking-widest mb-2 flex items-center gap-1.5 ${stats.overdueCount > 0 ? 'text-rose-400' : 'text-slate-500 group-hover:text-slate-300'}`}>
-                             {stats.overdueCount > 0 ? <AlertCircle className="w-3 h-3" /> : <PieChart className="w-3 h-3" />}
-                             {stats.overdueCount > 0 ? 'Action Required' : 'Active Deals'}
-                        </div>
                         <div className={`text-lg font-bold font-mono truncate ${stats.overdueCount > 0 ? 'text-rose-400' : 'text-slate-300 group-hover:text-white'}`}>
                              {stats.overdueCount > 0 ? `${stats.overdueCount} Overdue` : `${stats.activeCount} Active`}
                         </div>
