@@ -16,7 +16,7 @@ type KeyboardTheme = 'dark' | 'grey' | 'light';
 const triggerHaptic = () => {
   if (typeof navigator !== 'undefined' && navigator.vibrate) {
     try {
-      navigator.vibrate(40); 
+      navigator.vibrate(25); 
     } catch (e) {}
   }
 };
