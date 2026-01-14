@@ -103,7 +103,7 @@ const DashboardStats: React.FC<Props> = ({ stats, settings, activeTheme, tourSte
 
                         <div className={`text-[9px] font-black uppercase tracking-widest mb-2 flex items-center gap-1.5 ${stats.overdueCount > 0 ? 'text-rose-400' : 'text-slate-500 group-hover:text-slate-300'}`}>
                              {stats.overdueCount > 0 ? <AlertCircle className="w-3 h-3" /> : <PieChart className="w-3 h-3" />}
-                             {stats.overdueCount > 0 ? 'Attention Needed' : 'Active Deals'}
+                             {stats.overdueCount > 0 ? 'Action Required' : 'Active Deals'}
                         </div>
                         <div className={`text-lg font-bold font-mono truncate ${stats.overdueCount > 0 ? 'text-rose-400' : 'text-slate-300 group-hover:text-white'}`}>
                              {stats.overdueCount > 0 ? `${stats.overdueCount} Overdue` : `${stats.activeCount} Active`}
