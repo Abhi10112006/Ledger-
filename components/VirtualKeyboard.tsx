@@ -1,7 +1,7 @@
 
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { useKeyboard } from '../contexts/KeyboardContext';
-import { Delete, Check, ArrowUp, SlidersHorizontal, MoveVertical, X, RotateCcw } from 'lucide-react';
+import { Delete, Check, ArrowUp, SlidersHorizontal, MoveVertical, X, RotateCcw, Smile } from 'lucide-react';
 import { motion, AnimatePresence, PanInfo } from 'framer-motion';
 
 interface Props {
@@ -9,6 +9,7 @@ interface Props {
 }
 
 type ShiftState = 'OFF' | 'ONCE' | 'LOCKED';
+type ViewMode = 'ALPHA' | 'SYMBOLS' | 'EMOJI';
 
 // --- HAPTIC ENGINE (MAXIMUM UNIFORM) ---
 const triggerHaptic = () => {
@@ -23,7 +24,7 @@ const triggerHaptic = () => {
 const VirtualKeyboard = React.memo<Props>(({ activeTheme }) => {
   const { isVisible, activeInput, closeKeyboard, layout } = useKeyboard();
   const [shiftState, setShiftState] = useState<ShiftState>('OFF');
-  const [viewMode, setViewMode] = useState<'ALPHA' | 'SYMBOLS'>('ALPHA');
+  const [viewMode, setViewMode] = useState<ViewMode>('ALPHA');
   
   // Device Detection State
   const [isTouchDevice, setIsTouchDevice] = useState(false);
@@ -47,6 +48,10 @@ const VirtualKeyboard = React.memo<Props>(({ activeTheme }) => {
   const [tempScale, setTempScale] = useState(1);
   const [isResizeMode, setIsResizeMode] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+
+  // Backspace Long Press Logic
+  const deleteTimerRef = useRef<any>(null);
+  const deleteIntervalRef = useRef<any>(null);
 
   // --- PERSISTENCE & INIT ---
   useEffect(() => {
@@ -122,13 +127,41 @@ const VirtualKeyboard = React.memo<Props>(({ activeTheme }) => {
     activeInput.setSelectionRange(newCursorPos, newCursorPos);
   }, [activeInput]);
 
+  // Backspace Handling
+  const stopDeleting = useCallback(() => {
+      if (deleteTimerRef.current) clearTimeout(deleteTimerRef.current);
+      if (deleteIntervalRef.current) clearInterval(deleteIntervalRef.current);
+      deleteTimerRef.current = null;
+      deleteIntervalRef.current = null;
+  }, []);
+
+  const startDeleting = useCallback(() => {
+      // 1. Initial Delete
+      triggerHaptic();
+      deleteCharacter();
+
+      // 2. Setup Long Press
+      stopDeleting(); // clear any existing
+      deleteTimerRef.current = setTimeout(() => {
+          // 3. Start Rapid Fire
+          deleteIntervalRef.current = setInterval(() => {
+              triggerHaptic();
+              deleteCharacter();
+          }, 100);
+      }, 500); // 500ms delay before rapid delete
+  }, [deleteCharacter, stopDeleting]);
+
+  // Clean up on unmount or activeInput change
+  useEffect(() => {
+      return () => stopDeleting();
+  }, [stopDeleting, activeInput]);
+
+
   const handleKeyAction = (key: string) => {
     if (!activeInput) return;
 
-    if (key === 'BACKSPACE') {
-      deleteCharacter();
-      return;
-    } 
+    // Backspace is now handled via startDeleting/stopDeleting
+    if (key === 'BACKSPACE') return;
     
     if (key === 'SPACE') {
       insertCharacter(' ');
@@ -204,19 +237,28 @@ const VirtualKeyboard = React.memo<Props>(({ activeTheme }) => {
     ['q', 'w', 'e', 'r', 't', 'y', 'u', 'i', 'o', 'p'],
     ['a', 's', 'd', 'f', 'g', 'h', 'j', 'k', 'l'],
     ['SHIFT', 'z', 'x', 'c', 'v', 'b', 'n', 'm', 'BACKSPACE'],
-    ['?123', 'SPACE', 'DONE']
+    ['?123', ',', '☺', 'SPACE', '.', 'DONE']
   ];
 
   const SYMBOLS = [
     ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0'],
-    ['@', '#', '.', '%', '&', '-', '+', '(', ')', '/'],
-    ['\\', '=', ',', '"', "'", ':', ';', '!', '?', 'BACKSPACE'],
+    ['@', '#', '$', '%', '&', '-', '+', '(', ')', '/'],
+    ['\\', '=', '*', '"', "'", ':', ';', '!', '?', 'BACKSPACE'],
+    ['ABC', ',', 'SPACE', '.', 'DONE']
+  ];
+
+  const EMOJIS = [
+    ['👍', '👎', '❤️', '😂', '😭', '🔥', '🎉', '🙏', '🤝', '💸'],
+    ['💰', '💳', '🧾', '✅', '❌', '💀', '🤡', '👀', '✨', '👋'],
+    ['🤔', '🫡', '😡', '😱', '💩', '🇮🇳', '🇺🇸', '💪', '🧠', 'BACKSPACE'],
     ['ABC', 'SPACE', 'DONE']
   ];
 
   const getCurrentLayout = () => {
     if (layout === 'number') return NUM_PAD;
-    return viewMode === 'SYMBOLS' ? SYMBOLS : QWERTY;
+    if (viewMode === 'SYMBOLS') return SYMBOLS;
+    if (viewMode === 'EMOJI') return EMOJIS;
+    return QWERTY;
   };
 
   const rows = getCurrentLayout();
@@ -252,7 +294,8 @@ const VirtualKeyboard = React.memo<Props>(({ activeTheme }) => {
         case 'SPACE':
             content = <div className="w-16 h-1.5 bg-slate-400/30 rounded-full" />;
             variant = 'space';
-            widthClass = "flex-[4]";
+            // Adjusted space width for new bottom row layout
+            widthClass = (viewMode === 'ALPHA' || viewMode === 'SYMBOLS') && layout !== 'number' ? "flex-[3]" : "flex-[4]";
             break;
         case 'DONE':
             content = <Check className="w-7 h-7 stroke-[3]" />;
@@ -268,6 +311,17 @@ const VirtualKeyboard = React.memo<Props>(({ activeTheme }) => {
             content = 'ABC';
             variant = 'special';
             widthClass = "flex-[1.5]";
+            break;
+        case '☺':
+            content = <Smile className="w-6 h-6" />;
+            variant = 'special';
+            widthClass = "flex-1";
+            break;
+        case ',':
+        case '.':
+            content = <span className="font-bold text-xl pb-2">{key}</span>;
+            variant = 'standard';
+            widthClass = "flex-1";
             break;
         default:
             if (viewMode === 'ALPHA' && shiftState !== 'OFF') {
@@ -292,12 +346,19 @@ const VirtualKeyboard = React.memo<Props>(({ activeTheme }) => {
         colorStyle = `${activeTheme.bg} border border-transparent text-slate-950 shadow-[0_4px_0_rgba(0,0,0,0.2)]`;
     }
 
+    const isBackspace = key === 'BACKSPACE';
+
     return (
         <motion.button
             key={`${rowIndex}-${key}`}
             onPointerDown={(e) => {
                 e.preventDefault(); 
                 e.stopPropagation();
+                
+                if (isBackspace) {
+                    startDeleting();
+                    return;
+                }
                 
                 triggerHaptic();
 
@@ -308,10 +369,14 @@ const VirtualKeyboard = React.memo<Props>(({ activeTheme }) => {
                 } else if (key === 'ABC') {
                     setViewMode('ALPHA');
                     setShiftState('OFF');
+                } else if (key === '☺') {
+                    setViewMode('EMOJI');
                 } else {
                     handleKeyAction(key);
                 }
             }}
+            onPointerUp={isBackspace ? stopDeleting : undefined}
+            onPointerLeave={isBackspace ? stopDeleting : undefined}
             style={{ height: keyHeight }}
             className={`
                 ${widthClass} ${baseStyle} ${colorStyle}
