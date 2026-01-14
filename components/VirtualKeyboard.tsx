@@ -530,8 +530,7 @@ const VirtualKeyboard = React.memo<Props>(({ activeTheme }) => {
         /* --- VISUAL KEY STYLING --- */
         .v-key {
             /* Hardware Accelerated Base Styles */
-            backdrop-filter: blur(24px);
-            -webkit-backdrop-filter: blur(24px);
+            /* Removed backdrop-filter for performance */
             position: relative;
             z-index: 10;
             width: 100%;
