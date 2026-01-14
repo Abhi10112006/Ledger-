@@ -106,7 +106,6 @@ const Key = React.memo<KeyProps>(({
             break;
         default:
             // Standard characters are rendered as-is.
-            // Uppercase transformation is handled by CSS on the container.
             break;
     }
 
@@ -125,13 +124,13 @@ const Key = React.memo<KeyProps>(({
             onPointerLeave={isBackspace ? onRelease : undefined}
             onContextMenu={(e) => e.preventDefault()}
             style={{ height }}
-            className={`
-                ${widthClass} v-key v-key-${keyType}
-            `}
+            className={`${widthClass} key-button`}
         >
-            {/* Gloss Highlight */}
-            <div className="absolute top-0 left-0 right-0 h-[40%] bg-gradient-to-b from-white/10 to-transparent pointer-events-none" />
-            {content}
+            <div className={`v-key v-key-${keyType}`}>
+                {/* Gloss Highlight */}
+                <div className="absolute top-0 left-0 right-0 h-[40%] bg-gradient-to-b from-white/10 to-transparent pointer-events-none" />
+                {content}
+            </div>
         </button>
     );
 }, (prev, next) => {
@@ -503,27 +502,64 @@ const VirtualKeyboard = React.memo<Props>(({ activeTheme }) => {
     <style>{`
         ${isVisible ? `:root { ${getThemeVars()} }` : ''}
 
+        /* --- HITBOX WRAPPER --- */
+        .key-button {
+            position: relative;
+            padding: 0;
+            border: none;
+            background: transparent;
+            touch-action: none;
+            user-select: none;
+            -webkit-user-select: none;
+            outline: none;
+            cursor: pointer;
+        }
+
+        /* EXPANDED HITBOX using pseudo-element */
+        /* Extends 3px into the gap (gap-1 is 4px, so full coverage) */
+        .key-button::before {
+            content: '';
+            position: absolute;
+            top: -3px; 
+            bottom: -3px; 
+            left: -2px; 
+            right: -2px;
+            z-index: 0;
+        }
+
+        /* --- VISUAL KEY STYLING --- */
         .v-key {
             /* Hardware Accelerated Base Styles */
             backdrop-filter: blur(24px);
             -webkit-backdrop-filter: blur(24px);
             position: relative;
+            z-index: 10;
+            width: 100%;
+            height: 100%;
             overflow: hidden;
             display: flex;
             align-items: center;
             justify-content: center;
             font-size: 1.5rem;
             font-weight: 600;
-            user-select: none;
-            touch-action: none;
             border-radius: 0.75rem;
             border-width: 1px;
             border-style: solid;
+            
             /* Smooth release transition */
             transition: transform 0.1s ease, filter 0.1s ease;
             transform: translateZ(0);
         }
 
+        /* --- STATE ANIMATIONS --- */
+        /* When wrapper (.key-button) has pressed class, affect inner (.v-key) */
+        .key-button.v-key-pressed .v-key {
+            transform: scale(0.92) translateZ(0) !important;
+            filter: brightness(1.3) !important;
+            transition: none !important;
+        }
+
+        /* --- THEME COLORS --- */
         .v-key-std {
             background-color: var(--kb-key-std-bg);
             border-color: var(--kb-border);
@@ -604,13 +640,6 @@ const VirtualKeyboard = React.memo<Props>(({ activeTheme }) => {
             background-color: #34d399;
             border-radius: 50%;
             box-shadow: 0 0 5px rgba(52,211,153,0.8);
-        }
-
-        .v-key-pressed {
-            transform: scale(0.92) translateZ(0) !important;
-            filter: brightness(1.3) !important;
-            /* Instant press transition */
-            transition: none !important;
         }
     `}</style>
     <AnimatePresence>
