@@ -11,11 +11,10 @@ interface Props {
 type ShiftState = 'OFF' | 'ONCE' | 'LOCKED';
 type ViewMode = 'ALPHA' | 'SYMBOLS' | 'EMOJI';
 
-// --- HAPTIC ENGINE (MAXIMUM UNIFORM) ---
+// --- HAPTIC ENGINE ---
 const triggerHaptic = () => {
   if (typeof navigator !== 'undefined' && navigator.vibrate) {
     try {
-      // Single, strong mechanical tick for everything
       navigator.vibrate(50); 
     } catch (e) {}
   }
@@ -28,10 +27,11 @@ const VirtualKeyboard = React.memo<Props>(({ activeTheme }) => {
   
   // Device Detection State
   const [isTouchDevice, setIsTouchDevice] = useState(false);
+  
+  // --- PERFORMANCE REF MAP ---
+  const keyRefs = useRef<Map<string, HTMLButtonElement>>(new Map());
 
   useEffect(() => {
-    // Check if device supports touch AND has coarse pointer (finger)
-    // This effectively filters out desktops and laptops (even with touchscreens, usually pointer:fine)
     const checkDevice = () => {
        const isCoarse = window.matchMedia('(pointer: coarse)').matches;
        const hasTouch = navigator.maxTouchPoints > 0 || 'ontouchstart' in window;
@@ -67,11 +67,23 @@ const VirtualKeyboard = React.memo<Props>(({ activeTheme }) => {
     if (isVisible) {
       setViewMode('ALPHA');
       setShiftState('OFF');
-      // Always reset resize mode when reopening
       setIsResizeMode(false);
       setTempScale(scale);
     }
   }, [isVisible, scale]);
+
+  // --- DIRECT DOM VISUAL FEEDBACK (0-LAG) ---
+  const animateKeyPress = (keyId: string) => {
+    const btn = keyRefs.current.get(keyId);
+    if (btn) {
+        btn.classList.add('v-key-pressed');
+        requestAnimationFrame(() => {
+            setTimeout(() => {
+                if (btn) btn.classList.remove('v-key-pressed');
+            }, 100);
+        });
+    }
+  };
 
   // --- INPUT LOGIC ---
   const insertCharacter = useCallback((char: string) => {
@@ -83,7 +95,6 @@ const VirtualKeyboard = React.memo<Props>(({ activeTheme }) => {
 
     const newValue = currentVal.substring(0, start) + char + currentVal.substring(end);
     
-    // React 16+ hack to trigger native onChange
     const nativeInputValueSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, "value")?.set;
     if (nativeInputValueSetter) {
         nativeInputValueSetter.call(activeInput, newValue);
@@ -136,32 +147,39 @@ const VirtualKeyboard = React.memo<Props>(({ activeTheme }) => {
   }, []);
 
   const startDeleting = useCallback(() => {
-      // 1. Initial Delete
       triggerHaptic();
       deleteCharacter();
+      
+      const btn = keyRefs.current.get('special-BACKSPACE');
+      if (btn) btn.classList.add('v-key-pressed');
 
-      // 2. Setup Long Press
-      stopDeleting(); // clear any existing
+      stopDeleting(); 
       deleteTimerRef.current = setTimeout(() => {
-          // 3. Start Rapid Fire
           deleteIntervalRef.current = setInterval(() => {
               triggerHaptic();
               deleteCharacter();
+              if (btn) {
+                  btn.classList.remove('v-key-pressed');
+                  void btn.offsetWidth; // reflow
+                  btn.classList.add('v-key-pressed');
+              }
           }, 100);
-      }, 500); // 500ms delay before rapid delete
+      }, 500); 
   }, [deleteCharacter, stopDeleting]);
 
-  // Clean up on unmount or activeInput change
+  const stopDeletingWrapper = useCallback(() => {
+      stopDeleting();
+      const btn = keyRefs.current.get('special-BACKSPACE');
+      if (btn) btn.classList.remove('v-key-pressed');
+  }, [stopDeleting]);
+
   useEffect(() => {
       return () => stopDeleting();
   }, [stopDeleting, activeInput]);
 
-
   const handleKeyAction = (key: string) => {
     if (!activeInput) return;
-
-    // Backspace is now handled via startDeleting/stopDeleting
-    if (key === 'BACKSPACE') return;
+    if (key === 'BACKSPACE') return; 
     
     if (key === 'SPACE') {
       insertCharacter(' ');
@@ -203,9 +221,7 @@ const VirtualKeyboard = React.memo<Props>(({ activeTheme }) => {
     });
   };
 
-  // --- RESIZE HANDLERS ---
   const handleResizeDrag = (_: any, info: PanInfo) => {
-    // Moving UP (negative Y) should increase size
     const sensitivity = 0.003; 
     setTempScale(prev => {
         const next = prev - (info.delta.y * sensitivity);
@@ -225,7 +241,7 @@ const VirtualKeyboard = React.memo<Props>(({ activeTheme }) => {
       triggerHaptic();
   };
 
-  // --- LAYOUT DEFINITIONS ---
+  // --- LAYOUTS ---
   const NUM_PAD = [
     ['1', '2', '3'],
     ['4', '5', '6'],
@@ -262,99 +278,77 @@ const VirtualKeyboard = React.memo<Props>(({ activeTheme }) => {
   };
 
   const rows = getCurrentLayout();
-  // Calculate heights dynamically
   const activeScale = isResizeMode ? tempScale : scale;
-  const baseHeight = 54; // Optimized for ~56dp native feel
+  const baseHeight = 54; 
   const keyHeight = baseHeight * activeScale;
 
   // --- KEY RENDERER ---
   const renderKey = (key: string, rowIndex: number, keyIndex: number) => {
     let content: React.ReactNode = key;
     let widthClass = "flex-1"; 
-    let variant: 'standard' | 'action' | 'special' | 'space' = 'standard';
     
+    // Determine key type for CSS class mapping
+    let keyType = 'std';
+    if (key === 'BACKSPACE') keyType = 'back';
+    else if (key === 'SHIFT') keyType = 'shift';
+    else if (key === 'SPACE') keyType = 'space';
+    else if (key === 'DONE') keyType = 'action';
+    else if (['?123', 'ABC', '☺'].includes(key)) keyType = 'special';
+    else if (key === ',' || key === '.') keyType = 'std'; // Explicitly standard
+    
+    // Width Logic
+    if (key === 'BACKSPACE') widthClass = layout === 'number' ? "flex-1" : "flex-[1.5]";
+    else if (key === 'SHIFT' || key === '?123' || key === 'ABC') widthClass = "flex-[1.5]";
+    else if (key === 'SPACE') widthClass = (viewMode === 'ALPHA' || viewMode === 'SYMBOLS') && layout !== 'number' ? "flex-[3]" : "flex-[4]";
+    else if (key === 'DONE') widthClass = layout === 'number' ? "flex-1" : "flex-[2]";
+
+    // Content Logic
     switch (key) {
         case 'BACKSPACE':
             content = <Delete className="w-6 h-6 stroke-[2.5]" />;
-            variant = 'special';
-            widthClass = layout === 'number' ? "flex-1" : "flex-[1.5]";
             break;
         case 'SHIFT':
-            content = (
-              <div className="relative">
-                <ArrowUp className={`w-6 h-6 stroke-[2.5] transition-all ${shiftState !== 'OFF' ? 'fill-white stroke-white' : ''}`} />
-                {shiftState === 'LOCKED' && (
-                  <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-1.5 h-1.5 bg-emerald-400 rounded-full shadow-[0_0_5px_rgba(52,211,153,0.8)]" />
-                )}
-              </div>
-            );
-            variant = 'special';
-            widthClass = "flex-[1.5]";
+            content = <ArrowUp className="w-6 h-6 stroke-[2.5] transition-all" />;
             break;
         case 'SPACE':
-            content = <div className="w-16 h-1.5 bg-slate-400/30 rounded-full" />;
-            variant = 'space';
-            // Adjusted space width for new bottom row layout
-            widthClass = (viewMode === 'ALPHA' || viewMode === 'SYMBOLS') && layout !== 'number' ? "flex-[3]" : "flex-[4]";
+            content = <div className="w-16 h-1.5 bg-slate-400/30 rounded-full pointer-events-none" />;
             break;
         case 'DONE':
-            content = <Check className="w-7 h-7 stroke-[3]" />;
-            variant = 'action';
-            widthClass = layout === 'number' ? "flex-1" : "flex-[2]";
-            break;
-        case '?123':
-            content = '?123';
-            variant = 'special';
-            widthClass = "flex-[1.5]";
-            break;
-        case 'ABC':
-            content = 'ABC';
-            variant = 'special';
-            widthClass = "flex-[1.5]";
+            content = <Check className="w-7 h-7 stroke-[3] pointer-events-none" />;
             break;
         case '☺':
-            content = <Smile className="w-6 h-6" />;
-            variant = 'special';
-            widthClass = "flex-1";
+            content = <Smile className="w-6 h-6 pointer-events-none" />;
             break;
         case ',':
         case '.':
-            content = <span className="font-bold text-xl pb-2">{key}</span>;
-            variant = 'standard';
-            widthClass = "flex-1";
+            content = <span className="font-bold text-xl pb-2 pointer-events-none">{key}</span>;
             break;
         default:
-            if (viewMode === 'ALPHA' && shiftState !== 'OFF') {
+            if (viewMode === 'ALPHA' && shiftState !== 'OFF' && key.length === 1) {
                 content = key.toUpperCase();
             }
             break;
     }
 
-    let baseStyle = "backdrop-blur-xl shadow-lg relative overflow-hidden transition-all active:scale-95 active:brightness-125";
-    let colorStyle = "";
-
-    if (variant === 'standard') {
-        colorStyle = "bg-slate-900/80 border border-slate-700/50 text-slate-100 shadow-[0_4px_0_rgba(0,0,0,0.4)]";
-    } else if (variant === 'special') {
-        colorStyle = "bg-slate-800/80 border border-slate-600/50 text-slate-300 shadow-[0_4px_0_rgba(0,0,0,0.4)]";
-        if (key === 'BACKSPACE') colorStyle = "bg-slate-900/80 border border-rose-900/30 text-rose-400 shadow-[0_4px_0_rgba(0,0,0,0.4)]";
-        if (key === 'SHIFT' && shiftState !== 'OFF') colorStyle = "bg-slate-700 border border-white/30 text-white shadow-[0_4px_0_rgba(0,0,0,0.4)]";
-        if (key === 'SHIFT' && shiftState === 'LOCKED') colorStyle = "bg-slate-600 border border-white/50 text-white shadow-[0_4px_0_rgba(0,0,0,0.4)] ring-1 ring-emerald-500/50";
-    } else if (variant === 'space') {
-        colorStyle = "bg-slate-900/80 border border-slate-700/50 shadow-[0_4px_0_rgba(0,0,0,0.4)]";
-    } else if (variant === 'action') {
-        colorStyle = `${activeTheme.bg} border border-transparent text-slate-950 shadow-[0_4px_0_rgba(0,0,0,0.2)]`;
-    }
-
     const isBackspace = key === 'BACKSPACE';
+    const uniqueKeyId = isBackspace ? `special-${key}` : `${rowIndex}-${key}`;
 
     return (
-        <motion.button
-            key={`${rowIndex}-${key}`}
+        <button
+            key={uniqueKeyId}
+            ref={(el) => {
+                if (el) keyRefs.current.set(uniqueKeyId, el);
+                else keyRefs.current.delete(uniqueKeyId);
+            }}
+            data-shift={key === 'SHIFT' ? shiftState : undefined}
             onPointerDown={(e) => {
                 e.preventDefault(); 
                 e.stopPropagation();
                 
+                if (!isBackspace) {
+                    animateKeyPress(uniqueKeyId);
+                }
+
                 if (isBackspace) {
                     startDeleting();
                     return;
@@ -375,18 +369,17 @@ const VirtualKeyboard = React.memo<Props>(({ activeTheme }) => {
                     handleKeyAction(key);
                 }
             }}
-            onPointerUp={isBackspace ? stopDeleting : undefined}
-            onPointerLeave={isBackspace ? stopDeleting : undefined}
+            onPointerUp={isBackspace ? stopDeletingWrapper : undefined}
+            onPointerLeave={isBackspace ? stopDeletingWrapper : undefined}
+            onContextMenu={(e) => e.preventDefault()}
             style={{ height: keyHeight }}
             className={`
-                ${widthClass} ${baseStyle} ${colorStyle}
-                rounded-xl flex items-center justify-center
-                text-2xl font-semibold select-none touch-none
+                ${widthClass} v-key v-key-${keyType}
             `}
         >
             <div className="absolute top-0 left-0 right-0 h-[40%] bg-gradient-to-b from-white/10 to-transparent pointer-events-none" />
             {content}
-        </motion.button>
+        </button>
     );
   };
 
@@ -394,6 +387,107 @@ const VirtualKeyboard = React.memo<Props>(({ activeTheme }) => {
   if (!isTouchDevice) return null;
 
   return (
+    <>
+    <style>{`
+        .v-key {
+            /* Hardware Accelerated Base Styles */
+            backdrop-filter: blur(24px);
+            -webkit-backdrop-filter: blur(24px);
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            font-weight: 600;
+            user-select: none;
+            touch-action: none;
+            border-radius: 0.75rem;
+            border-width: 1px;
+            border-style: solid;
+            transition: transform 0.1s ease, filter 0.1s ease;
+            transform: translateZ(0);
+        }
+
+        .v-key-std {
+            background-color: rgba(15, 23, 42, 0.8);
+            border-color: rgba(51, 65, 85, 0.5);
+            color: #f1f5f9;
+            box-shadow: 0 4px 0 rgba(0,0,0,0.4);
+        }
+
+        .v-key-special {
+            background-color: rgba(30, 41, 59, 0.8);
+            border-color: rgba(71, 85, 105, 0.5);
+            color: #cbd5e1;
+            box-shadow: 0 4px 0 rgba(0,0,0,0.4);
+        }
+
+        .v-key-back {
+            background-color: rgba(15, 23, 42, 0.8);
+            border-color: rgba(136, 19, 55, 0.3);
+            color: #fb7185;
+            box-shadow: 0 4px 0 rgba(0,0,0,0.4);
+        }
+
+        .v-key-space {
+            background-color: rgba(15, 23, 42, 0.8);
+            border-color: rgba(51, 65, 85, 0.5);
+            box-shadow: 0 4px 0 rgba(0,0,0,0.4);
+        }
+
+        .v-key-action {
+            background-color: var(--theme-color);
+            border-color: transparent;
+            color: #020617;
+            box-shadow: 0 4px 0 rgba(0,0,0,0.2);
+        }
+
+        .v-key-shift {
+            background-color: rgba(30, 41, 59, 0.8);
+            border-color: rgba(71, 85, 105, 0.5);
+            color: #cbd5e1;
+            box-shadow: 0 4px 0 rgba(0,0,0,0.4);
+        }
+
+        .v-key-shift[data-shift="ONCE"] {
+            background-color: #334155;
+            border-color: rgba(255,255,255,0.3);
+            color: white;
+        }
+
+        .v-key-shift[data-shift="ONCE"] svg, .v-key-shift[data-shift="LOCKED"] svg {
+            fill: white;
+            stroke: white;
+        }
+
+        .v-key-shift[data-shift="LOCKED"] {
+            background-color: #475569;
+            border-color: rgba(255,255,255,0.5);
+            color: white;
+            box-shadow: 0 4px 0 rgba(0,0,0,0.4), 0 0 0 2px rgba(16, 185, 129, 0.5);
+        }
+
+        /* Shift Lock Indicator Dot */
+        .v-key-shift[data-shift="LOCKED"]::after {
+            content: '';
+            position: absolute;
+            bottom: 6px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 6px;
+            height: 6px;
+            background-color: #34d399;
+            border-radius: 50%;
+            box-shadow: 0 0 5px rgba(52,211,153,0.8);
+        }
+
+        .v-key-pressed {
+            transform: scale(0.92) translateZ(0) !important;
+            filter: brightness(1.3) !important;
+            transition: none !important;
+        }
+    `}</style>
     <AnimatePresence>
       {isVisible && (
       <motion.div
@@ -403,6 +497,7 @@ const VirtualKeyboard = React.memo<Props>(({ activeTheme }) => {
         exit={{ y: "100%" }}
         transition={{ type: "spring", damping: 28, stiffness: 350 }}
         className="fixed bottom-0 left-0 right-0 z-[4000] pb-safe pointer-events-none"
+        style={{ '--theme-color': activeTheme.hex } as React.CSSProperties}
       >
         {/* Transparent Background */}
         <div className="absolute inset-x-0 bottom-0 top-12 bg-slate-950 pointer-events-none -z-10 border-t border-white/5 shadow-2xl" />
@@ -430,24 +525,24 @@ const VirtualKeyboard = React.memo<Props>(({ activeTheme }) => {
                          </button>
                          <button 
                             onClick={saveResize}
-                            className={`p-1.5 rounded-lg ${activeTheme.bg} text-slate-950 shadow-lg`}
+                            style={{ backgroundColor: 'var(--theme-color)' }}
+                            className="p-1.5 rounded-lg text-slate-950 shadow-lg"
                          >
                             <Check className="w-4 h-4 stroke-[3]" />
                          </button>
                     </div>
                  </motion.div>
             ) : (
-                <motion.button
-                    whileTap={{ scale: 0.9 }}
+                <button
                     onPointerDown={(e) => {
                         e.preventDefault();
                         setIsResizeMode(true);
                         triggerHaptic();
                     }}
-                    className="p-2 rounded-lg bg-slate-900/60 border border-transparent hover:border-white/5 text-slate-500 hover:text-white transition-colors"
+                    className="p-2 rounded-lg bg-slate-900/60 border border-transparent hover:border-white/5 text-slate-500 hover:text-white transition-colors active:scale-90"
                 >
                     <SlidersHorizontal className="w-5 h-5" />
-                </motion.button>
+                </button>
             )}
         </div>
 
@@ -478,7 +573,7 @@ const VirtualKeyboard = React.memo<Props>(({ activeTheme }) => {
                       
                       {/* Visual Indicator */}
                       <div className="pointer-events-none relative z-50 flex flex-col items-center gap-3 animate-in zoom-in fade-in duration-300">
-                           <div className={`h-12 px-6 rounded-full ${activeTheme.bg} text-slate-950 shadow-[0_0_30px_rgba(0,0,0,0.5)] flex items-center gap-3`}>
+                           <div className="h-12 px-6 rounded-full text-slate-950 shadow-[0_0_30px_rgba(0,0,0,0.5)] flex items-center gap-3" style={{ backgroundColor: 'var(--theme-color)' }}>
                                <MoveVertical className="w-5 h-5" />
                                <span className="text-lg font-black font-mono">{Math.round(activeScale * 100)}%</span>
                            </div>
@@ -490,6 +585,7 @@ const VirtualKeyboard = React.memo<Props>(({ activeTheme }) => {
       </motion.div>
       )}
     </AnimatePresence>
+    </>
   );
 });
 
