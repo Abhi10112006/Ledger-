@@ -240,7 +240,7 @@ const DealModal: React.FC<Props> = ({
                     <input type="date" value={returnDate} onChange={e => setReturnDate(e.target.value)} className="w-full bg-slate-900 border border-slate-800 rounded-xl px-5 py-4 text-slate-100 font-mono" />
                 </div>
                 <div className="space-y-2">
-                    <label className="text-[10px] font-black text-slate-500 ml-1">Phone (Include Country Code)</label>
+                    <label className="text-[10px] font-black text-slate-500 ml-1">Phone (Optional)</label>
                     <input 
                       {...kbPhone}
                       type="text"
