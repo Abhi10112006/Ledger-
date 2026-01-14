@@ -50,15 +50,18 @@ const DealModal: React.FC<Props> = ({
   const [interestType, setInterestType] = useState<InterestType>('none');
   const [interestFree, setInterestFree] = useState(false);
 
-  // Keyboard Hooks - Create instances for each input to bind correct setter
+  // Keyboard Hooks
   const kbName = useVirtualKeyboard('text', (val) => {
       if (!initialName) {
           setFriendName(val);
           setSelectedProfileId(null);
       }
   });
+  
   const kbAmount = useVirtualKeyboard('number', setAmount);
+  // Use direct setter for stability
   const kbPhone = useVirtualKeyboard('number', setFriendPhone);
+  
   const kbNotes = useVirtualKeyboard('text', setNotes);
   const kbInterest = useVirtualKeyboard('number', setInterestRate);
   
@@ -202,23 +205,17 @@ const DealModal: React.FC<Props> = ({
                 )}
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <label className="text-[10px] font-black text-slate-500 ml-1">Amount ({currency})</label>
-                <input {...kbAmount} required type="text" inputMode="none" value={amount} onChange={e => setAmount(e.target.value)} className="w-full bg-slate-900 border border-slate-800 rounded-xl px-5 py-4 text-slate-100 font-bold text-lg" />
-              </div>
-              <div className="space-y-2">
-                <label className="text-[10px] font-black text-slate-500 ml-1">Phone (Optional)</label>
-                <input 
-                  {...kbPhone}
-                  type="text"
-                  inputMode="none"
-                  placeholder="For Reminders"
-                  value={friendPhone} 
-                  onChange={e => setFriendPhone(e.target.value)} 
-                  className="w-full bg-slate-900 border border-slate-800 rounded-xl px-5 py-4 text-slate-100 placeholder-slate-700" 
-                />
-              </div>
+            <div className="space-y-2">
+              <label className="text-[10px] font-black text-slate-500 ml-1">Amount ({currency})</label>
+              <input 
+                  {...kbAmount}
+                  required 
+                  type="text" 
+                  inputMode="none" 
+                  value={amount} 
+                  onChange={e => setAmount(e.target.value)} 
+                  className="w-full bg-slate-900 border border-slate-800 rounded-xl px-5 py-4 text-slate-100 font-bold text-lg" 
+              />
             </div>
             
             <div className="space-y-2">
@@ -237,9 +234,23 @@ const DealModal: React.FC<Props> = ({
               </div>
             </div>
 
-            <div className="space-y-2">
-                <label className="text-[10px] font-black text-slate-500 ml-1">Due Date</label>
-                <input type="date" value={returnDate} onChange={e => setReturnDate(e.target.value)} className="w-full bg-slate-900 border border-slate-800 rounded-xl px-5 py-4 text-slate-100 font-mono" />
+            <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                    <label className="text-[10px] font-black text-slate-500 ml-1">Due Date</label>
+                    <input type="date" value={returnDate} onChange={e => setReturnDate(e.target.value)} className="w-full bg-slate-900 border border-slate-800 rounded-xl px-5 py-4 text-slate-100 font-mono" />
+                </div>
+                <div className="space-y-2">
+                    <label className="text-[10px] font-black text-slate-500 ml-1">Phone (Include Country Code)</label>
+                    <input 
+                      {...kbPhone}
+                      type="text"
+                      inputMode="none"
+                      placeholder="+91 XXXXX XXXXX"
+                      value={friendPhone} 
+                      onChange={e => setFriendPhone(e.target.value)} 
+                      className="w-full bg-slate-900 border border-slate-800 rounded-xl px-5 py-4 text-slate-100 placeholder-slate-700" 
+                    />
+                </div>
             </div>
 
             <div className="space-y-4 pt-2 border-t border-slate-800/50">

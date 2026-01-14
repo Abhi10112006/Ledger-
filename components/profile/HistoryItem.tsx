@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { ArrowUpRight, ArrowDownLeft, Calendar, Loader2, Image as ImageIcon, ScrollText, Edit, Trash2 } from 'lucide-react';
+import { ArrowUpRight, ArrowDownLeft, Calendar, Loader2, Image as ImageIcon, ScrollText, Edit, Trash2, ChevronRight } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { AppSettings } from '../../types';
 
@@ -39,7 +39,11 @@ const HistoryItem: React.FC<HistoryItemProps> = ({
       whileHover={{ scale: 1.01 }}
       whileTap={{ scale: 0.98 }}
       transition={{ layout: { duration: 0.2 }, default: { duration: 0.1 } }}
-      className={`glass p-4 rounded-2xl flex items-center justify-between border cursor-pointer group transition-colors duration-300 ${isActive ? 'border-white/10 bg-slate-900/60' : 'border-transparent hover:bg-white/5 hover:border-white/5'}`}
+      className={`glass p-4 rounded-2xl flex items-center justify-between border cursor-pointer group transition-all duration-300 relative overflow-hidden ${
+        isActive 
+          ? 'border-white/10 bg-slate-900/80 shadow-lg shadow-black/20' 
+          : 'border-white/5 hover:border-white/10 hover:bg-white/5 shadow-md hover:shadow-lg shadow-black/10'
+      }`}
     >
         <motion.div layout="position" className="flex items-center gap-4">
           <div className={`p-2.5 rounded-xl ${item.type === 'LOAN' ? 'bg-rose-500/10 text-rose-500' : 'bg-emerald-500/10 text-emerald-500'}`}>
@@ -83,7 +87,7 @@ const HistoryItem: React.FC<HistoryItemProps> = ({
                     animate={{ opacity: 1, width: 'auto', x: 0 }}
                     exit={{ opacity: 0, width: 0, x: 20 }}
                     transition={{ type: "spring", stiffness: 400, damping: 30 }}
-                    className="flex items-center gap-2 overflow-hidden pl-2 border-l border-white/5"
+                    className="flex items-center gap-2 overflow-hidden pl-2 border-l border-white/5 mr-2"
                     onClick={(e) => e.stopPropagation()} // Prevent toggling row when clicking actions
                 >
                     {item.type === 'PAYMENT' && (
@@ -163,6 +167,15 @@ const HistoryItem: React.FC<HistoryItemProps> = ({
                 </motion.div>
             )}
             </AnimatePresence>
+
+            {/* Expansion Indicator */}
+            <motion.div 
+              animate={{ rotate: isActive ? 90 : 0 }}
+              transition={{ type: "spring", stiffness: 300, damping: 20 }}
+              className={`text-slate-600 group-hover:text-slate-400 transition-colors ${isActive ? 'text-slate-200' : ''}`}
+            >
+               <ChevronRight className="w-5 h-5" />
+            </motion.div>
         </div>
     </motion.div>
   );

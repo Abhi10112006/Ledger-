@@ -20,6 +20,11 @@ export const useVirtualKeyboard = (
     onFocus: (e: React.FocusEvent<HTMLInputElement>) => {
       openKeyboard(e.target, type, onChange);
     },
+    // Adding TouchStart ensures mobile devices trigger this before native focus/click quirks
+    onTouchStart: (e: React.TouchEvent<HTMLInputElement>) => {
+      // Don't prevent default to allow focus, but trigger keyboard logic
+      openKeyboard(e.currentTarget, type, onChange);
+    },
     onClick: (e: React.MouseEvent<HTMLInputElement>) => {
       openKeyboard(e.currentTarget, type, onChange);
     },
