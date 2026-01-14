@@ -1,7 +1,7 @@
 
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { useKeyboard } from '../contexts/KeyboardContext';
-import { Delete, Check, ArrowUp, SlidersHorizontal, MoveVertical, X, RotateCcw, Smile } from 'lucide-react';
+import { Delete, Check, ArrowUp, SlidersHorizontal, MoveVertical, X, RotateCcw, Smile, Maximize2, Moon, Sun, Cloud } from 'lucide-react';
 import { motion, AnimatePresence, PanInfo } from 'framer-motion';
 
 interface Props {
@@ -10,26 +10,163 @@ interface Props {
 
 type ShiftState = 'OFF' | 'ONCE' | 'LOCKED';
 type ViewMode = 'ALPHA' | 'SYMBOLS' | 'EMOJI';
+type KeyboardTheme = 'dark' | 'grey' | 'light';
 
 // --- HAPTIC ENGINE ---
 const triggerHaptic = () => {
   if (typeof navigator !== 'undefined' && navigator.vibrate) {
     try {
-      navigator.vibrate(50); 
+      navigator.vibrate(40); 
     } catch (e) {}
   }
 };
 
+// --- LAYOUTS ---
+const NUM_PAD = [
+  ['1', '2', '3'],
+  ['4', '5', '6'],
+  ['7', '8', '9'],
+  ['.', '0', 'BACKSPACE', 'DONE']
+];
+
+const QWERTY = [
+  ['q', 'w', 'e', 'r', 't', 'y', 'u', 'i', 'o', 'p'],
+  ['a', 's', 'd', 'f', 'g', 'h', 'j', 'k', 'l'],
+  ['SHIFT', 'z', 'x', 'c', 'v', 'b', 'n', 'm', 'BACKSPACE'],
+  ['?123', ',', '☺', 'SPACE', '.', 'DONE']
+];
+
+const SYMBOLS = [
+  ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0'],
+  ['@', '#', '$', '%', '&', '-', '+', '(', ')', '/'],
+  ['\\', '=', '*', '"', "'", ':', ';', '!', '?', 'BACKSPACE'],
+  ['ABC', ',', 'SPACE', '.', 'DONE']
+];
+
+const EMOJIS = [
+  ['👍', '👎', '❤️', '😂', '😭', '🔥', '🎉', '🙏', '🤝', '💸'],
+  ['💰', '💳', '🧾', '✅', '❌', '💀', '🤡', '👀', '✨', '👋'],
+  ['🤔', '🫡', '😡', '😱', '💩', '🇮🇳', '🇺🇸', '💪', '🧠', 'BACKSPACE'],
+  ['ABC', 'SPACE', 'DONE']
+];
+
+// --- ISOLATED KEY COMPONENT ---
+interface KeyProps {
+  char: string;
+  row: number;
+  layout: string;
+  viewMode: ViewMode;
+  height: number;
+  onPress: (char: string, id: string) => void;
+  onRelease: () => void;
+  registerRef: (id: string, el: HTMLButtonElement | null) => void;
+}
+
+const Key = React.memo<KeyProps>(({ 
+  char, row, layout, viewMode, height, onPress, onRelease, registerRef 
+}) => {
+    let content: React.ReactNode = char;
+    let widthClass = "flex-1"; 
+    
+    // Determine key type for CSS class mapping
+    let keyType = 'std';
+    if (char === 'BACKSPACE') keyType = 'back';
+    else if (char === 'SHIFT') keyType = 'shift';
+    else if (char === 'SPACE') keyType = 'space';
+    else if (char === 'DONE') keyType = 'action';
+    else if (['?123', 'ABC', '☺'].includes(char)) keyType = 'special';
+    else if (char === ',' || char === '.') keyType = 'std'; 
+    
+    // Width Logic
+    if (char === 'BACKSPACE') widthClass = layout === 'number' ? "flex-1" : "flex-[1.5]";
+    else if (char === 'SHIFT' || char === '?123' || char === 'ABC') widthClass = "flex-[1.5]";
+    else if (char === 'SPACE') widthClass = (viewMode === 'ALPHA' || viewMode === 'SYMBOLS') && layout !== 'number' ? "flex-[3]" : "flex-[4]";
+    else if (char === 'DONE') widthClass = layout === 'number' ? "flex-1" : "flex-[2]";
+
+    // Content Logic
+    switch (char) {
+        case 'BACKSPACE':
+            content = <Delete className="w-6 h-6 stroke-[2.5]" />;
+            break;
+        case 'SHIFT':
+            content = <ArrowUp className="w-6 h-6 stroke-[2.5] transition-all" />;
+            break;
+        case 'SPACE':
+            content = <div className="w-16 h-1.5 opacity-30 bg-current rounded-full pointer-events-none" />;
+            break;
+        case 'DONE':
+            content = <Check className="w-7 h-7 stroke-[3] pointer-events-none" />;
+            break;
+        case '☺':
+            content = <Smile className="w-6 h-6 pointer-events-none" />;
+            break;
+        case ',':
+        case '.':
+            content = <span className="font-bold text-xl pb-2 pointer-events-none">{char}</span>;
+            break;
+        default:
+            // Standard characters are rendered as-is.
+            // Uppercase transformation is handled by CSS on the container.
+            break;
+    }
+
+    const isBackspace = char === 'BACKSPACE';
+    const uniqueKeyId = isBackspace ? `special-${char}` : `${row}-${char}`;
+
+    return (
+        <button
+            ref={(el) => registerRef(uniqueKeyId, el)}
+            onPointerDown={(e) => {
+                e.preventDefault(); 
+                e.stopPropagation();
+                onPress(char, uniqueKeyId);
+            }}
+            onPointerUp={isBackspace ? onRelease : undefined}
+            onPointerLeave={isBackspace ? onRelease : undefined}
+            onContextMenu={(e) => e.preventDefault()}
+            style={{ height }}
+            className={`
+                ${widthClass} v-key v-key-${keyType}
+            `}
+        >
+            {/* Gloss Highlight */}
+            <div className="absolute top-0 left-0 right-0 h-[40%] bg-gradient-to-b from-white/10 to-transparent pointer-events-none" />
+            {content}
+        </button>
+    );
+}, (prev, next) => {
+    // Custom Memoization Check to prevent unnecessary renders
+    return (
+        prev.char === next.char &&
+        prev.row === next.row &&
+        prev.layout === next.layout &&
+        prev.viewMode === next.viewMode &&
+        prev.height === next.height
+    );
+});
+
+// --- MAIN COMPONENT ---
 const VirtualKeyboard = React.memo<Props>(({ activeTheme }) => {
-  const { isVisible, activeInput, closeKeyboard, layout } = useKeyboard();
+  const { isVisible, activeInput, closeKeyboard, layout, inputCallback } = useKeyboard();
   const [shiftState, setShiftState] = useState<ShiftState>('OFF');
   const [viewMode, setViewMode] = useState<ViewMode>('ALPHA');
+  const [showTools, setShowTools] = useState(false);
+  const [kbTheme, setKbTheme] = useState<KeyboardTheme>('dark');
   
+  // Ref to hold shift state for non-reactive access in callbacks
+  const shiftStateRef = useRef<ShiftState>('OFF');
+
   // Device Detection State
   const [isTouchDevice, setIsTouchDevice] = useState(false);
   
-  // --- PERFORMANCE REF MAP ---
+  // --- PERFORMANCE REFS ---
   const keyRefs = useRef<Map<string, HTMLButtonElement>>(new Map());
+  // Store timeouts for each key to handle rapid tapping correctly
+  const animationTimers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
+
+  useEffect(() => {
+    shiftStateRef.current = shiftState;
+  }, [shiftState]);
 
   useEffect(() => {
     const checkDevice = () => {
@@ -55,39 +192,61 @@ const VirtualKeyboard = React.memo<Props>(({ activeTheme }) => {
 
   // --- PERSISTENCE & INIT ---
   useEffect(() => {
-    const saved = localStorage.getItem('keyboard_scale');
-    if (saved) {
-        const val = parseFloat(saved);
-        setScale(val);
-        setTempScale(val);
+    const savedScale = localStorage.getItem('keyboard_scale');
+    if (savedScale) {
+        setScale(parseFloat(savedScale));
+        setTempScale(parseFloat(savedScale));
+    }
+    
+    const savedTheme = localStorage.getItem('keyboard_theme_pref');
+    if (savedTheme) {
+        setKbTheme(savedTheme as KeyboardTheme);
     }
   }, []);
+
+  const changeKbTheme = (theme: KeyboardTheme) => {
+      setKbTheme(theme);
+      localStorage.setItem('keyboard_theme_pref', theme);
+      triggerHaptic();
+  };
 
   useEffect(() => {
     if (isVisible) {
       setViewMode('ALPHA');
       setShiftState('OFF');
       setIsResizeMode(false);
+      setShowTools(false);
       setTempScale(scale);
     }
   }, [isVisible, scale]);
 
-  // --- DIRECT DOM VISUAL FEEDBACK (0-LAG) ---
-  const animateKeyPress = (keyId: string) => {
+  // --- ANIMATION ENGINE ---
+  const animateKeyPress = useCallback((keyId: string) => {
     const btn = keyRefs.current.get(keyId);
     if (btn) {
+        // 1. Clear any pending removal for this specific key (Fixes rapid tap cutoff)
+        if (animationTimers.current.has(keyId)) {
+            clearTimeout(animationTimers.current.get(keyId));
+        }
+
+        // 2. Reset and Apply Class
+        btn.classList.remove('v-key-pressed');
+        void btn.offsetWidth; // Force Reflow
         btn.classList.add('v-key-pressed');
-        requestAnimationFrame(() => {
-            setTimeout(() => {
-                if (btn) btn.classList.remove('v-key-pressed');
-            }, 100);
-        });
+
+        // 3. Set new cleanup timer
+        const timer = setTimeout(() => {
+            if (btn) btn.classList.remove('v-key-pressed');
+            animationTimers.current.delete(keyId);
+        }, 120);
+
+        animationTimers.current.set(keyId, timer);
     }
-  };
+  }, []);
 
   // --- INPUT LOGIC ---
   const insertCharacter = useCallback((char: string) => {
-    if (!activeInput) return;
+    if (!activeInput || !inputCallback) return;
     
     const start = activeInput.selectionStart || 0;
     const end = activeInput.selectionEnd || 0;
@@ -95,21 +254,21 @@ const VirtualKeyboard = React.memo<Props>(({ activeTheme }) => {
 
     const newValue = currentVal.substring(0, start) + char + currentVal.substring(end);
     
-    const nativeInputValueSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, "value")?.set;
-    if (nativeInputValueSetter) {
-        nativeInputValueSetter.call(activeInput, newValue);
-    } else {
-        activeInput.value = newValue;
-    }
-    
-    activeInput.dispatchEvent(new Event('input', { bubbles: true }));
+    // 1. Update DOM immediately (Latency Killer)
+    activeInput.value = newValue;
 
+    // 2. Update React State Synchronously 
+    // (Prevents conflict where React pushes old state back to DOM)
+    inputCallback(newValue);
+
+    // 3. Restore/Advance Cursor
     const newCursorPos = start + char.length;
     activeInput.setSelectionRange(newCursorPos, newCursorPos);
-  }, [activeInput]);
+
+  }, [activeInput, inputCallback]);
 
   const deleteCharacter = useCallback(() => {
-    if (!activeInput) return;
+    if (!activeInput || !inputCallback) return;
 
     const start = activeInput.selectionStart || 0;
     const end = activeInput.selectionEnd || 0;
@@ -127,16 +286,16 @@ const VirtualKeyboard = React.memo<Props>(({ activeTheme }) => {
       newCursorPos = start - 1;
     }
 
-    const nativeInputValueSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, "value")?.set;
-    if (nativeInputValueSetter) {
-        nativeInputValueSetter.call(activeInput, newValue);
-    } else {
-        activeInput.value = newValue;
-    }
+    // 1. Update DOM immediately
+    activeInput.value = newValue;
 
-    activeInput.dispatchEvent(new Event('input', { bubbles: true }));
+    // 2. Update React State Synchronously
+    inputCallback(newValue);
+    
+    // 3. Restore Cursor
     activeInput.setSelectionRange(newCursorPos, newCursorPos);
-  }, [activeInput]);
+
+  }, [activeInput, inputCallback]);
 
   // Backspace Handling
   const stopDeleting = useCallback(() => {
@@ -159,8 +318,9 @@ const VirtualKeyboard = React.memo<Props>(({ activeTheme }) => {
               triggerHaptic();
               deleteCharacter();
               if (btn) {
+                  // Re-trigger animation for held state to simulate rapid pressing visually
                   btn.classList.remove('v-key-pressed');
-                  void btn.offsetWidth; // reflow
+                  void btn.offsetWidth; 
                   btn.classList.add('v-key-pressed');
               }
           }, 100);
@@ -177,7 +337,22 @@ const VirtualKeyboard = React.memo<Props>(({ activeTheme }) => {
       return () => stopDeleting();
   }, [stopDeleting, activeInput]);
 
-  const handleKeyAction = (key: string) => {
+  const handleShiftToggle = useCallback(() => {
+    const now = Date.now();
+    const timeDiff = now - lastShiftTapRef.current;
+    lastShiftTapRef.current = now;
+
+    setShiftState(prev => {
+      if (prev === 'OFF') return 'ONCE';
+      if (prev === 'ONCE') {
+        if (timeDiff < 300) return 'LOCKED';
+        return 'OFF';
+      }
+      return 'OFF'; 
+    });
+  }, []);
+
+  const handleKeyAction = useCallback((key: string) => {
     if (!activeInput) return;
     if (key === 'BACKSPACE') return; 
     
@@ -195,31 +370,46 @@ const VirtualKeyboard = React.memo<Props>(({ activeTheme }) => {
     let charToInsert = key;
     
     if (viewMode === 'ALPHA') {
-      if (shiftState !== 'OFF') {
+      // Use Ref to access shift state without re-creating callback
+      if (shiftStateRef.current !== 'OFF') {
         charToInsert = key.toUpperCase();
-        if (shiftState === 'ONCE') {
+        if (shiftStateRef.current === 'ONCE') {
           setShiftState('OFF');
         }
       }
     }
     
     insertCharacter(charToInsert);
-  };
+  }, [activeInput, viewMode, insertCharacter, closeKeyboard]);
 
-  const handleShiftToggle = () => {
-    const now = Date.now();
-    const timeDiff = now - lastShiftTapRef.current;
-    lastShiftTapRef.current = now;
+  // Main interaction handler passed to Key component
+  const handleKeyPointerDown = useCallback((key: string, uniqueId: string) => {
+    const isBackspace = key === 'BACKSPACE';
+    
+    if (!isBackspace) {
+        animateKeyPress(uniqueId);
+    }
 
-    setShiftState(prev => {
-      if (prev === 'OFF') return 'ONCE';
-      if (prev === 'ONCE') {
-        if (timeDiff < 300) return 'LOCKED';
-        return 'OFF';
-      }
-      return 'OFF'; 
-    });
-  };
+    if (isBackspace) {
+        startDeleting();
+        return;
+    }
+    
+    triggerHaptic();
+
+    if (key === 'SHIFT') {
+        handleShiftToggle();
+    } else if (key === '?123') {
+        setViewMode('SYMBOLS');
+    } else if (key === 'ABC') {
+        setViewMode('ALPHA');
+        setShiftState('OFF');
+    } else if (key === '☺') {
+        setViewMode('EMOJI');
+    } else {
+        handleKeyAction(key);
+    }
+  }, [animateKeyPress, startDeleting, handleShiftToggle, handleKeyAction]);
 
   const handleResizeDrag = (_: any, info: PanInfo) => {
     const sensitivity = 0.003; 
@@ -233,6 +423,7 @@ const VirtualKeyboard = React.memo<Props>(({ activeTheme }) => {
     setScale(tempScale);
     localStorage.setItem('keyboard_scale', tempScale.toString());
     setIsResizeMode(false);
+    setShowTools(false);
     triggerHaptic();
   };
 
@@ -240,35 +431,6 @@ const VirtualKeyboard = React.memo<Props>(({ activeTheme }) => {
       setTempScale(1);
       triggerHaptic();
   };
-
-  // --- LAYOUTS ---
-  const NUM_PAD = [
-    ['1', '2', '3'],
-    ['4', '5', '6'],
-    ['7', '8', '9'],
-    ['.', '0', 'BACKSPACE', 'DONE']
-  ];
-
-  const QWERTY = [
-    ['q', 'w', 'e', 'r', 't', 'y', 'u', 'i', 'o', 'p'],
-    ['a', 's', 'd', 'f', 'g', 'h', 'j', 'k', 'l'],
-    ['SHIFT', 'z', 'x', 'c', 'v', 'b', 'n', 'm', 'BACKSPACE'],
-    ['?123', ',', '☺', 'SPACE', '.', 'DONE']
-  ];
-
-  const SYMBOLS = [
-    ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0'],
-    ['@', '#', '$', '%', '&', '-', '+', '(', ')', '/'],
-    ['\\', '=', '*', '"', "'", ':', ';', '!', '?', 'BACKSPACE'],
-    ['ABC', ',', 'SPACE', '.', 'DONE']
-  ];
-
-  const EMOJIS = [
-    ['👍', '👎', '❤️', '😂', '😭', '🔥', '🎉', '🙏', '🤝', '💸'],
-    ['💰', '💳', '🧾', '✅', '❌', '💀', '🤡', '👀', '✨', '👋'],
-    ['🤔', '🫡', '😡', '😱', '💩', '🇮🇳', '🇺🇸', '💪', '🧠', 'BACKSPACE'],
-    ['ABC', 'SPACE', 'DONE']
-  ];
 
   const getCurrentLayout = () => {
     if (layout === 'number') return NUM_PAD;
@@ -282,105 +444,40 @@ const VirtualKeyboard = React.memo<Props>(({ activeTheme }) => {
   const baseHeight = 54; 
   const keyHeight = baseHeight * activeScale;
 
-  // --- KEY RENDERER ---
-  const renderKey = (key: string, rowIndex: number, keyIndex: number) => {
-    let content: React.ReactNode = key;
-    let widthClass = "flex-1"; 
-    
-    // Determine key type for CSS class mapping
-    let keyType = 'std';
-    if (key === 'BACKSPACE') keyType = 'back';
-    else if (key === 'SHIFT') keyType = 'shift';
-    else if (key === 'SPACE') keyType = 'space';
-    else if (key === 'DONE') keyType = 'action';
-    else if (['?123', 'ABC', '☺'].includes(key)) keyType = 'special';
-    else if (key === ',' || key === '.') keyType = 'std'; // Explicitly standard
-    
-    // Width Logic
-    if (key === 'BACKSPACE') widthClass = layout === 'number' ? "flex-1" : "flex-[1.5]";
-    else if (key === 'SHIFT' || key === '?123' || key === 'ABC') widthClass = "flex-[1.5]";
-    else if (key === 'SPACE') widthClass = (viewMode === 'ALPHA' || viewMode === 'SYMBOLS') && layout !== 'number' ? "flex-[3]" : "flex-[4]";
-    else if (key === 'DONE') widthClass = layout === 'number' ? "flex-1" : "flex-[2]";
-
-    // Content Logic
-    switch (key) {
-        case 'BACKSPACE':
-            content = <Delete className="w-6 h-6 stroke-[2.5]" />;
-            break;
-        case 'SHIFT':
-            content = <ArrowUp className="w-6 h-6 stroke-[2.5] transition-all" />;
-            break;
-        case 'SPACE':
-            content = <div className="w-16 h-1.5 bg-slate-400/30 rounded-full pointer-events-none" />;
-            break;
-        case 'DONE':
-            content = <Check className="w-7 h-7 stroke-[3] pointer-events-none" />;
-            break;
-        case '☺':
-            content = <Smile className="w-6 h-6 pointer-events-none" />;
-            break;
-        case ',':
-        case '.':
-            content = <span className="font-bold text-xl pb-2 pointer-events-none">{key}</span>;
-            break;
-        default:
-            if (viewMode === 'ALPHA' && shiftState !== 'OFF' && key.length === 1) {
-                content = key.toUpperCase();
-            }
-            break;
-    }
-
-    const isBackspace = key === 'BACKSPACE';
-    const uniqueKeyId = isBackspace ? `special-${key}` : `${rowIndex}-${key}`;
-
-    return (
-        <button
-            key={uniqueKeyId}
-            ref={(el) => {
-                if (el) keyRefs.current.set(uniqueKeyId, el);
-                else keyRefs.current.delete(uniqueKeyId);
-            }}
-            data-shift={key === 'SHIFT' ? shiftState : undefined}
-            onPointerDown={(e) => {
-                e.preventDefault(); 
-                e.stopPropagation();
-                
-                if (!isBackspace) {
-                    animateKeyPress(uniqueKeyId);
-                }
-
-                if (isBackspace) {
-                    startDeleting();
-                    return;
-                }
-                
-                triggerHaptic();
-
-                if (key === 'SHIFT') {
-                    handleShiftToggle();
-                } else if (key === '?123') {
-                    setViewMode('SYMBOLS');
-                } else if (key === 'ABC') {
-                    setViewMode('ALPHA');
-                    setShiftState('OFF');
-                } else if (key === '☺') {
-                    setViewMode('EMOJI');
-                } else {
-                    handleKeyAction(key);
-                }
-            }}
-            onPointerUp={isBackspace ? stopDeletingWrapper : undefined}
-            onPointerLeave={isBackspace ? stopDeletingWrapper : undefined}
-            onContextMenu={(e) => e.preventDefault()}
-            style={{ height: keyHeight }}
-            className={`
-                ${widthClass} v-key v-key-${keyType}
-            `}
-        >
-            <div className="absolute top-0 left-0 right-0 h-[40%] bg-gradient-to-b from-white/10 to-transparent pointer-events-none" />
-            {content}
-        </button>
-    );
+  // --- DYNAMIC STYLES ---
+  const getThemeVars = () => {
+      if (kbTheme === 'light') {
+          return `
+            --kb-bg: #e2e8f0;
+            --kb-key-std-bg: #ffffff;
+            --kb-key-special-bg: #cbd5e1;
+            --kb-text-std: #0f172a;
+            --kb-text-special: #334155;
+            --kb-border: #94a3b8;
+            --kb-shadow: rgba(0,0,0,0.1);
+          `;
+      }
+      if (kbTheme === 'grey') {
+          return `
+            --kb-bg: #1e293b;
+            --kb-key-std-bg: #334155;
+            --kb-key-special-bg: #0f172a;
+            --kb-text-std: #f8fafc;
+            --kb-text-special: #cbd5e1;
+            --kb-border: #475569;
+            --kb-shadow: rgba(0,0,0,0.3);
+          `;
+      }
+      // Dark Default
+      return `
+        --kb-bg: #020617;
+        --kb-key-std-bg: rgba(15, 23, 42, 0.9);
+        --kb-key-special-bg: rgba(30, 41, 59, 0.9);
+        --kb-text-std: #f1f5f9;
+        --kb-text-special: #cbd5e1;
+        --kb-border: rgba(51, 65, 85, 0.5);
+        --kb-shadow: rgba(0,0,0,0.4);
+      `;
   };
 
   // If not a touch device (or likely to have a physical keyboard), do not render
@@ -389,6 +486,8 @@ const VirtualKeyboard = React.memo<Props>(({ activeTheme }) => {
   return (
     <>
     <style>{`
+        ${isVisible ? `:root { ${getThemeVars()} }` : ''}
+
         .v-key {
             /* Hardware Accelerated Base Styles */
             backdrop-filter: blur(24px);
@@ -410,30 +509,37 @@ const VirtualKeyboard = React.memo<Props>(({ activeTheme }) => {
         }
 
         .v-key-std {
-            background-color: rgba(15, 23, 42, 0.8);
-            border-color: rgba(51, 65, 85, 0.5);
-            color: #f1f5f9;
-            box-shadow: 0 4px 0 rgba(0,0,0,0.4);
+            background-color: var(--kb-key-std-bg);
+            border-color: var(--kb-border);
+            color: var(--kb-text-std);
+            box-shadow: 0 4px 0 var(--kb-shadow);
+        }
+
+        /* Shift Case Handling */
+        [data-shift-state="ONCE"] .v-key-std,
+        [data-shift-state="LOCKED"] .v-key-std {
+            text-transform: uppercase;
         }
 
         .v-key-special {
-            background-color: rgba(30, 41, 59, 0.8);
-            border-color: rgba(71, 85, 105, 0.5);
-            color: #cbd5e1;
-            box-shadow: 0 4px 0 rgba(0,0,0,0.4);
+            background-color: var(--kb-key-special-bg);
+            border-color: var(--kb-border);
+            color: var(--kb-text-special);
+            box-shadow: 0 4px 0 var(--kb-shadow);
         }
 
         .v-key-back {
-            background-color: rgba(15, 23, 42, 0.8);
+            background-color: var(--kb-key-std-bg);
             border-color: rgba(136, 19, 55, 0.3);
             color: #fb7185;
-            box-shadow: 0 4px 0 rgba(0,0,0,0.4);
+            box-shadow: 0 4px 0 var(--kb-shadow);
         }
 
         .v-key-space {
-            background-color: rgba(15, 23, 42, 0.8);
-            border-color: rgba(51, 65, 85, 0.5);
-            box-shadow: 0 4px 0 rgba(0,0,0,0.4);
+            background-color: var(--kb-key-std-bg);
+            border-color: var(--kb-border);
+            color: var(--kb-text-std);
+            box-shadow: 0 4px 0 var(--kb-shadow);
         }
 
         .v-key-action {
@@ -444,32 +550,34 @@ const VirtualKeyboard = React.memo<Props>(({ activeTheme }) => {
         }
 
         .v-key-shift {
-            background-color: rgba(30, 41, 59, 0.8);
-            border-color: rgba(71, 85, 105, 0.5);
-            color: #cbd5e1;
-            box-shadow: 0 4px 0 rgba(0,0,0,0.4);
+            background-color: var(--kb-key-special-bg);
+            border-color: var(--kb-border);
+            color: var(--kb-text-special);
+            box-shadow: 0 4px 0 var(--kb-shadow);
         }
 
-        .v-key-shift[data-shift="ONCE"] {
+        /* Shift Active States via Container Attribute */
+        [data-shift-state="ONCE"] .v-key-shift {
             background-color: #334155;
             border-color: rgba(255,255,255,0.3);
             color: white;
         }
 
-        .v-key-shift[data-shift="ONCE"] svg, .v-key-shift[data-shift="LOCKED"] svg {
+        [data-shift-state="ONCE"] .v-key-shift svg, 
+        [data-shift-state="LOCKED"] .v-key-shift svg {
             fill: white;
             stroke: white;
         }
 
-        .v-key-shift[data-shift="LOCKED"] {
+        [data-shift-state="LOCKED"] .v-key-shift {
             background-color: #475569;
             border-color: rgba(255,255,255,0.5);
             color: white;
-            box-shadow: 0 4px 0 rgba(0,0,0,0.4), 0 0 0 2px rgba(16, 185, 129, 0.5);
+            box-shadow: 0 4px 0 var(--kb-shadow), 0 0 0 2px rgba(16, 185, 129, 0.5);
         }
 
         /* Shift Lock Indicator Dot */
-        .v-key-shift[data-shift="LOCKED"]::after {
+        [data-shift-state="LOCKED"] .v-key-shift::after {
             content: '';
             position: absolute;
             bottom: 6px;
@@ -498,9 +606,10 @@ const VirtualKeyboard = React.memo<Props>(({ activeTheme }) => {
         transition={{ type: "spring", damping: 28, stiffness: 350 }}
         className="fixed bottom-0 left-0 right-0 z-[4000] pb-safe pointer-events-none"
         style={{ '--theme-color': activeTheme.hex } as React.CSSProperties}
+        data-shift-state={shiftState}
       >
         {/* Transparent Background */}
-        <div className="absolute inset-x-0 bottom-0 top-12 bg-slate-950 pointer-events-none -z-10 border-t border-white/5 shadow-2xl" />
+        <div className="absolute inset-x-0 bottom-0 top-12 bg-[var(--kb-bg)] pointer-events-none -z-10 border-t border-white/5 shadow-2xl" />
 
         {/* --- TOP BAR (Tools) --- */}
         <div 
@@ -532,11 +641,64 @@ const VirtualKeyboard = React.memo<Props>(({ activeTheme }) => {
                          </button>
                     </div>
                  </motion.div>
+            ) : showTools ? (
+                 <motion.div 
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.95 }}
+                    className="flex items-center gap-3 p-1 rounded-xl bg-slate-900/90 border border-white/10 backdrop-blur-md shadow-2xl"
+                 >
+                     {/* Resize Option */}
+                     <button 
+                       onClick={() => setIsResizeMode(true)}
+                       className="p-1.5 rounded-lg hover:bg-white/10 text-slate-400 hover:text-white transition-colors"
+                       title="Resize Keyboard"
+                     >
+                       <Maximize2 className="w-4 h-4" />
+                     </button>
+                     
+                     <div className="w-px h-4 bg-white/10"></div>
+
+                     {/* Keyboard Theme Toggles */}
+                     <div className="flex items-center gap-1 px-1">
+                        <button
+                             onClick={() => changeKbTheme('dark')}
+                             className={`p-1.5 rounded-lg transition-all ${kbTheme === 'dark' ? 'bg-white text-slate-950 shadow-lg scale-110' : 'text-slate-400 hover:text-white'}`}
+                             title="Dark Mode"
+                        >
+                            <Moon className="w-3.5 h-3.5 fill-current" />
+                        </button>
+                        <button
+                             onClick={() => changeKbTheme('grey')}
+                             className={`p-1.5 rounded-lg transition-all ${kbTheme === 'grey' ? 'bg-white text-slate-950 shadow-lg scale-110' : 'text-slate-400 hover:text-white'}`}
+                             title="Grey Mode"
+                        >
+                            <Cloud className="w-3.5 h-3.5 fill-current" />
+                        </button>
+                        <button
+                             onClick={() => changeKbTheme('light')}
+                             className={`p-1.5 rounded-lg transition-all ${kbTheme === 'light' ? 'bg-white text-slate-950 shadow-lg scale-110' : 'text-slate-400 hover:text-white'}`}
+                             title="Light Mode"
+                        >
+                            <Sun className="w-3.5 h-3.5 fill-current" />
+                        </button>
+                     </div>
+
+                     <div className="w-px h-4 bg-white/10"></div>
+
+                     {/* Close Tools */}
+                     <button 
+                       onClick={() => setShowTools(false)}
+                       className="p-1.5 rounded-lg hover:bg-rose-500/20 text-slate-400 hover:text-rose-400 transition-colors"
+                     >
+                        <X className="w-4 h-4" />
+                     </button>
+                 </motion.div>
             ) : (
                 <button
                     onPointerDown={(e) => {
                         e.preventDefault();
-                        setIsResizeMode(true);
+                        setShowTools(true);
                         triggerHaptic();
                     }}
                     className="p-2 rounded-lg bg-slate-900/60 border border-transparent hover:border-white/5 text-slate-500 hover:text-white transition-colors active:scale-90"
@@ -551,7 +713,22 @@ const VirtualKeyboard = React.memo<Props>(({ activeTheme }) => {
             <div className="flex flex-col gap-1 pt-1">
                 {rows.map((row, i) => (
                     <div key={i} className="flex gap-1 w-full">
-                        {row.map((k, j) => renderKey(k, i, j))}
+                        {row.map((k, j) => (
+                            <Key 
+                                key={`${i}-${k}`}
+                                char={k}
+                                row={i}
+                                layout={layout}
+                                viewMode={viewMode}
+                                height={keyHeight}
+                                onPress={handleKeyPointerDown}
+                                onRelease={stopDeletingWrapper}
+                                registerRef={(id, el) => {
+                                    if (el) keyRefs.current.set(id, el);
+                                    else keyRefs.current.delete(id);
+                                }}
+                            />
+                        ))}
                     </div>
                 ))}
             </div>

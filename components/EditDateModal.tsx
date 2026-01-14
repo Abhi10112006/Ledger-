@@ -18,7 +18,7 @@ const EditDateModal: React.FC<Props> = ({ isOpen, onClose, onSave, initialDate, 
   const [newDueTime, setNewDueTime] = useState('');
   const [newAmount, setNewAmount] = useState('');
 
-  const kbNum = useVirtualKeyboard('number');
+  const kbAmount = useVirtualKeyboard('number', setNewAmount);
 
   useEffect(() => {
     if (isOpen) {
@@ -76,7 +76,7 @@ const EditDateModal: React.FC<Props> = ({ isOpen, onClose, onSave, initialDate, 
                     <Hash className="w-3 h-3" /> Amount
                  </div>
                  <input 
-                   {...kbNum}
+                   {...kbAmount}
                    required 
                    type="text" 
                    inputMode="none"

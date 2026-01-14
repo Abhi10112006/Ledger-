@@ -29,7 +29,7 @@ const SettingsModal: React.FC<Props> = ({
   const [activeTab, setActiveTab] = useState<'general' | 'visual' | 'interface' | 'contact'>('general');
   const [displayName, setDisplayName] = useState('ABHINAV YADUVANSHI');
   
-  const kbText = useVirtualKeyboard('text');
+  const kbName = useVirtualKeyboard('text', (val) => updateSetting('userName', val));
 
   useEffect(() => {
     if (tourStep && tourStep >= 6 && tourStep <= 8) {
@@ -135,7 +135,7 @@ const SettingsModal: React.FC<Props> = ({
                     <div className="space-y-2">
                       <label className="text-xs text-slate-400 font-medium">My Name</label>
                       <input 
-                        {...kbText}
+                        {...kbName}
                         type="text" 
                         value={settings.userName}
                         onChange={(e) => updateSetting('userName', e.target.value)}

@@ -50,9 +50,18 @@ const DealModal: React.FC<Props> = ({
   const [interestType, setInterestType] = useState<InterestType>('none');
   const [interestFree, setInterestFree] = useState(false);
 
-  // Keyboard Hooks
-  const kbText = useVirtualKeyboard('text');
-  const kbNum = useVirtualKeyboard('number');
+  // Keyboard Hooks - Create instances for each input to bind correct setter
+  const kbName = useVirtualKeyboard('text', (val) => {
+      if (!initialName) {
+          setFriendName(val);
+          setSelectedProfileId(null);
+      }
+  });
+  const kbAmount = useVirtualKeyboard('number', setAmount);
+  const kbPhone = useVirtualKeyboard('number', setFriendPhone);
+  const kbNotes = useVirtualKeyboard('text', setNotes);
+  const kbInterest = useVirtualKeyboard('number', setInterestRate);
+  
   const { isVisible: isKeyboardVisible } = useKeyboard();
 
   // Search Logic
@@ -154,7 +163,7 @@ const DealModal: React.FC<Props> = ({
                 <label className="text-[10px] font-black text-slate-500 ml-1">Friend Name</label>
                 <div className="relative">
                     <input 
-                      {...kbText}
+                      {...kbName}
                       required 
                       placeholder="Who are you paying?" 
                       value={friendName} 
@@ -165,7 +174,7 @@ const DealModal: React.FC<Props> = ({
                           }
                       }}
                       onBlur={(e) => {
-                          kbText.onBlur(e);
+                          kbName.onBlur(e);
                           setTimeout(() => setSearchResults([]), 200);
                       }}
                       className={`w-full bg-slate-900 border border-slate-800 rounded-xl px-5 py-4 text-slate-100 placeholder-slate-700 ${initialName ? 'opacity-70 font-bold' : ''} ${selectedProfileId ? 'border-emerald-500/50 pl-10' : ''}`} 
@@ -196,12 +205,12 @@ const DealModal: React.FC<Props> = ({
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <label className="text-[10px] font-black text-slate-500 ml-1">Amount ({currency})</label>
-                <input {...kbNum} required type="text" inputMode="none" value={amount} onChange={e => setAmount(e.target.value)} className="w-full bg-slate-900 border border-slate-800 rounded-xl px-5 py-4 text-slate-100 font-bold text-lg" />
+                <input {...kbAmount} required type="text" inputMode="none" value={amount} onChange={e => setAmount(e.target.value)} className="w-full bg-slate-900 border border-slate-800 rounded-xl px-5 py-4 text-slate-100 font-bold text-lg" />
               </div>
               <div className="space-y-2">
                 <label className="text-[10px] font-black text-slate-500 ml-1">Phone (Optional)</label>
                 <input 
-                  {...kbNum}
+                  {...kbPhone}
                   type="text"
                   inputMode="none"
                   placeholder="For Reminders"
@@ -214,7 +223,7 @@ const DealModal: React.FC<Props> = ({
             
             <div className="space-y-2">
                <label className="text-[10px] font-black text-slate-500 ml-1">For what?</label>
-               <input {...kbText} placeholder="e.g. Lunch, Bus ticket, Cash" value={notes} onChange={e => setNotes(e.target.value)} className="w-full bg-slate-900 border border-slate-800 rounded-xl px-5 py-4 text-slate-100 placeholder-slate-700" />
+               <input {...kbNotes} placeholder="e.g. Lunch, Bus ticket, Cash" value={notes} onChange={e => setNotes(e.target.value)} className="w-full bg-slate-900 border border-slate-800 rounded-xl px-5 py-4 text-slate-100 placeholder-slate-700" />
             </div>
 
             <div className="grid grid-cols-2 gap-4">
@@ -237,7 +246,7 @@ const DealModal: React.FC<Props> = ({
               <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                   <label className="text-[10px] font-black text-slate-500 ml-1">Interest (%)</label>
-                  <input {...kbNum} type="text" inputMode="none" value={interestRate} onChange={e => setInterestRate(e.target.value)} className="w-full bg-slate-900 border border-slate-800 rounded-xl px-5 py-4 text-slate-100" />
+                  <input {...kbInterest} type="text" inputMode="none" value={interestRate} onChange={e => setInterestRate(e.target.value)} className="w-full bg-slate-900 border border-slate-800 rounded-xl px-5 py-4 text-slate-100" />
                   </div>
                   <div className="space-y-2">
                   <label className="text-[10px] font-black text-slate-500 ml-1">Cycle</label>

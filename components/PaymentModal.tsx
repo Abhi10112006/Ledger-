@@ -17,7 +17,7 @@ const PaymentModal: React.FC<Props> = ({ isOpen, onClose, onSave, activeTheme, c
   const [paymentDate, setPaymentDate] = useState(new Date().toISOString().split('T')[0]);
   const [paymentTime, setPaymentTime] = useState('');
 
-  const kbNum = useVirtualKeyboard('number');
+  const kbAmount = useVirtualKeyboard('number', setPaymentAmount);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -58,7 +58,7 @@ const PaymentModal: React.FC<Props> = ({ isOpen, onClose, onSave, activeTheme, c
             <div className="relative">
                 <span className={`absolute left-5 top-1/2 -translate-y-1/2 ${activeTheme.text} font-bold text-2xl`}>{currency}</span>
                 <input 
-                    {...kbNum}
+                    {...kbAmount}
                     required 
                     type="text" 
                     inputMode="none"

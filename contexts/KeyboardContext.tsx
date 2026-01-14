@@ -7,7 +7,8 @@ interface KeyboardContextType {
   isVisible: boolean;
   activeInput: HTMLInputElement | null;
   layout: KeyboardLayout;
-  openKeyboard: (input: HTMLInputElement, layout?: KeyboardLayout) => void;
+  inputCallback: ((val: string) => void) | null;
+  openKeyboard: (input: HTMLInputElement, layout?: KeyboardLayout, onInput?: (val: string) => void) => void;
   closeKeyboard: (immediate?: boolean) => void;
 }
 
@@ -17,32 +18,35 @@ export const KeyboardProvider: React.FC<{ children: ReactNode }> = ({ children }
   const [isVisible, setIsVisible] = useState(false);
   const [activeInput, setActiveInput] = useState<HTMLInputElement | null>(null);
   const [layout, setLayout] = useState<KeyboardLayout>('text');
+  const [inputCallback, setInputCallback] = useState<((val: string) => void) | null>(null);
   
   // Timer reference for debounce logic
   const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const openKeyboard = useCallback((input: HTMLInputElement, type: KeyboardLayout = 'text') => {
+  const openKeyboard = useCallback((input: HTMLInputElement, type: KeyboardLayout = 'text', onInput?: (val: string) => void) => {
     // 1. Clear any pending close timer immediately
-    // This handles the case where focus shifts from Input A -> Input B
-    // Input A's blur triggers closeKeyboard (delayed), but Input B's focus fires this immediately after
     if (closeTimerRef.current) {
         clearTimeout(closeTimerRef.current);
         closeTimerRef.current = null;
     }
 
-    // 2. Open Keyboard
+    // 2. Open Keyboard with config
     setActiveInput(input);
     setLayout(type);
+    if (onInput) {
+      setInputCallback(() => onInput);
+    } else {
+      setInputCallback(null);
+    }
     setIsVisible(true);
 
-    // 3. Scroll input into view (slight delay for animation)
+    // 3. Scroll input into view
     setTimeout(() => {
         input.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
     }, 300);
   }, []);
 
   const closeKeyboard = useCallback((immediate = false) => {
-    // Clear existing timer if any
     if (closeTimerRef.current) {
         clearTimeout(closeTimerRef.current);
         closeTimerRef.current = null;
@@ -52,12 +56,13 @@ export const KeyboardProvider: React.FC<{ children: ReactNode }> = ({ children }
         document.body.style.overflow = '';
         setIsVisible(false);
         setActiveInput(null);
+        setInputCallback(null);
     } else {
-        // Debounce close to prevent flickering on focus switch
         closeTimerRef.current = setTimeout(() => {
             document.body.style.overflow = '';
             setIsVisible(false);
             setActiveInput(null);
+            setInputCallback(null);
             closeTimerRef.current = null;
         }, 150);
     }
@@ -68,6 +73,7 @@ export const KeyboardProvider: React.FC<{ children: ReactNode }> = ({ children }
       isVisible, 
       activeInput, 
       layout, 
+      inputCallback,
       openKeyboard, 
       closeKeyboard
     }}>

@@ -4,27 +4,26 @@ import { useKeyboard } from '../contexts/KeyboardContext';
 
 type KeyboardType = 'text' | 'number' | 'email';
 
-export const useVirtualKeyboard = (type: KeyboardType = 'text') => {
+export const useVirtualKeyboard = (
+  type: KeyboardType = 'text', 
+  onChange?: (val: string) => void
+) => {
   const { openKeyboard, closeKeyboard } = useKeyboard();
 
   return {
-    readOnly: false, // Must be false to show cursor
-    inputMode: 'none' as const, // Prevents native keyboard
+    readOnly: false, 
+    inputMode: 'none' as const, 
     autoComplete: 'off',
     autoCorrect: 'off',
     autoCapitalize: 'off',
     spellCheck: false,
     onFocus: (e: React.FocusEvent<HTMLInputElement>) => {
-      openKeyboard(e.target, type);
+      openKeyboard(e.target, type, onChange);
     },
     onClick: (e: React.MouseEvent<HTMLInputElement>) => {
-      openKeyboard(e.currentTarget, type);
+      openKeyboard(e.currentTarget, type, onChange);
     },
-    // Close keyboard when focus is lost (e.g. clicking outside)
     onBlur: (e: React.FocusEvent<HTMLInputElement>) => {
-        // We do NOT use a local setTimeout here because KeyboardContext already has a debounce.
-        // Using double timeouts causes race conditions where the openKeyboard clears the
-        // context timer, but then THIS local timer fires and calls closeKeyboard(), starting a new close timer.
         closeKeyboard();
     },
     className: 'cursor-pointer select-none' 

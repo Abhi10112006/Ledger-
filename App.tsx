@@ -64,7 +64,7 @@ const AppContent: React.FC = () => {
   const { currentAd, isAdOpen, closeAd, checkEligibility } = useAdManager(isLoggedIn);
   
   // Initialize virtual keyboard for search
-  const kbSearch = useVirtualKeyboard('text');
+  const kbSearch = useVirtualKeyboard('text', setSearchQuery);
   const { closeKeyboard, isVisible: isKeyboardVisible } = useKeyboard();
 
   const activeTheme = THEMES[settings.themeColor] || THEMES.emerald;
