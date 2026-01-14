@@ -16,7 +16,7 @@ type KeyboardTheme = 'dark' | 'grey' | 'light';
 const triggerHaptic = () => {
   if (typeof navigator !== 'undefined' && navigator.vibrate) {
     try {
-      navigator.vibrate(25); 
+      navigator.vibrate(15); 
     } catch (e) {}
   }
 };
@@ -229,10 +229,18 @@ const VirtualKeyboard = React.memo<Props>(({ activeTheme }) => {
             clearTimeout(animationTimers.current.get(keyId));
         }
 
-        // 2. Reset and Apply Class
-        btn.classList.remove('v-key-pressed');
-        void btn.offsetWidth; // Force Reflow
-        btn.classList.add('v-key-pressed');
+        // 2. Visual Feedback Strategy
+        // If key is already pressed, we momentarily remove the class to trigger the "release" transition (smooth),
+        // then re-add it in the next frame to trigger "press" (instant).
+        if (btn.classList.contains('v-key-pressed')) {
+            btn.classList.remove('v-key-pressed');
+            requestAnimationFrame(() => {
+                btn.classList.add('v-key-pressed');
+            });
+        } else {
+            // First press is instant
+            btn.classList.add('v-key-pressed');
+        }
 
         // 3. Set new cleanup timer
         const timer = setTimeout(() => {
@@ -310,18 +318,25 @@ const VirtualKeyboard = React.memo<Props>(({ activeTheme }) => {
       deleteCharacter();
       
       const btn = keyRefs.current.get('special-BACKSPACE');
-      if (btn) btn.classList.add('v-key-pressed');
+      // Visual feedback for backspace press
+      if (btn) {
+          if (btn.classList.contains('v-key-pressed')) {
+              btn.classList.remove('v-key-pressed');
+              requestAnimationFrame(() => btn.classList.add('v-key-pressed'));
+          } else {
+              btn.classList.add('v-key-pressed');
+          }
+      }
 
       stopDeleting(); 
       deleteTimerRef.current = setTimeout(() => {
           deleteIntervalRef.current = setInterval(() => {
               triggerHaptic();
               deleteCharacter();
+              // Pulse animation during long press
               if (btn) {
-                  // Re-trigger animation for held state to simulate rapid pressing visually
                   btn.classList.remove('v-key-pressed');
-                  void btn.offsetWidth; 
-                  btn.classList.add('v-key-pressed');
+                  requestAnimationFrame(() => btn.classList.add('v-key-pressed'));
               }
           }, 100);
       }, 500); 
@@ -504,6 +519,7 @@ const VirtualKeyboard = React.memo<Props>(({ activeTheme }) => {
             border-radius: 0.75rem;
             border-width: 1px;
             border-style: solid;
+            /* Smooth release transition */
             transition: transform 0.1s ease, filter 0.1s ease;
             transform: translateZ(0);
         }
@@ -593,6 +609,7 @@ const VirtualKeyboard = React.memo<Props>(({ activeTheme }) => {
         .v-key-pressed {
             transform: scale(0.92) translateZ(0) !important;
             filter: brightness(1.3) !important;
+            /* Instant press transition */
             transition: none !important;
         }
     `}</style>
@@ -709,7 +726,10 @@ const VirtualKeyboard = React.memo<Props>(({ activeTheme }) => {
         </div>
 
         {/* --- KEYBOARD GRID --- */}
-        <div className="relative z-10 px-1 pb-2 md:pb-4 pointer-events-auto max-w-3xl mx-auto transition-all duration-75 ease-out origin-bottom">
+        <div 
+            onPointerDown={(e) => e.preventDefault()}
+            className="relative z-10 px-1 pb-2 md:pb-4 pointer-events-auto max-w-3xl mx-auto transition-all duration-75 ease-out origin-bottom"
+        >
             <div className="flex flex-col gap-1 pt-1">
                 {rows.map((row, i) => (
                     <div key={i} className="flex gap-1 w-full">
