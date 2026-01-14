@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Save, Calendar, Hash } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useVirtualKeyboard } from '../hooks/useVirtualKeyboard';
 
 interface Props {
   isOpen: boolean;
@@ -17,12 +18,13 @@ const EditDateModal: React.FC<Props> = ({ isOpen, onClose, onSave, initialDate, 
   const [newDueTime, setNewDueTime] = useState('');
   const [newAmount, setNewAmount] = useState('');
 
+  const kbNum = useVirtualKeyboard('number');
+
   useEffect(() => {
     if (isOpen) {
         setNewAmount(initialAmount ? initialAmount.toString() : '');
         try {
              const d = new Date(initialDate);
-             
              const pad = (n: number) => n.toString().padStart(2, '0');
              const localDate = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
              const localTime = `${pad(d.getHours())}:${pad(d.getMinutes())}`;
@@ -74,9 +76,10 @@ const EditDateModal: React.FC<Props> = ({ isOpen, onClose, onSave, initialDate, 
                     <Hash className="w-3 h-3" /> Amount
                  </div>
                  <input 
+                   {...kbNum}
                    required 
-                   autoFocus 
-                   type="number" 
+                   type="text" 
+                   inputMode="none"
                    value={newAmount} 
                    onChange={e => setNewAmount(e.target.value)} 
                    className="w-full bg-slate-900 border border-slate-800 rounded-2xl px-5 py-4 text-2xl font-mono font-bold text-slate-100 placeholder-slate-700 focus:outline-none focus:border-blue-500 transition-colors"

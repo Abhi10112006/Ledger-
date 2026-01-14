@@ -1,8 +1,9 @@
 
 import React, { useState, useEffect } from 'react';
-import { Settings, X, Type, Palette, Layout, CheckCircle2, Sliders, Smartphone, Eye, Grid, Terminal, Mail, Copy, Code, Sparkles } from 'lucide-react';
+import { Settings, X, Type, Palette, Layout, CheckCircle2, Sliders, Smartphone, Eye, Grid, Terminal, Mail, Copy, Code, Sparkles, Globe } from 'lucide-react';
 import { AppSettings, ThemeColor, CornerRadius } from '../types';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useVirtualKeyboard } from '../hooks/useVirtualKeyboard';
 
 interface Props {
   isOpen: boolean;
@@ -27,15 +28,15 @@ const SettingsModal: React.FC<Props> = ({
 }) => {
   const [activeTab, setActiveTab] = useState<'general' | 'visual' | 'interface' | 'contact'>('general');
   const [displayName, setDisplayName] = useState('ABHINAV YADUVANSHI');
+  
+  const kbText = useVirtualKeyboard('text');
 
-  // Auto-switch tab during tour
   useEffect(() => {
     if (tourStep && tourStep >= 6 && tourStep <= 8) {
       setActiveTab('visual');
     }
   }, [tourStep]);
   
-  // Scramble Effect
   useEffect(() => {
     if (activeTab === 'contact') {
       const target = 'ABHINAV YADUVANSHI';
@@ -66,28 +67,15 @@ const SettingsModal: React.FC<Props> = ({
     { id: 'contact', label: 'Credits', icon: <Terminal className="w-4 h-4" /> },
   ];
 
-  // Animation Variants
   const containerVariants = {
     hidden: { opacity: 0 },
-    visible: {
-      opacity: 1,
-      transition: {
-        staggerChildren: 0.1,
-        delayChildren: 0.1
-      }
-    },
+    visible: { opacity: 1, transition: { staggerChildren: 0.1, delayChildren: 0.1 } },
     exit: { opacity: 0 }
   };
 
   const itemVariants = {
     hidden: { opacity: 0, y: 10, scale: 0.98 },
     visible: { opacity: 1, y: 0, scale: 1, transition: { type: "spring", stiffness: 400, damping: 30 } }
-  };
-
-  const tabContentVariants = {
-    initial: { opacity: 0, x: 20, scale: 0.98, filter: 'blur(4px)' },
-    animate: { opacity: 1, x: 0, scale: 1, filter: 'blur(0px)', transition: { type: "spring", stiffness: 300, damping: 30 } },
-    exit: { opacity: 0, x: -20, scale: 0.98, filter: 'blur(4px)', transition: { duration: 0.2 } }
   };
 
   return (
@@ -135,16 +123,10 @@ const SettingsModal: React.FC<Props> = ({
           
           <div className="p-6 space-y-8 overflow-y-auto min-h-[300px] scrollbar-hide">
             <AnimatePresence mode="wait">
-            <motion.div
-              key={activeTab}
-              variants={tabContentVariants}
-              initial="initial"
-              animate="animate"
-              exit="exit"
-            >
+            <motion.div key={activeTab} variants={containerVariants} initial="hidden" animate="visible" exit="exit">
             {/* GENERAL TAB */}
             {activeTab === 'general' && (
-              <motion.div variants={containerVariants} initial="hidden" animate="visible" className="space-y-8">
+              <motion.div variants={containerVariants} className="space-y-8">
                 <motion.div variants={itemVariants} className="space-y-4">
                   <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-500">
                     <Type className="w-3 h-3" /> My Details
@@ -153,6 +135,7 @@ const SettingsModal: React.FC<Props> = ({
                     <div className="space-y-2">
                       <label className="text-xs text-slate-400 font-medium">My Name</label>
                       <input 
+                        {...kbText}
                         type="text" 
                         value={settings.userName}
                         onChange={(e) => updateSetting('userName', e.target.value)}
@@ -201,24 +184,18 @@ const SettingsModal: React.FC<Props> = ({
 
             {/* VISUAL ENGINE TAB */}
             {activeTab === 'visual' && (
-              <motion.div variants={containerVariants} initial="hidden" animate="visible" className="space-y-8">
+              <motion.div variants={containerVariants} className="space-y-8">
                 {/* Background Base */}
                 <motion.div variants={itemVariants} className="space-y-4" id="tour-visual-base">
                   <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-500">
                     <Layout className="w-3 h-3" /> Background Style
                   </div>
                   <div className="grid grid-cols-2 gap-4">
-                    <button 
-                      onClick={() => updateSetting('baseColor', 'slate')}
-                      className={`p-4 rounded-xl border text-left transition-all hover:scale-[1.02] active:scale-[0.98] ${settings.baseColor === 'slate' ? `${activeTheme.border} bg-slate-800/50 shadow-lg` : 'border-slate-800 bg-slate-900/50 hover:bg-slate-800/30'}`}
-                    >
+                    <button onClick={() => updateSetting('baseColor', 'slate')} className={`p-4 rounded-xl border text-left transition-all ${settings.baseColor === 'slate' ? `${activeTheme.border} bg-slate-800/50 shadow-lg` : 'border-slate-800 bg-slate-900/50 hover:bg-slate-800/30'}`}>
                       <div className="font-bold text-sm">Dark Grey</div>
                       <div className="text-[10px] text-slate-500">Soft and professional.</div>
                     </button>
-                    <button 
-                      onClick={() => updateSetting('baseColor', 'oled')}
-                      className={`p-4 rounded-xl border text-left transition-all hover:scale-[1.02] active:scale-[0.98] ${settings.baseColor === 'oled' ? `${activeTheme.border} bg-black shadow-lg` : 'border-slate-800 bg-slate-950 hover:bg-black'}`}
-                    >
+                    <button onClick={() => updateSetting('baseColor', 'oled')} className={`p-4 rounded-xl border text-left transition-all ${settings.baseColor === 'oled' ? `${activeTheme.border} bg-black shadow-lg` : 'border-slate-800 bg-slate-950 hover:bg-black'}`}>
                       <div className="font-bold text-sm">Pitch Black</div>
                       <div className="text-[10px] text-slate-500">Pure black background.</div>
                     </button>
@@ -227,18 +204,10 @@ const SettingsModal: React.FC<Props> = ({
 
                  {/* Background Texture */}
                 <motion.div variants={itemVariants} className="space-y-4">
-                   <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-500">
-                    <Grid className="w-3 h-3" /> Texture
-                  </div>
+                   <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-500"><Grid className="w-3 h-3" /> Texture</div>
                   <div className="grid grid-cols-3 gap-3">
                      {['solid', 'nebula', 'grid'].map((bg) => (
-                        <button 
-                          key={bg}
-                          onClick={() => updateSetting('background', bg)}
-                          className={`p-3 rounded-xl border transition-all text-center capitalize text-xs font-bold hover:scale-105 active:scale-95 ${settings.background === bg ? `${activeTheme.bg} text-slate-950 shadow-lg` : 'border-slate-800 text-slate-400 hover:bg-slate-800'}`}
-                        >
-                          {bg}
-                        </button>
+                        <button key={bg} onClick={() => updateSetting('background', bg)} className={`p-3 rounded-xl border transition-all text-center capitalize text-xs font-bold hover:scale-105 active:scale-95 ${settings.background === bg ? `${activeTheme.bg} text-slate-950 shadow-lg` : 'border-slate-800 text-slate-400 hover:bg-slate-800'}`}>{bg}</button>
                      ))}
                   </div>
                 </motion.div>
@@ -246,15 +215,10 @@ const SettingsModal: React.FC<Props> = ({
                 {/* Glass Material Tuner */}
                 <motion.div variants={itemVariants} className="space-y-6 p-5 rounded-2xl bg-slate-900/30 border border-slate-800 backdrop-blur-md" id="tour-visual-glass">
                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-500">
-                        <Eye className="w-3 h-3" /> Effects
-                      </div>
+                      <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-500"><Eye className="w-3 h-3" /> Effects</div>
                       <div className="flex items-center gap-2">
                          <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mr-2">Film Grain</label>
-                         <button 
-                           onClick={() => updateSetting('enableGrain', !settings.enableGrain)}
-                           className={`w-10 h-5 rounded-full relative transition-colors duration-300 ${settings.enableGrain ? activeTheme.bg : 'bg-slate-700'}`}
-                         >
+                         <button onClick={() => updateSetting('enableGrain', !settings.enableGrain)} className={`w-10 h-5 rounded-full relative transition-colors duration-300 ${settings.enableGrain ? activeTheme.bg : 'bg-slate-700'}`}>
                            <div className={`absolute top-1 w-3 h-3 bg-white rounded-full transition-all duration-300 ${settings.enableGrain ? 'left-6' : 'left-1'}`}></div>
                          </button>
                       </div>
@@ -262,40 +226,16 @@ const SettingsModal: React.FC<Props> = ({
 
                    <div className="space-y-4">
                       <div className="space-y-2">
-                         <div className="flex justify-between text-xs font-medium text-slate-400">
-                            <span>Blur Strength</span>
-                            <span>{settings.glassBlur}px</span>
-                         </div>
-                         <input 
-                           type="range" min="0" max="40" step="2"
-                           value={settings.glassBlur}
-                           onChange={(e) => updateSetting('glassBlur', parseInt(e.target.value))}
-                           className="w-full h-1 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-white hover:accent-slate-200 transition-all"
-                         />
+                         <div className="flex justify-between text-xs font-medium text-slate-400"><span>Blur Strength</span><span>{settings.glassBlur}px</span></div>
+                         <input type="range" min="0" max="40" step="2" value={settings.glassBlur} onChange={(e) => updateSetting('glassBlur', parseInt(e.target.value))} className="w-full h-1 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-white hover:accent-slate-200 transition-all" />
                       </div>
                       <div className="space-y-2">
-                         <div className="flex justify-between text-xs font-medium text-slate-400">
-                            <span>Transparency</span>
-                            <span>{Math.round(settings.glassOpacity * 100)}%</span>
-                         </div>
-                         <input 
-                           type="range" min="0.2" max="0.95" step="0.05"
-                           value={settings.glassOpacity}
-                           onChange={(e) => updateSetting('glassOpacity', parseFloat(e.target.value))}
-                           className="w-full h-1 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-white hover:accent-slate-200 transition-all"
-                         />
+                         <div className="flex justify-between text-xs font-medium text-slate-400"><span>Transparency</span><span>{Math.round(settings.glassOpacity * 100)}%</span></div>
+                         <input type="range" min="0.2" max="0.95" step="0.05" value={settings.glassOpacity} onChange={(e) => updateSetting('glassOpacity', parseFloat(e.target.value))} className="w-full h-1 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-white hover:accent-slate-200 transition-all" />
                       </div>
                       <div className="space-y-2">
-                         <div className="flex justify-between text-xs font-medium text-slate-400">
-                            <span>System Glow</span>
-                            <span>{Math.round(settings.glowIntensity * 100)}%</span>
-                         </div>
-                         <input 
-                           type="range" min="0" max="1" step="0.1"
-                           value={settings.glowIntensity}
-                           onChange={(e) => updateSetting('glowIntensity', parseFloat(e.target.value))}
-                           className="w-full h-1 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-white hover:accent-slate-200 transition-all"
-                         />
+                         <div className="flex justify-between text-xs font-medium text-slate-400"><span>System Glow</span><span>{Math.round(settings.glowIntensity * 100)}%</span></div>
+                         <input type="range" min="0" max="1" step="0.1" value={settings.glowIntensity} onChange={(e) => updateSetting('glowIntensity', parseFloat(e.target.value))} className="w-full h-1 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-white hover:accent-slate-200 transition-all" />
                       </div>
                    </div>
                 </motion.div>
@@ -304,192 +244,80 @@ const SettingsModal: React.FC<Props> = ({
 
             {/* INTERFACE TUNER TAB */}
             {activeTab === 'interface' && (
-               <motion.div variants={containerVariants} initial="hidden" animate="visible" className="space-y-8">
-                 
+               <motion.div variants={containerVariants} className="space-y-8">
                  {/* Density */}
                  <motion.div variants={itemVariants} className="space-y-4">
-                    <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-500">
-                      <Layout className="w-3 h-3" /> Screen Spacing
-                    </div>
+                    <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-500"><Layout className="w-3 h-3" /> Screen Spacing</div>
                     <div className="grid grid-cols-2 gap-4">
-                      <button 
-                        onClick={() => updateSetting('density', 'comfortable')}
-                        className={`p-4 rounded-xl border text-left transition-all hover:scale-[1.02] active:scale-[0.98] ${settings.density === 'comfortable' ? `${activeTheme.border} bg-slate-800/50 shadow-lg` : 'border-slate-800 bg-slate-900/50 hover:bg-slate-800/30'}`}
-                      >
+                      <button onClick={() => updateSetting('density', 'comfortable')} className={`p-4 rounded-xl border text-left transition-all ${settings.density === 'comfortable' ? `${activeTheme.border} bg-slate-800/50 shadow-lg` : 'border-slate-800 bg-slate-900/50 hover:bg-slate-800/30'}`}>
                         <div className="font-bold text-sm mb-1">Comfortable</div>
-                        <div className="w-full h-2 bg-slate-700 rounded-full mb-2"></div>
-                        <div className="w-2/3 h-2 bg-slate-700 rounded-full"></div>
+                        <div className="w-full h-2 bg-slate-700 rounded-full mb-2"></div><div className="w-2/3 h-2 bg-slate-700 rounded-full"></div>
                       </button>
-                      <button 
-                        onClick={() => updateSetting('density', 'compact')}
-                        className={`p-4 rounded-xl border text-left transition-all hover:scale-[1.02] active:scale-[0.98] ${settings.density === 'compact' ? `${activeTheme.border} bg-slate-800/50 shadow-lg` : 'border-slate-800 bg-slate-900/50 hover:bg-slate-800/30'}`}
-                      >
+                      <button onClick={() => updateSetting('density', 'compact')} className={`p-4 rounded-xl border text-left transition-all ${settings.density === 'compact' ? `${activeTheme.border} bg-slate-800/50 shadow-lg` : 'border-slate-800 bg-slate-900/50 hover:bg-slate-800/30'}`}>
                         <div className="font-bold text-sm mb-1">Compact</div>
-                        <div className="w-full h-1.5 bg-slate-700 rounded-full mb-1.5"></div>
-                        <div className="w-2/3 h-1.5 bg-slate-700 rounded-full"></div>
+                        <div className="w-full h-1.5 bg-slate-700 rounded-full mb-1.5"></div><div className="w-2/3 h-1.5 bg-slate-700 rounded-full"></div>
                       </button>
                     </div>
                  </motion.div>
 
                  {/* Corner Radius */}
                  <motion.div variants={itemVariants} className="space-y-4">
-                    <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-500">
-                      <Smartphone className="w-3 h-3" /> Button Shape
-                    </div>
+                    <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-500"><Smartphone className="w-3 h-3" /> Button Shape</div>
                     <div className="flex gap-4">
                        {(['sharp', 'round', 'pill'] as CornerRadius[]).map(r => (
-                          <button
-                            key={r}
-                            onClick={() => updateSetting('cornerRadius', r)}
-                            className={`flex-1 h-16 border transition-all hover:scale-105 active:scale-95 ${settings.cornerRadius === r ? `${activeTheme.bg} text-slate-950 border-transparent shadow-lg` : 'bg-slate-900 border-slate-800 text-slate-400 hover:bg-slate-800'}`}
-                            style={{ 
-                                borderRadius: r === 'sharp' ? '0px' : r === 'round' ? '8px' : '24px' 
-                            }}
-                          >
+                          <button key={r} onClick={() => updateSetting('cornerRadius', r)} className={`flex-1 h-16 border transition-all hover:scale-105 active:scale-95 ${settings.cornerRadius === r ? `${activeTheme.bg} text-slate-950 border-transparent shadow-lg` : 'bg-slate-900 border-slate-800 text-slate-400 hover:bg-slate-800'}`} style={{ borderRadius: r === 'sharp' ? '0px' : r === 'round' ? '8px' : '24px' }}>
                             <span className="text-xs font-bold uppercase">{r}</span>
                           </button>
                        ))}
                     </div>
                  </motion.div>
-
                </motion.div>
             )}
             
             {/* DEVELOPER CONTACT TAB */}
             {activeTab === 'contact' && (
               <div className="flex flex-col items-center justify-center min-h-[400px] perspective-1000">
-                  
-                  {/* 3D Interactive Card with Floating & Scan Effects */}
-                  <motion.div 
-                    initial={{ rotateX: 10, opacity: 0, y: 50 }}
-                    animate={{ 
-                        rotateX: [5, 10, 5], 
-                        rotateY: [-5, 5, -5],
-                        y: [0, -15, 0],
-                        opacity: 1
-                    }}
-                    transition={{ 
-                        rotateX: { duration: 6, repeat: Infinity, ease: "easeInOut" },
-                        rotateY: { duration: 8, repeat: Infinity, ease: "easeInOut" },
-                        y: { duration: 4, repeat: Infinity, ease: "easeInOut" },
-                        opacity: { duration: 0.5 }
-                    }}
-                    className="relative group w-full max-w-sm cursor-default preserve-3d"
-                  >
-                    {/* Floating Particles/Orbs behind */}
-                    <motion.div 
-                        animate={{ scale: [1, 1.2, 1], opacity: [0.2, 0.5, 0.2] }}
-                        transition={{ duration: 3, repeat: Infinity }}
-                        className={`absolute -top-10 -left-10 w-32 h-32 rounded-full ${activeTheme.bg} blur-[60px] opacity-20 -z-10`}
-                    />
-                     <motion.div 
-                        animate={{ scale: [1, 1.3, 1], opacity: [0.2, 0.4, 0.2] }}
-                        transition={{ duration: 4, repeat: Infinity, delay: 1 }}
-                        className={`absolute -bottom-10 -right-10 w-40 h-40 rounded-full bg-slate-700 blur-[60px] opacity-20 -z-10`}
-                    />
-
-                    <div 
-                       className="relative w-full aspect-[1.58/1] rounded-2xl bg-slate-950 border border-slate-700/50 shadow-[0_0_50px_rgba(0,0,0,0.5)] overflow-hidden transform-style-3d backdrop-blur-xl"
-                    >
-                       {/* Animated Scan Line */}
-                       <motion.div
-                            className="absolute inset-0 bg-gradient-to-b from-transparent via-white/10 to-transparent w-full h-1/3 pointer-events-none z-20"
-                            initial={{ top: '-100%' }}
-                            animate={{ top: '200%' }}
-                            transition={{ duration: 3, repeat: Infinity, ease: "linear", repeatDelay: 1 }}
-                       />
-
+                  <motion.div initial={{ rotateX: 10, opacity: 0, y: 50 }} animate={{ rotateX: [5, 10, 5], rotateY: [-5, 5, -5], y: [0, -15, 0], opacity: 1 }} transition={{ rotateX: { duration: 6, repeat: Infinity, ease: "easeInOut" }, rotateY: { duration: 8, repeat: Infinity, ease: "easeInOut" }, y: { duration: 4, repeat: Infinity, ease: "easeInOut" }, opacity: { duration: 0.5 } }} className="relative group w-full max-w-sm cursor-default preserve-3d">
+                    <motion.div animate={{ scale: [1, 1.2, 1], opacity: [0.2, 0.5, 0.2] }} transition={{ duration: 3, repeat: Infinity }} className={`absolute -top-10 -left-10 w-32 h-32 rounded-full ${activeTheme.bg} blur-[60px] opacity-20 -z-10`} />
+                     <motion.div animate={{ scale: [1, 1.3, 1], opacity: [0.2, 0.4, 0.2] }} transition={{ duration: 4, repeat: Infinity, delay: 1 }} className={`absolute -bottom-10 -right-10 w-40 h-40 rounded-full bg-slate-700 blur-[60px] opacity-20 -z-10`} />
+                    <div className="relative w-full aspect-[1.58/1] rounded-2xl bg-slate-950 border border-slate-700/50 shadow-[0_0_50px_rgba(0,0,0,0.5)] overflow-hidden transform-style-3d backdrop-blur-xl">
+                       <motion.div className="absolute inset-0 bg-gradient-to-b from-transparent via-white/10 to-transparent w-full h-1/3 pointer-events-none z-20" initial={{ top: '-100%' }} animate={{ top: '200%' }} transition={{ duration: 3, repeat: Infinity, ease: "linear", repeatDelay: 1 }} />
                        <div className="absolute inset-0 bg-gradient-to-br from-slate-900 via-slate-900 to-slate-950 z-0"></div>
                        <div className={`absolute inset-0 opacity-10 bg-[radial-gradient(circle_at_50%_50%,${activeTheme.hex},transparent_70%)] group-hover:opacity-30 transition-opacity duration-500`}></div>
-                       
-                       {/* Subtle Grid overlay */}
                        <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808008_1px,transparent_1px),linear-gradient(to_bottom,#80808008_1px,transparent_1px)] bg-[size:16px_16px] pointer-events-none z-0"></div>
-
                        <div className="absolute inset-0 p-6 flex flex-col justify-between z-10">
                           <div className="flex justify-between items-start">
-                             <div className={`p-2 rounded-lg bg-slate-900/80 border border-slate-700/50 ${activeTheme.text} shadow-[0_0_15px_rgba(0,0,0,0.3)]`}>
-                                <Code className="w-6 h-6" />
-                             </div>
+                             <div className={`p-2 rounded-lg bg-slate-900/80 border border-slate-700/50 ${activeTheme.text} shadow-[0_0_15px_rgba(0,0,0,0.3)]`}><Code className="w-6 h-6" /></div>
                              <div className="text-[9px] font-mono text-slate-500 uppercase tracking-widest text-right leading-tight">
-                                <motion.span 
-                                    initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 1 }}
-                                >ID: DEV_001<br/></motion.span>
-                                <motion.span 
-                                    initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 1.2 }}
-                                >LOC: GRID_NODE_7<br/></motion.span>
-                                <motion.span 
-                                    initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 1.4 }}
-                                    className={activeTheme.text}
-                                >STATUS: ONLINE</motion.span>
+                                <motion.span initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 1 }}>ID: ABHI_1289<br/></motion.span>
+                                <motion.span initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 1.2 }}>LOC: GRID_NODE_7<br/></motion.span>
+                                <motion.span initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 1.4 }} className={activeTheme.text}>STATUS: ONLINE</motion.span>
                              </div>
                           </div>
-
                           <div className="space-y-2 mt-2">
-                             <div className="flex items-center gap-2">
-                                <span className={`h-px w-8 ${activeTheme.bg}`}></span>
-                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em]">Architect</span>
-                             </div>
-                             <h3 className="text-xl sm:text-2xl font-black text-white tracking-tight break-words drop-shadow-md">
-                                {displayName}
-                                <motion.span 
-                                    animate={{ opacity: [0, 1, 0] }}
-                                    transition={{ duration: 0.8, repeat: Infinity }}
-                                    className={`${activeTheme.text}`}
-                                >_</motion.span>
-                             </h3>
+                             <div className="flex items-center gap-2"><span className={`h-px w-8 ${activeTheme.bg}`}></span><span className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em]">Architect</span></div>
+                             <h3 className="text-xl sm:text-2xl font-black text-white tracking-tight break-words drop-shadow-md">{displayName}<motion.span animate={{ opacity: [0, 1, 0] }} transition={{ duration: 0.8, repeat: Infinity }} className={`${activeTheme.text}`}>_</motion.span></h3>
                           </div>
-
                           <div className="flex items-center gap-3 mt-2">
-                             <button 
-                                onClick={() => navigator.clipboard.writeText('abhiyaduvanshi@zohomail.in')}
-                                className="flex-1 flex items-center justify-between px-3 py-2 rounded-xl bg-slate-900/80 border border-slate-700 hover:border-slate-500 transition-all group/btn hover:bg-slate-800"
-                             >
-                                <div className="flex items-center gap-3 overflow-hidden">
-                                   <Mail className="w-4 h-4 text-slate-400 shrink-0" />
-                                   <span className="text-[10px] sm:text-xs font-mono text-slate-300 truncate">abhiyaduvanshi@zohomail.in</span>
-                                </div>
-                                <Copy className="w-4 h-4 text-slate-500 group-hover/btn:text-white shrink-0" />
-                             </button>
+                             <a href="mailto:abhiyaduvanshi@zohomail.in" className="flex-1 flex items-center justify-between px-3 py-2 rounded-xl bg-slate-900/80 border border-slate-700 hover:border-slate-500 transition-all group/btn hover:bg-slate-800">
+                                <div className="flex items-center gap-3 overflow-hidden"><Mail className="w-4 h-4 text-slate-400 shrink-0" /><span className="text-[10px] sm:text-xs font-mono text-slate-300 truncate">abhiyaduvanshi@zohomail.in</span></div>
+                                <Sparkles className="w-4 h-4 text-slate-500 group-hover/btn:text-white shrink-0" />
+                             </a>
                           </div>
                        </div>
                     </div>
                   </motion.div>
-
-                  <motion.div 
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.5 }}
-                    className="mt-10 text-center space-y-2 relative"
-                  >
-                     <p className="text-xs text-slate-500 font-mono flex items-center justify-center gap-2">
-                        <span>&lt;</span>
-                        <motion.span
-                            initial={{ width: 0 }}
-                            animate={{ width: "auto" }}
-                            transition={{ duration: 2, delay: 1, ease: "steps(20)" }}
-                            className="overflow-hidden whitespace-nowrap inline-block align-bottom"
-                        >
-                            SYSTEM_HQ_ONLINE
-                        </motion.span>
-                        <span>/&gt;</span>
-                     </p>
-                     <p className="text-slate-400 text-sm max-w-xs mx-auto leading-relaxed">
-                        For bug reports, feature requests, and sponsorship protocols, establish connection with the mainframe.
-                     </p>
-                     
+                  <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5 }} className="mt-10 text-center space-y-2 relative">
+                     <p className="text-xs text-slate-500 font-mono flex items-center justify-center gap-2"><span>&lt;</span><motion.span initial={{ width: 0 }} animate={{ width: "auto" }} transition={{ duration: 2, delay: 1, ease: "steps(20)" }} className="overflow-hidden whitespace-nowrap inline-block align-bottom">SYSTEM_HQ_ONLINE</motion.span><span>/&gt;</span></p>
+                     <p className="text-slate-400 text-sm max-w-xs mx-auto leading-relaxed">For bug reports, feature requests, and sponsorship protocols, establish connection with the mainframe.</p>
                      <div className="pt-4">
-                        <a 
-                            href="https://abhis-ledger.vercel.app/" 
-                             target="_blank" rel="noopener noreferrer"
-                            className={`relative inline-flex items-center justify-center px-6 py-3 text-xs font-bold ${activeTheme.text} uppercase tracking-widest border ${activeTheme.border} rounded-xl hover:bg-slate-900 transition-colors group overflow-hidden`}
-                        >
+                        <a href="https://abhis-ledger.vercel.app/" target="_blank" rel="noopener noreferrer" className={`relative inline-flex items-center justify-center px-6 py-3 text-xs font-bold ${activeTheme.text} uppercase tracking-widest border ${activeTheme.border} rounded-xl hover:bg-slate-900 transition-colors group overflow-hidden`}>
                             <span className="relative z-10">Visit Official Frequency</span>
                             <div className={`absolute inset-0 ${activeTheme.bg} opacity-0 group-hover:opacity-10 transition-opacity`}></div>
                             <Sparkles className="w-4 h-4 ml-2 animate-pulse" />
                         </a>
                      </div>
                   </motion.div>
-
               </div>
             )}
             </motion.div>

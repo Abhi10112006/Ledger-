@@ -3,13 +3,15 @@ import React, { useState, useEffect } from 'react';
 import { PlusCircle, X, ArrowUpRight, ShieldCheck, Check, Search } from 'lucide-react';
 import { InterestType } from '../types';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useVirtualKeyboard } from '../hooks/useVirtualKeyboard';
+import { useKeyboard } from '../contexts/KeyboardContext';
 
 interface Props {
   isOpen: boolean;
   onClose: () => void;
   onSave: (data: {
     friendName: string;
-    profileId?: string; // ID for linking
+    profileId?: string;
     friendPhone?: string;
     amount: number;
     startDate: string;
@@ -48,6 +50,11 @@ const DealModal: React.FC<Props> = ({
   const [interestType, setInterestType] = useState<InterestType>('none');
   const [interestFree, setInterestFree] = useState(false);
 
+  // Keyboard Hooks
+  const kbText = useVirtualKeyboard('text');
+  const kbNum = useVirtualKeyboard('number');
+  const { isVisible: isKeyboardVisible } = useKeyboard();
+
   // Search Logic
   const [searchResults, setSearchResults] = useState<any[]>([]);
   
@@ -59,23 +66,19 @@ const DealModal: React.FC<Props> = ({
         setStartTime('');
         setInterestFree(false);
         setSearchResults([]);
-        // Reset amounts and dates but keep name if provided
         setAmount('');
         setStartDate(new Date().toISOString().split('T')[0]);
     }
   }, [isOpen, initialName, initialProfileId]);
 
-  // Autocomplete Effect
   useEffect(() => {
     if (!friendName || selectedProfileId || initialName) {
         setSearchResults([]);
         return;
     }
-    
     const results = existingAccounts
         .filter(acc => acc.name.toLowerCase().includes(friendName.toLowerCase()))
         .slice(0, 3);
-        
     setSearchResults(results);
   }, [friendName, selectedProfileId, initialName, existingAccounts]);
 
@@ -151,22 +154,21 @@ const DealModal: React.FC<Props> = ({
                 <label className="text-[10px] font-black text-slate-500 ml-1">Friend Name</label>
                 <div className="relative">
                     <input 
+                      {...kbText}
                       required 
-                      autoFocus 
-                      autoComplete="off"
                       placeholder="Who are you paying?" 
                       value={friendName} 
                       onChange={e => {
-                          // Only allow editing name if not locked by initialName
                           if (!initialName) {
                               setFriendName(e.target.value);
                               setSelectedProfileId(null);
                           }
                       }}
-                      onBlur={() => setTimeout(() => setSearchResults([]), 200)}
-                      // Lock input if coming from Profile
-                      readOnly={!!initialName}
-                      className={`w-full bg-slate-900 border border-slate-800 rounded-xl px-5 py-4 text-slate-100 placeholder-slate-700 ${initialName ? 'opacity-70 cursor-not-allowed font-bold' : ''} ${selectedProfileId ? 'border-emerald-500/50 pl-10' : ''}`} 
+                      onBlur={(e) => {
+                          kbText.onBlur(e);
+                          setTimeout(() => setSearchResults([]), 200);
+                      }}
+                      className={`w-full bg-slate-900 border border-slate-800 rounded-xl px-5 py-4 text-slate-100 placeholder-slate-700 ${initialName ? 'opacity-70 font-bold' : ''} ${selectedProfileId ? 'border-emerald-500/50 pl-10' : ''}`} 
                     />
                     {selectedProfileId && (
                         <Check className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-emerald-500" />
@@ -194,13 +196,14 @@ const DealModal: React.FC<Props> = ({
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <label className="text-[10px] font-black text-slate-500 ml-1">Amount ({currency})</label>
-                <input required autoComplete="off" type="number" value={amount} onChange={e => setAmount(e.target.value)} className="w-full bg-slate-900 border border-slate-800 rounded-xl px-5 py-4 text-slate-100 font-bold text-lg" />
+                <input {...kbNum} required type="text" inputMode="none" value={amount} onChange={e => setAmount(e.target.value)} className="w-full bg-slate-900 border border-slate-800 rounded-xl px-5 py-4 text-slate-100 font-bold text-lg" />
               </div>
               <div className="space-y-2">
                 <label className="text-[10px] font-black text-slate-500 ml-1">Phone (Optional)</label>
                 <input 
-                  type="tel"
-                  autoComplete="off"
+                  {...kbNum}
+                  type="text"
+                  inputMode="none"
                   placeholder="For Reminders"
                   value={friendPhone} 
                   onChange={e => setFriendPhone(e.target.value)} 
@@ -211,7 +214,7 @@ const DealModal: React.FC<Props> = ({
             
             <div className="space-y-2">
                <label className="text-[10px] font-black text-slate-500 ml-1">For what?</label>
-               <input placeholder="e.g. Lunch, Bus ticket, Cash" autoComplete="off" value={notes} onChange={e => setNotes(e.target.value)} className="w-full bg-slate-900 border border-slate-800 rounded-xl px-5 py-4 text-slate-100 placeholder-slate-700" />
+               <input {...kbText} placeholder="e.g. Lunch, Bus ticket, Cash" value={notes} onChange={e => setNotes(e.target.value)} className="w-full bg-slate-900 border border-slate-800 rounded-xl px-5 py-4 text-slate-100 placeholder-slate-700" />
             </div>
 
             <div className="grid grid-cols-2 gap-4">
@@ -226,7 +229,7 @@ const DealModal: React.FC<Props> = ({
             </div>
 
             <div className="space-y-2">
-                <label className="text-[10px] font-black text-slate-500 ml-1">Due Date (When will they pay back?)</label>
+                <label className="text-[10px] font-black text-slate-500 ml-1">Due Date</label>
                 <input type="date" value={returnDate} onChange={e => setReturnDate(e.target.value)} className="w-full bg-slate-900 border border-slate-800 rounded-xl px-5 py-4 text-slate-100 font-mono" />
             </div>
 
@@ -234,7 +237,7 @@ const DealModal: React.FC<Props> = ({
               <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                   <label className="text-[10px] font-black text-slate-500 ml-1">Interest (%)</label>
-                  <input type="number" autoComplete="off" step="0.01" value={interestRate} onChange={e => setInterestRate(e.target.value)} className="w-full bg-slate-900 border border-slate-800 rounded-xl px-5 py-4 text-slate-100" />
+                  <input {...kbNum} type="text" inputMode="none" value={interestRate} onChange={e => setInterestRate(e.target.value)} className="w-full bg-slate-900 border border-slate-800 rounded-xl px-5 py-4 text-slate-100" />
                   </div>
                   <div className="space-y-2">
                   <label className="text-[10px] font-black text-slate-500 ml-1">Cycle</label>
@@ -250,7 +253,6 @@ const DealModal: React.FC<Props> = ({
                   </div>
                   <div>
                       <div className={`text-sm font-bold ${interestFree ? 'text-emerald-400' : 'text-slate-300'}`}>No Extra Cost if Paid on Time</div>
-                      <div className="text-[10px] text-slate-500 leading-tight mt-0.5">If they pay by the due date, you won't charge interest.</div>
                   </div>
               </div>
             </div>
@@ -261,6 +263,10 @@ const DealModal: React.FC<Props> = ({
             >
                Confirm Loan
             </motion.button>
+            
+            {/* Spacer for keyboard */}
+            {isKeyboardVisible && <div style={{ height: '280px' }} className="w-full transition-all duration-300" />}
+
           </form>
         </motion.div>
       </div>

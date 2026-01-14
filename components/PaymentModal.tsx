@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import { X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useVirtualKeyboard } from '../hooks/useVirtualKeyboard';
 
 interface Props {
   isOpen: boolean;
@@ -15,6 +16,8 @@ const PaymentModal: React.FC<Props> = ({ isOpen, onClose, onSave, activeTheme, c
   const [paymentAmount, setPaymentAmount] = useState('');
   const [paymentDate, setPaymentDate] = useState(new Date().toISOString().split('T')[0]);
   const [paymentTime, setPaymentTime] = useState('');
+
+  const kbNum = useVirtualKeyboard('number');
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -52,7 +55,18 @@ const PaymentModal: React.FC<Props> = ({ isOpen, onClose, onSave, activeTheme, c
         >
           <div className="flex justify-between items-center mb-6"><h2 className="text-xl font-black">Log Payment</h2><button onClick={onClose} className="text-slate-400"><X /></button></div>
           <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="relative"><span className={`absolute left-5 top-1/2 -translate-y-1/2 ${activeTheme.text} font-bold text-2xl`}>{currency}</span><input required autoFocus type="number" value={paymentAmount} onChange={e => setPaymentAmount(e.target.value)} className={`w-full bg-slate-900 border border-slate-800 rounded-2xl pl-12 pr-5 py-5 text-3xl font-mono font-bold ${activeTheme.text} text-center`} /></div>
+            <div className="relative">
+                <span className={`absolute left-5 top-1/2 -translate-y-1/2 ${activeTheme.text} font-bold text-2xl`}>{currency}</span>
+                <input 
+                    {...kbNum}
+                    required 
+                    type="text" 
+                    inputMode="none"
+                    value={paymentAmount} 
+                    onChange={e => setPaymentAmount(e.target.value)} 
+                    className={`w-full bg-slate-900 border border-slate-800 rounded-2xl pl-12 pr-5 py-5 text-3xl font-mono font-bold ${activeTheme.text} text-center`} 
+                />
+            </div>
             
             <div className="grid grid-cols-2 gap-4">
                <div className="space-y-1">

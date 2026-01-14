@@ -19,7 +19,10 @@ import ProfileView from './components/ProfileView';
 import TypographyModal from './components/TypographyModal';
 import ActiveDealsModal from './components/ActiveDealsModal';
 import ErrorBoundary from './components/ErrorBoundary';
+import VirtualKeyboard from './components/VirtualKeyboard';
+import { KeyboardProvider, useKeyboard } from './contexts/KeyboardContext';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useVirtualKeyboard } from './hooks/useVirtualKeyboard';
 
 const TOUR_KEY = 'abhi_ledger_tour_complete_v8';
 const CURRENCIES = ['₹', '$', '€', '£', '¥'];
@@ -35,7 +38,7 @@ const THEMES: Record<string, any> = {
 const AppContent: React.FC = () => {
   const [tourStep, setTourStep] = useState<number>(-1);
   
-  // Modal States - SEPARATED for Dashboard vs Profile
+  // Modal States
   const [isDashboardDealModalOpen, setIsDashboardDealModalOpen] = useState(false);
   const [isProfileDealModalOpen, setIsProfileDealModalOpen] = useState(false);
   
@@ -58,8 +61,11 @@ const AppContent: React.FC = () => {
     deleteTransaction, deleteRepayment, deleteProfile, handleExport, handleImport, handleInstallClick
   } = useLedger(tourStep, searchQuery);
 
-  // Initialize Ad Manager
   const { currentAd, isAdOpen, closeAd, checkEligibility } = useAdManager(isLoggedIn);
+  
+  // Initialize virtual keyboard for search
+  const kbSearch = useVirtualKeyboard('text');
+  const { closeKeyboard, isVisible: isKeyboardVisible } = useKeyboard();
 
   const activeTheme = THEMES[settings.themeColor] || THEMES.emerald;
   const activeTx = transactions.find(t => t.id === activeTxId);
@@ -84,10 +90,10 @@ const AppContent: React.FC = () => {
     setIsMobileMenuOpen(false);
     setActiveRepaymentId(null);
     closeAd();
-  }, [closeAd]);
+    closeKeyboard(); // Ensure virtual keyboard closes when modals close
+  }, [closeAd, closeKeyboard]);
 
   const handleLogout = useCallback(() => {
-    // 1. Reset all UI states to ensure clean login next time
     setIsMobileMenuOpen(false);
     setIsSettingsModalOpen(false);
     setIsTypographyModalOpen(false);
@@ -96,10 +102,9 @@ const AppContent: React.FC = () => {
     setIsActiveDealsModalOpen(false);
     setActiveRepaymentId(null);
     closeAd();
-    
-    // 2. Actually log out
+    closeKeyboard();
     setIsLoggedIn(false);
-  }, [closeAd, setIsLoggedIn]);
+  }, [closeAd, setIsLoggedIn, closeKeyboard]);
 
   const navigateToProfile = (profileId: string) => {
     setSelectedProfileId(profileId);
@@ -119,36 +124,18 @@ const AppContent: React.FC = () => {
     const handlePopState = (event: PopStateEvent) => {
       const view = event.state?.view;
       if (!view) {
-        setIsDashboardDealModalOpen(false);
-        setIsProfileDealModalOpen(false);
-        setIsPaymentModalOpen(false);
-        setIsDeleteModalOpen(false);
-        setIsEditDateModalOpen(false);
-        setIsSettingsModalOpen(false);
-        setIsTypographyModalOpen(false);
-        setIsActiveDealsModalOpen(false);
-        setIsMobileMenuOpen(false);
-        closeAd();
+        closeModal();
         setSelectedProfileId(null);
         setActiveRepaymentId(null);
       } else if (view === 'profile') {
-        setIsDashboardDealModalOpen(false);
-        setIsProfileDealModalOpen(false);
-        setIsPaymentModalOpen(false);
-        setIsDeleteModalOpen(false);
-        setIsEditDateModalOpen(false);
-        setIsSettingsModalOpen(false);
-        setIsTypographyModalOpen(false);
-        setIsActiveDealsModalOpen(false);
-        setIsMobileMenuOpen(false);
-        closeAd();
+        closeModal();
         setActiveRepaymentId(null);
       }
     };
 
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
-  }, [closeAd]);
+  }, [closeModal]);
 
   const openModal = (setter: React.Dispatch<React.SetStateAction<boolean>>) => {
     setter(true);
@@ -192,31 +179,26 @@ const AppContent: React.FC = () => {
   // Tour Automation Effect
   useEffect(() => {
     if (tourStep === -1) return;
-
     const isMobile = window.innerWidth < 768;
-
     if (tourStep <= 3) {
        setIsMobileMenuOpen(false);
        setIsSettingsModalOpen(false);
     }
     else if (tourStep === 4 || tourStep === 5 || tourStep === 9) {
-       if (isMobile) {
-           setIsMobileMenuOpen(true);
-       }
+       if (isMobile) setIsMobileMenuOpen(true);
        setIsSettingsModalOpen(false); 
     }
     else if (tourStep >= 6 && tourStep <= 8) {
-       setIsMobileMenuOpen(false); // Close menu
-       setIsSettingsModalOpen(true); // Open modal
+       setIsMobileMenuOpen(false);
+       setIsSettingsModalOpen(true);
     }
-
   }, [tourStep]);
 
   const handleCompleteTour = useCallback(async () => {
      await saveMeta(TOUR_KEY, true);
      setTourStep(-1);
-     setIsMobileMenuOpen(false); // Ensure menu closes after tour
-     setIsSettingsModalOpen(false); // Ensure modal closes after tour
+     setIsMobileMenuOpen(false);
+     setIsSettingsModalOpen(false);
      checkEligibility();
   }, [checkEligibility]);
 
@@ -259,9 +241,17 @@ const AppContent: React.FC = () => {
                 <h2 className="text-2xl font-black text-slate-200 tracking-tight">People</h2>
                 <p className="text-xs text-slate-500 font-bold uppercase tracking-widest mt-1">{accounts.length} Friends added</p>
               </div>
+              
               <div id="tour-search" className="relative group flex-grow sm:w-64">
                   <div className={`absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none transition-colors ${searchQuery ? activeTheme.text : 'text-slate-500'}`}><Search className="h-4 w-4" /></div>
-                  <input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="block w-full pl-10 pr-3 py-2.5 bg-slate-900/50 border border-slate-800 rounded-xl text-xs font-mono text-slate-100 placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-slate-700 focus:border-slate-700 transition-all uppercase tracking-wider" placeholder="Search Name..." />
+                  <input 
+                    {...kbSearch}
+                    type="text" 
+                    value={searchQuery} 
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="block w-full pl-10 pr-3 py-2.5 bg-slate-900/50 border border-slate-800 rounded-xl text-xs font-mono text-slate-100 placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-slate-700 focus:border-slate-700 transition-all uppercase tracking-wider" 
+                    placeholder="Search Name..." 
+                  />
               </div>
             </div>
             <div className="space-y-4">
@@ -278,6 +268,8 @@ const AppContent: React.FC = () => {
               </AnimatePresence>
             </div>
           </div>
+          {/* Keyboard Spacer for Main Dashboard */}
+          {isKeyboardVisible && <div style={{ height: '350px' }} className="transition-all duration-300" />}
         </main>
         
         <motion.button 
@@ -291,7 +283,6 @@ const AppContent: React.FC = () => {
         </motion.button>
       </div>
 
-      {/* --- PROFILE LAYER --- */}
       <AnimatePresence>
         {selectedProfileId && activeProfile && (
           <motion.div 
@@ -324,14 +315,9 @@ const AppContent: React.FC = () => {
         )}
       </AnimatePresence>
       
-      <SponsorModal 
-        isOpen={isAdOpen} 
-        onClose={closeAd} 
-        activeTheme={activeTheme} 
-        ad={currentAd} 
-        onBackup={handleExport}
-      />
+      <SponsorModal isOpen={isAdOpen} onClose={closeAd} activeTheme={activeTheme} ad={currentAd} onBackup={handleExport} />
       <TourOverlay tourStep={tourStep} setTourStep={setTourStep} completeTour={handleCompleteTour} activeTheme={activeTheme} />
+      
       <SettingsModal isOpen={isSettingsModalOpen} onClose={closeModal} settings={settings} updateSetting={updateSetting} activeTheme={activeTheme} themes={THEMES} currencies={CURRENCIES} tourStep={tourStep} />
       <TypographyModal isOpen={isTypographyModalOpen} onClose={closeModal} currentFont={settings.fontStyle} onSelect={(font) => updateSetting('fontStyle', font)} activeTheme={activeTheme} />
       <ActiveDealsModal isOpen={isActiveDealsModalOpen} onClose={closeModal} transactions={transactions} currency={settings.currency} activeTheme={activeTheme} onSelectDeal={navigateToProfile} />
@@ -339,11 +325,7 @@ const AppContent: React.FC = () => {
       <DealModal 
         isOpen={isDashboardDealModalOpen} 
         onClose={closeModal} 
-        onSave={(data) => { 
-           addLoan(data); 
-           setSearchQuery(''); 
-           closeModal(); 
-        }} 
+        onSave={(data) => { addLoan(data); setSearchQuery(''); closeModal(); }} 
         activeTheme={activeTheme} 
         currency={settings.currency} 
         initialName="" 
@@ -354,10 +336,7 @@ const AppContent: React.FC = () => {
       <DealModal 
         isOpen={isProfileDealModalOpen} 
         onClose={closeModal} 
-        onSave={(data) => { 
-           addLoan(data); 
-           closeModal(); 
-        }} 
+        onSave={(data) => { addLoan(data); closeModal(); }} 
         activeTheme={activeTheme} 
         currency={settings.currency} 
         initialName={activeProfile ? activeProfile.name : ''} 
@@ -384,13 +363,20 @@ const AppContent: React.FC = () => {
       />
       
       <DeleteModal isOpen={isDeleteModalOpen} onClose={closeModal} onConfirm={() => { deleteTransaction(activeTxId); closeModal(); }} />
+      
+      {/* VIRTUAL KEYBOARD */}
+      <VirtualKeyboard activeTheme={activeTheme} />
+      
     </div>
   );
 };
 
+// Wrap App in KeyboardProvider
 const App: React.FC = () => (
   <ErrorBoundary>
-    <AppContent />
+    <KeyboardProvider>
+       <AppContent />
+    </KeyboardProvider>
   </ErrorBoundary>
 );
 

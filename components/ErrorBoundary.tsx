@@ -10,8 +10,12 @@ interface State {
 }
 
 class ErrorBoundary extends Component<Props, State> {
+    // Explicitly declare props to satisfy strict TypeScript checks
+    public readonly props: Readonly<Props>;
+
     constructor(props: Props) {
         super(props);
+        this.props = props;
         this.state = {
             hasError: false,
             error: null
