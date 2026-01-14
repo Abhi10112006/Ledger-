@@ -153,6 +153,7 @@ const DealModal: React.FC<Props> = ({
                     <input 
                       required 
                       autoFocus 
+                      autoComplete="off"
                       placeholder="Who are you paying?" 
                       value={friendName} 
                       onChange={e => {
@@ -193,12 +194,13 @@ const DealModal: React.FC<Props> = ({
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <label className="text-[10px] font-black text-slate-500 ml-1">Amount ({currency})</label>
-                <input required type="number" value={amount} onChange={e => setAmount(e.target.value)} className="w-full bg-slate-900 border border-slate-800 rounded-xl px-5 py-4 text-slate-100 font-bold text-lg" />
+                <input required autoComplete="off" type="number" value={amount} onChange={e => setAmount(e.target.value)} className="w-full bg-slate-900 border border-slate-800 rounded-xl px-5 py-4 text-slate-100 font-bold text-lg" />
               </div>
               <div className="space-y-2">
                 <label className="text-[10px] font-black text-slate-500 ml-1">Phone (Optional)</label>
                 <input 
-                  type="tel" 
+                  type="tel"
+                  autoComplete="off"
                   placeholder="For Reminders"
                   value={friendPhone} 
                   onChange={e => setFriendPhone(e.target.value)} 
@@ -209,7 +211,7 @@ const DealModal: React.FC<Props> = ({
             
             <div className="space-y-2">
                <label className="text-[10px] font-black text-slate-500 ml-1">For what?</label>
-               <input placeholder="e.g. Lunch, Bus ticket, Cash" value={notes} onChange={e => setNotes(e.target.value)} className="w-full bg-slate-900 border border-slate-800 rounded-xl px-5 py-4 text-slate-100 placeholder-slate-700" />
+               <input placeholder="e.g. Lunch, Bus ticket, Cash" autoComplete="off" value={notes} onChange={e => setNotes(e.target.value)} className="w-full bg-slate-900 border border-slate-800 rounded-xl px-5 py-4 text-slate-100 placeholder-slate-700" />
             </div>
 
             <div className="grid grid-cols-2 gap-4">
@@ -232,7 +234,7 @@ const DealModal: React.FC<Props> = ({
               <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                   <label className="text-[10px] font-black text-slate-500 ml-1">Interest (%)</label>
-                  <input type="number" step="0.01" value={interestRate} onChange={e => setInterestRate(e.target.value)} className="w-full bg-slate-900 border border-slate-800 rounded-xl px-5 py-4 text-slate-100" />
+                  <input type="number" autoComplete="off" step="0.01" value={interestRate} onChange={e => setInterestRate(e.target.value)} className="w-full bg-slate-900 border border-slate-800 rounded-xl px-5 py-4 text-slate-100" />
                   </div>
                   <div className="space-y-2">
                   <label className="text-[10px] font-black text-slate-500 ml-1">Cycle</label>
