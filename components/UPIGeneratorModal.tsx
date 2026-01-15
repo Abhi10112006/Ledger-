@@ -185,7 +185,6 @@ const UPIGeneratorModal: React.FC<Props> = ({
                      <input 
                        {...kbAmount}
                        type="text" 
-                       inputMode="none"
                        value={amount} 
                        onChange={e => setAmount(e.target.value)} 
                        className="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-3 text-2xl font-mono font-bold text-emerald-400 placeholder-slate-800 focus:outline-none focus:border-emerald-500/50 transition-colors"

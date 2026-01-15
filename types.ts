@@ -70,6 +70,11 @@ export interface AppSettings {
   density: Density;
   cornerRadius: CornerRadius;
   fontStyle: FontStyle;
+  
+  // Input
+  useVirtualKeyboard: boolean;
+  keyboardScale: number; // 0.5 to 1.5
+  keyboardTheme: 'dark' | 'grey' | 'light';
 }
 
 // Error Boundary Types

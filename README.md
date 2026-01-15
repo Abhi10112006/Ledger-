@@ -8,9 +8,9 @@
 
 ## 💀 KILL THE SPREADSHEET. BURY THE NOTEBOOK.
 
-Most financial apps are boring. They look like tax forms, they steal your data, and they rely on spotty internet connections. **Abhi's Ledger** is different. It is a high-fidelity, cyberpunk-inspired **Debt Intelligence System** designed for one purpose: **To ensure you never lose track of a single cent again.**
+Most financial apps are boring, slow, and demand your email. **Abhi's Ledger** is different. It is a high-fidelity, cyberpunk-inspired **Debt Intelligence System** designed for speed and simplicity.
 
-We didn't just build a calculator; we built a **Trust Engine**.
+**No Signup. No Cloud. No Ads.** Just the easiest, fastest way to ensure you never lose track of a single cent again.
 
 ---
 
@@ -20,11 +20,11 @@ While other apps are stuck in 2015, Abhi's Ledger is running in 2077. Here is ho
 
 | Feature | ❌ The "Other" Apps | ✅ Abhi's Ledger |
 | :--- | :--- | :--- |
-| **Privacy** | Uploads your data to the cloud. | **100% Offline.** Your data never leaves your device. |
+| **Privacy** | Uploads your data to the cloud. | **100% Offline (IndexedDB).** Data stays on your device. |
+| **Settlement** | Manual text reminders. | **UPI Protocol.** Instant QR code generation. |
+| **Input** | Clunky native keypads. | **Tactile Input Matrix.** Custom virtual keyboards. |
 | **Psychology** | Just numbers on a screen. | **Neural Trust Score.** We rate your friends' integrity (0-100). |
-| **Aesthetics** | Boring white & blue corporate UI. | **Visual Engine.** Neon, Glassmorphism, OLED modes, Film Grain. |
-| **Reports** | ugly screenshots. | **Agency-Style Dossiers.** Generate "Confidential" PDF reports. |
-| **Cost** | Subscriptions & Ads. | **Free.** Built for utility, not greed. |
+| **Aesthetics** | Boring white & blue UI. | **Visual Engine.** Neon, Glassmorphism, OLED modes. |
 
 ---
 
@@ -36,16 +36,22 @@ Stop guessing if your friend is good for the money. The system analyzes repaymen
 *   **⚠️ Risky (25-50):** Proceed with caution.
 *   **💀 Critical (0-24):** Do not lend.
 
-### 2. The Visual Engine
-Your finance app should look as good as your games.
-*   **OLED Black Mode:** True black for battery saving.
-*   **Cyber Emerald / Neon Violet:** Themes that pop.
-*   **Cinematic Grain:** Optional film grain for that retro-future feel.
+### 2. UPI Settlement Protocol
+The easiest way to get paid back.
+*   **Instant QR:** Generate a dynamic UPI QR code for the exact debt amount inside any profile.
+*   **Shareable Cards:** The app generates beautiful "Payment Request" images to share on WhatsApp.
 
-### 3. Ironclad Logic
-*   **Interest Protocols:** Support for Fixed, Daily, Monthly, or Yearly compounding interest.
-*   **Water-tight Math:** "Reducing Balance" logic ensures fair calculations.
-*   **Evidence Generator:** Generate beautiful receipt images and loan agreements to share via WhatsApp instantly.
+### 3. Tactile Input Matrix
+We built a custom **Virtual Keyboard** from scratch.
+*   **Immersive:** Keeps you in the cyberpunk aesthetic without jarring native UI popping up.
+*   **Smart:** Auto-switches between Numeric and Alpha modes based on context.
+*   **Privacy:** Standard "Incognito" attributes applied to prevent external keyboard learning.
+
+### 4. Zero-Latency Persistence (IndexedDB)
+We use advanced browser storage (**IndexedDB**) to save your data.
+*   **Reliable:** Can store thousands of transactions without breaking a sweat.
+*   **Persistent:** Your data survives browser restarts and updates.
+*   **Exportable:** Full JSON backup and restore capabilities are built-in.
 
 ---
 

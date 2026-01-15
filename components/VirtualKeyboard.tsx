@@ -3,9 +3,12 @@ import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { useKeyboard } from '../contexts/KeyboardContext';
 import { Delete, Check, ArrowUp, SlidersHorizontal, MoveVertical, X, RotateCcw, Smile, Maximize2, Moon, Sun, Cloud } from 'lucide-react';
 import { motion, AnimatePresence, PanInfo } from 'framer-motion';
+import { AppSettings } from '../types';
 
 interface Props {
   activeTheme: any;
+  settings: AppSettings;
+  updateSetting: (key: keyof AppSettings, value: any) => void;
 }
 
 type ShiftState = 'OFF' | 'ONCE' | 'LOCKED';
@@ -134,9 +137,6 @@ const Key = React.memo<KeyProps>(({
     </button>
   );
 }, (prev, next) => {
-  // Memoization: Only re-render if visual props change.
-  // We use a Ref in parent for callbacks, so onPress identity stability is irrelevant for correctness, 
-  // but prevents unnecessary renders.
   return (
     prev.char === next.char &&
     prev.row === next.row &&
@@ -147,29 +147,25 @@ const Key = React.memo<KeyProps>(({
 });
 
 // --- MAIN COMPONENT ---
-const VirtualKeyboard = React.memo<Props>(({ activeTheme }) => {
+const VirtualKeyboard = React.memo<Props>(({ activeTheme, settings, updateSetting }) => {
   const { isVisible, activeInput, closeKeyboard, layout, isPhysicalKeyboard } = useKeyboard();
   const [shiftState, setShiftState] = useState<ShiftState>('OFF');
   const [viewMode, setViewMode] = useState<ViewMode>('ALPHA');
   const [showTools, setShowTools] = useState(false);
-  const [kbTheme, setKbTheme] = useState<KeyboardTheme>('dark');
+  
+  // Use settings from props instead of local state for persistence
+  const scale = settings.keyboardScale || 1.0;
+  const kbTheme = settings.keyboardTheme || 'dark';
 
-  // CRITICAL FIX: Use Ref to track activeInput to avoid stale closures in memoized callbacks
   const activeInputRef = useRef(activeInput);
   
   useEffect(() => {
     activeInputRef.current = activeInput;
   }, [activeInput]);
 
-  // Ref to hold shift state for non-reactive access in callbacks
   const shiftStateRef = useRef<ShiftState>('OFF');
-
-  // Device Detection State
   const [isTouchDevice, setIsTouchDevice] = useState(false);
-
-  // --- PERFORMANCE REFS ---
   const keyRefs = useRef<Map<string, HTMLButtonElement>>(new Map());
-  // Store timeouts for each key to handle rapid tapping correctly
   const animationTimers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
 
   useEffect(() => {
@@ -185,36 +181,15 @@ const VirtualKeyboard = React.memo<Props>(({ activeTheme }) => {
     checkDevice();
   }, []);
 
-  // Shift Double Tap Logic
   const lastShiftTapRef = useRef<number>(0);
-
-  // Resize State
-  const [scale, setScale] = useState(1);
-  const [tempScale, setTempScale] = useState(1);
+  const [tempScale, setTempScale] = useState(scale);
   const [isResizeMode, setIsResizeMode] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
-
-  // Backspace Long Press Logic
   const deleteTimerRef = useRef<any>(null);
   const deleteIntervalRef = useRef<any>(null);
 
-  // --- PERSISTENCE & INIT ---
-  useEffect(() => {
-    const savedScale = localStorage.getItem('keyboard_scale');
-    if (savedScale) {
-      setScale(parseFloat(savedScale));
-      setTempScale(parseFloat(savedScale));
-    }
-
-    const savedTheme = localStorage.getItem('keyboard_theme_pref');
-    if (savedTheme) {
-      setKbTheme(savedTheme as KeyboardTheme);
-    }
-  }, []);
-
   const changeKbTheme = (theme: KeyboardTheme) => {
-    setKbTheme(theme);
-    localStorage.setItem('keyboard_theme_pref', theme);
+    updateSetting('keyboardTheme', theme);
     triggerHaptic();
   };
 
@@ -228,7 +203,6 @@ const VirtualKeyboard = React.memo<Props>(({ activeTheme }) => {
     }
   }, [isVisible, scale]);
 
-  // --- ANIMATION ENGINE ---
   const animateKeyPress = useCallback((keyId: string) => {
     const btn = keyRefs.current.get(keyId);
     if (btn) {
@@ -254,11 +228,8 @@ const VirtualKeyboard = React.memo<Props>(({ activeTheme }) => {
     }
   }, []);
 
-  // --- INPUT LOGIC ---
   const triggerInputChange = (node: HTMLInputElement | HTMLTextAreaElement, value: string) => {
     const activeElement = node;
-
-    // React 16+ hack to trigger onChange
     // @ts-ignore
     const nativeInputValueSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, "value").set;
     // @ts-ignore
@@ -276,7 +247,6 @@ const VirtualKeyboard = React.memo<Props>(({ activeTheme }) => {
     activeElement.dispatchEvent(event);
   };
 
-  // FIX: Stable callback using Ref
   const insertCharacter = useCallback((char: string) => {
     const input = activeInputRef.current;
     if (!input) return;
@@ -304,9 +274,8 @@ const VirtualKeyboard = React.memo<Props>(({ activeTheme }) => {
       }
     } catch (e) { }
 
-  }, []); // Dependencies removed to keep identity stable
+  }, []);
 
-  // FIX: Stable callback using Ref
   const deleteCharacter = useCallback(() => {
     const input = activeInputRef.current;
     if (!input) return;
@@ -472,8 +441,7 @@ const VirtualKeyboard = React.memo<Props>(({ activeTheme }) => {
   };
 
   const saveResize = () => {
-    setScale(tempScale);
-    localStorage.setItem('keyboard_scale', tempScale.toString());
+    updateSetting('keyboardScale', tempScale);
     setIsResizeMode(false);
     setShowTools(false);
     triggerHaptic();
@@ -496,7 +464,6 @@ const VirtualKeyboard = React.memo<Props>(({ activeTheme }) => {
   const baseHeight = 54;
   const keyHeight = baseHeight * activeScale;
 
-  // --- DYNAMIC STYLES ---
   const getThemeVars = () => {
     if (kbTheme === 'light') {
       return `

@@ -8,6 +8,8 @@ interface KeyboardContextType {
   activeInput: HTMLInputElement | HTMLTextAreaElement | null;
   layout: KeyboardLayout;
   isPhysicalKeyboard: boolean;
+  isEnabled: boolean; // Control flag
+  setEnabled: (enabled: boolean) => void;
   openKeyboard: (input: HTMLInputElement | HTMLTextAreaElement, layout?: KeyboardLayout) => void;
   closeKeyboard: (immediate?: boolean) => void;
 }
@@ -19,11 +21,15 @@ export const KeyboardProvider: React.FC<{ children: ReactNode }> = ({ children }
   const [activeInput, setActiveInput] = useState<HTMLInputElement | HTMLTextAreaElement | null>(null);
   const [layout, setLayout] = useState<KeyboardLayout>('text');
   const [isPhysicalKeyboard, setIsPhysicalKeyboard] = useState(false);
+  const [isEnabled, setEnabled] = useState(false); // Default to disabled until synced
 
   // Timer reference for debounce logic
   const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const openKeyboard = useCallback((input: HTMLInputElement | HTMLTextAreaElement, type?: KeyboardLayout) => {
+    // Check global enabled state
+    if (!isEnabled) return;
+
     // 0. Filter out non-text inputs
     const inputType = input.getAttribute('type');
     const ignoredTypes = ['file', 'checkbox', 'radio', 'submit', 'button', 'image', 'range', 'color', 'hidden', 'date', 'time', 'datetime-local'];
@@ -69,7 +75,7 @@ export const KeyboardProvider: React.FC<{ children: ReactNode }> = ({ children }
     setTimeout(() => {
       input.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
     }, 300);
-  }, []);
+  }, [isEnabled]);
 
   const closeKeyboard = useCallback((immediate = false) => {
     if (closeTimerRef.current) {
@@ -93,6 +99,9 @@ export const KeyboardProvider: React.FC<{ children: ReactNode }> = ({ children }
 
   // --- GLOBAL AUTO-DETECTION ---
   useEffect(() => {
+    // If disabled globally, do not attach listeners or open keyboard
+    if (!isEnabled) return;
+
     const handleFocusIn = (e: FocusEvent) => {
       const target = e.target as HTMLElement;
       // Check if target is input or textarea
@@ -133,10 +142,11 @@ export const KeyboardProvider: React.FC<{ children: ReactNode }> = ({ children }
       document.removeEventListener('focusin', handleFocusIn, true);
       document.removeEventListener('keydown', handleKeyDown, true);
     };
-  }, [openKeyboard]);
+  }, [openKeyboard, isEnabled]);
 
   // Click handling to focus inputs that might not trigger focusin if already focused
   useEffect(() => {
+    if (!isEnabled) return;
     const handleClick = (e: MouseEvent) => {
       const target = e.target as HTMLElement;
       if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') {
@@ -145,11 +155,12 @@ export const KeyboardProvider: React.FC<{ children: ReactNode }> = ({ children }
     };
     document.addEventListener('click', handleClick);
     return () => document.removeEventListener('click', handleClick);
-  }, [openKeyboard]);
+  }, [openKeyboard, isEnabled]);
 
   // --- APP RESUME HANDLING ---
   // Fixes issue where native keyboard appears when minimizing and restoring app
   useEffect(() => {
+    if (!isEnabled) return;
     const handleResume = () => {
       // Small delay to allow browser to complete focus restoration
       setTimeout(() => {
@@ -182,14 +193,16 @@ export const KeyboardProvider: React.FC<{ children: ReactNode }> = ({ children }
         window.removeEventListener('focus', handleResume);
         document.removeEventListener('visibilitychange', onVisibilityChange);
     };
-  }, [openKeyboard]);
+  }, [openKeyboard, isEnabled]);
 
   return (
     <KeyboardContext.Provider value={{
-      isVisible,
+      isVisible: isEnabled && isVisible, // Force hidden if disabled
       activeInput,
       layout,
       isPhysicalKeyboard,
+      isEnabled,
+      setEnabled,
       openKeyboard,
       closeKeyboard
     }}>

@@ -1,6 +1,6 @@
 
 import React, { useEffect, useState, useRef } from 'react';
-import { Sparkles, TrendingUp, PlusCircle, CreditCard, UserCheck, CalendarDays, FileText, Download, ArrowRight, Target, Settings, Eye, Search, Type } from 'lucide-react';
+import { Sparkles, TrendingUp, PlusCircle, CreditCard, UserCheck, CalendarDays, FileText, Download, ArrowRight, Target, Settings, Eye, Search, Type, Keyboard, QrCode } from 'lucide-react';
 
 interface Props {
   tourStep: number;
@@ -87,8 +87,22 @@ const TourOverlay: React.FC<Props> = ({ tourStep, setTourStep, completeTour, act
       targetId: 'tour-visual-glass' 
     },
     { 
+      id: 'tour-keyboard-toggle',
+      title: "9. Input Method", 
+      desc: "Prefer a number pad? Or the system keyboard? You can toggle the custom keyboard here.", 
+      icon: <Keyboard className="text-emerald-400" />,
+      targetId: 'tour-keyboard-toggle' 
+    },
+    { 
+      id: 'tour-upi-button',
+      title: "10. UPI Payments", 
+      desc: "Inside a friend's profile, click this QR icon to generate a payment request instantly.", 
+      icon: <QrCode className="text-rose-400" />,
+      targetId: 'tour-upi-button' 
+    },
+    { 
       id: 'tour-backup',
-      title: "9. Save Data", 
+      title: "11. Save Data", 
       desc: "Your data is only on this phone. Click here to download a backup file so you don't lose it.", 
       icon: <Download className="text-amber-400" />,
       targetId: 'tour-backup'

@@ -79,7 +79,6 @@ const EditDateModal: React.FC<Props> = ({ isOpen, onClose, onSave, initialDate, 
                    {...kbAmount}
                    required 
                    type="text" 
-                   inputMode="none"
                    value={newAmount} 
                    onChange={e => setNewAmount(e.target.value)} 
                    className="w-full bg-slate-900 border border-slate-800 rounded-2xl px-5 py-4 text-2xl font-mono font-bold text-slate-100 placeholder-slate-700 focus:outline-none focus:border-blue-500 transition-colors"

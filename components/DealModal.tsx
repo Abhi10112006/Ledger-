@@ -211,7 +211,6 @@ const DealModal: React.FC<Props> = ({
                   {...kbAmount}
                   required 
                   type="text" 
-                  inputMode="none" 
                   value={amount} 
                   onChange={e => setAmount(e.target.value)} 
                   className="w-full bg-slate-900 border border-slate-800 rounded-xl px-5 py-4 text-slate-100 font-bold text-lg" 
@@ -244,7 +243,6 @@ const DealModal: React.FC<Props> = ({
                     <input 
                       {...kbPhone}
                       type="text"
-                      inputMode="none"
                       placeholder="+91 XXXXX XXXXX"
                       value={friendPhone} 
                       onChange={e => setFriendPhone(e.target.value)} 
@@ -257,7 +255,7 @@ const DealModal: React.FC<Props> = ({
               <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                   <label className="text-[10px] font-black text-slate-500 ml-1">Interest (%)</label>
-                  <input {...kbInterest} type="text" inputMode="none" value={interestRate} onChange={e => setInterestRate(e.target.value)} className="w-full bg-slate-900 border border-slate-800 rounded-xl px-5 py-4 text-slate-100" />
+                  <input {...kbInterest} type="text" value={interestRate} onChange={e => setInterestRate(e.target.value)} className="w-full bg-slate-900 border border-slate-800 rounded-xl px-5 py-4 text-slate-100" />
                   </div>
                   <div className="space-y-2">
                   <label className="text-[10px] font-black text-slate-500 ml-1">Cycle</label>

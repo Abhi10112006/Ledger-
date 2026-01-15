@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { Settings, X, Type, Palette, Layout, CheckCircle2, Sliders, Smartphone, Eye, Grid, Terminal, Mail, Copy, Code, Sparkles, Globe } from 'lucide-react';
+import { Settings, X, Type, Palette, Layout, CheckCircle2, Sliders, Smartphone, Eye, Grid, Terminal, Mail, Sparkles, Keyboard, Code } from 'lucide-react';
 import { AppSettings, ThemeColor, CornerRadius } from '../types';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useVirtualKeyboard } from '../hooks/useVirtualKeyboard';
@@ -30,8 +30,12 @@ const SettingsModal: React.FC<Props> = ({
   const [displayName, setDisplayName] = useState('ABHINAV YADUVANSHI');
   
   useEffect(() => {
-    if (tourStep && tourStep >= 6 && tourStep <= 8) {
-      setActiveTab('visual');
+    if (tourStep) {
+      if (tourStep >= 6 && tourStep <= 8) {
+        setActiveTab('visual');
+      } else if (tourStep === 9) {
+        setActiveTab('interface');
+      }
     }
   }, [tourStep]);
   
@@ -103,7 +107,7 @@ const SettingsModal: React.FC<Props> = ({
             {tabs.map(tab => (
               <button
                 key={tab.id}
-                id={tab.id === 'visual' ? 'tour-visual-tab' : undefined}
+                id={tab.id === 'visual' ? 'tour-visual-tab' : tab.id === 'interface' ? 'tour-interface-tab' : undefined}
                 onClick={() => setActiveTab(tab.id as any)}
                 className={`relative flex items-center gap-2 px-6 py-4 text-xs font-bold uppercase tracking-wider transition-colors z-10 ${activeTab === tab.id ? activeTheme.text : 'text-slate-500 hover:text-slate-300'}`}
               >
@@ -233,6 +237,26 @@ const SettingsModal: React.FC<Props> = ({
             {/* INTERFACE TUNER TAB */}
             {activeTab === 'interface' && (
                <motion.div variants={containerVariants} className="space-y-8">
+                 {/* Keyboard Settings */}
+                 <motion.div variants={itemVariants} className="space-y-4" id="tour-keyboard-toggle">
+                    <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-500"><Keyboard className="w-3 h-3" /> Input Method</div>
+                    
+                    <div className="p-4 rounded-xl border border-slate-800 bg-slate-900/50">
+                        <div className="flex items-center justify-between mb-2">
+                            <span className="text-sm font-bold text-slate-200">Virtual Keyboard</span>
+                            <button 
+                                onClick={() => updateSetting('useVirtualKeyboard', !settings.useVirtualKeyboard)} 
+                                className={`w-12 h-6 rounded-full relative transition-colors duration-300 ${settings.useVirtualKeyboard ? activeTheme.bg : 'bg-slate-700'}`}
+                            >
+                                <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all duration-300 ${settings.useVirtualKeyboard ? 'left-7' : 'left-1'}`}></div>
+                            </button>
+                        </div>
+                        <p className="text-[10px] text-amber-500/80 font-medium leading-relaxed">
+                            Experimental: Matches app aesthetics but may contain bugs. Turn off to use system keyboard.
+                        </p>
+                    </div>
+                 </motion.div>
+
                  {/* Density */}
                  <motion.div variants={itemVariants} className="space-y-4">
                     <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-500"><Layout className="w-3 h-3" /> Screen Spacing</div>

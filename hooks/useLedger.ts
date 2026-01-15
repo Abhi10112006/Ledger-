@@ -13,6 +13,7 @@ import {
   migrateLegacyData
 } from '../utils/db';
 
+// Legacy keys for one-time migration only
 const STORAGE_KEY_LEGACY = 'abhi_ledger_session';
 const SETTINGS_KEY_LEGACY = 'abhi_ledger_settings_v2';
 
@@ -31,7 +32,10 @@ const DEFAULT_SETTINGS: AppSettings = {
   enableGrain: false,
   density: 'comfortable',
   cornerRadius: 'pill',
-  fontStyle: 'sans'
+  fontStyle: 'sans',
+  useVirtualKeyboard: false, // Default to System Keyboard
+  keyboardScale: 1.0,
+  keyboardTheme: 'dark'
 };
 
 export type SortOption = 'name' | 'exposure' | 'trust' | 'recent';
@@ -95,39 +99,50 @@ export const useLedger = (tourStep: number, searchQuery: string = '') => {
   useEffect(() => {
     const initData = async () => {
       try {
-        // 1. Load Settings
+        // 1. Load Settings from IndexedDB
         const dbSettings = await getSettings();
+        
         if (dbSettings) {
+          // Merge with defaults to ensure new fields (like keyboardScale) exist
           setSettings({ ...DEFAULT_SETTINGS, ...dbSettings });
         } else {
-            // Try legacy settings migration
+            // One-time Migration from localStorage to IndexedDB
             const legacySettings = localStorage.getItem(SETTINGS_KEY_LEGACY);
             if(legacySettings) {
-                const parsed = JSON.parse(legacySettings);
-                const merged = { ...DEFAULT_SETTINGS, ...parsed };
-                setSettings(merged);
-                await saveSettingsToDB(merged);
+                try {
+                    const parsed = JSON.parse(legacySettings);
+                    const merged = { ...DEFAULT_SETTINGS, ...parsed };
+                    setSettings(merged);
+                    await saveSettingsToDB(merged);
+                    // Clear legacy to ensure we don't read stale data later
+                    localStorage.removeItem(SETTINGS_KEY_LEGACY);
+                } catch(e) {
+                    setSettings(DEFAULT_SETTINGS);
+                }
             }
         }
 
-        // 2. Load Transactions
+        // 2. Load Transactions from IndexedDB
         const dbTxs = await getAllTransactions();
         
         if (dbTxs.length > 0) {
            setTransactions(dbTxs);
            setIsLoggedIn(true);
         } else {
-           // CHECK FOR LEGACY DATA MIGRATION (First run on new version)
+           // One-time Migration for Transactions
            const legacyTx = localStorage.getItem(STORAGE_KEY_LEGACY);
            if (legacyTx) {
-              const parsed = JSON.parse(legacyTx);
-              const cleanData = sanitizeTransactions(parsed);
-              if (cleanData.length > 0) {
-                 await migrateLegacyData(cleanData);
-                 setTransactions(cleanData);
-                 setIsLoggedIn(true);
-                 // Clear legacy to save space after successful migration
-                 localStorage.removeItem(STORAGE_KEY_LEGACY); 
+              try {
+                  const parsed = JSON.parse(legacyTx);
+                  const cleanData = sanitizeTransactions(parsed);
+                  if (cleanData.length > 0) {
+                     await migrateLegacyData(cleanData);
+                     setTransactions(cleanData);
+                     setIsLoggedIn(true);
+                     localStorage.removeItem(STORAGE_KEY_LEGACY); 
+                  }
+              } catch(e) {
+                  // Corrupt legacy data, ignore
               }
            }
         }
@@ -149,10 +164,6 @@ export const useLedger = (tourStep: number, searchQuery: string = '') => {
   }, []);
 
   // --- PERSISTENCE HANDLERS ---
-  
-  // Note: We no longer dump the whole array to localStorage in a useEffect.
-  // Instead, we update the DB individually in the action handlers below.
-  // This is much more performant for large datasets.
 
   const handleInstallClick = async () => {
     if (!deferredPrompt) return;
@@ -166,7 +177,7 @@ export const useLedger = (tourStep: number, searchQuery: string = '') => {
   const updateSetting = (key: keyof AppSettings, value: any) => {
     setSettings(prev => {
         const next = { ...prev, [key]: value };
-        saveSettingsToDB(next); // Async save
+        saveSettingsToDB(next); // Async save to IndexedDB
         return next;
     });
   };
@@ -464,8 +475,27 @@ export const useLedger = (tourStep: number, searchQuery: string = '') => {
   }, []);
 
   const { accounts, allAccounts } = useMemo(() => {
+    const simulationTx: Transaction = {
+      id: 'sim-tx',
+      profileId: 'SIM-PROFILE',
+      friendName: 'Example Client',
+      principalAmount: 5000,
+      paidAmount: 1500,
+      startDate: new Date().toISOString(),
+      returnDate: new Date(Date.now() + 604800000).toISOString(),
+      notes: 'Sample deal for tour.',
+      interestType: 'monthly',
+      interestRate: 3,
+      isCompleted: false,
+      repayments: []
+    };
+
+    const txToProcess = (transactions.length === 0 && tourStep >= 3) 
+      ? [simulationTx] 
+      : transactions;
+
     const grouped: Record<string, Transaction[]> = {};
-    transactions.forEach(t => {
+    txToProcess.forEach(t => {
       const key = t.profileId; 
       if (!grouped[key]) grouped[key] = [];
       grouped[key].push(t);

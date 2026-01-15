@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Transaction, AppSettings, Repayment, InterestType, SummaryStats } from '../types';
 import { generateId } from '../utils/common';
@@ -24,7 +23,10 @@ const DEFAULT_SETTINGS: AppSettings = {
   // Interface Tuner Defaults
   density: 'comfortable',
   cornerRadius: 'pill',
-  fontStyle: 'sans'
+  fontStyle: 'sans',
+  useVirtualKeyboard: false,
+  keyboardScale: 1.0,
+  keyboardTheme: 'dark'
 };
 
 export type SortOption = 'name' | 'exposure' | 'trust' | 'recent';

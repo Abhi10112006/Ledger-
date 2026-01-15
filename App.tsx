@@ -63,9 +63,15 @@ const AppContent: React.FC = () => {
 
   const { currentAd, isAdOpen, closeAd, checkEligibility } = useAdManager(isLoggedIn);
   
+  // Keyboard Context Sync
+  const { setEnabled: setKeyboardEnabled, closeKeyboard, isVisible: isKeyboardVisible } = useKeyboard();
+  
+  useEffect(() => {
+    setKeyboardEnabled(!!settings.useVirtualKeyboard);
+  }, [settings.useVirtualKeyboard, setKeyboardEnabled]);
+
   // Initialize virtual keyboard for search
   const kbSearch = useVirtualKeyboard('text', setSearchQuery);
-  const { closeKeyboard, isVisible: isKeyboardVisible } = useKeyboard();
 
   const activeTheme = THEMES[settings.themeColor] || THEMES.emerald;
   const activeTx = transactions.find(t => t.id === activeTxId);
@@ -180,17 +186,28 @@ const AppContent: React.FC = () => {
   useEffect(() => {
     if (tourStep === -1) return;
     const isMobile = window.innerWidth < 768;
+    
     if (tourStep <= 3) {
        setIsMobileMenuOpen(false);
        setIsSettingsModalOpen(false);
+       setSelectedProfileId(null);
     }
-    else if (tourStep === 4 || tourStep === 5 || tourStep === 9) {
+    else if (tourStep === 4 || tourStep === 5) {
        if (isMobile) setIsMobileMenuOpen(true);
        setIsSettingsModalOpen(false); 
     }
-    else if (tourStep >= 6 && tourStep <= 8) {
+    else if (tourStep >= 6 && tourStep <= 9) {
        setIsMobileMenuOpen(false);
        setIsSettingsModalOpen(true);
+    }
+    else if (tourStep === 10) {
+        setIsSettingsModalOpen(false);
+        // Force open simulated profile for UPI tour step
+        setSelectedProfileId('SIM-PROFILE');
+    }
+    else if (tourStep === 11) {
+       setSelectedProfileId(null);
+       if (isMobile) setIsMobileMenuOpen(true);
     }
   }, [tourStep]);
 
@@ -199,6 +216,7 @@ const AppContent: React.FC = () => {
      setTourStep(-1);
      setIsMobileMenuOpen(false);
      setIsSettingsModalOpen(false);
+     setSelectedProfileId(null);
      checkEligibility();
   }, [checkEligibility]);
 
@@ -373,7 +391,11 @@ const AppContent: React.FC = () => {
       <DeleteModal isOpen={isDeleteModalOpen} onClose={closeModal} onConfirm={() => { deleteTransaction(activeTxId); closeModal(); }} />
       
       {/* VIRTUAL KEYBOARD */}
-      <VirtualKeyboard activeTheme={activeTheme} />
+      <VirtualKeyboard 
+        activeTheme={activeTheme} 
+        settings={settings}
+        updateSetting={updateSetting}
+      />
       
     </div>
   );

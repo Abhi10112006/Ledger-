@@ -69,6 +69,7 @@ const ProfileStats: React.FC<Props> = ({ account, settings, activeTheme, nextDue
 
                {settings.currency === '₹' && onOpenUPI && (
                    <button 
+                     id="tour-upi-button"
                      onClick={onOpenUPI}
                      className={`relative min-w-[90px] px-4 rounded-2xl bg-slate-900/50 border border-slate-800 flex flex-col items-center justify-center gap-2 transition-all group active:scale-95 hover:bg-slate-800 hover:border-slate-700 hover:shadow-lg ${activeTheme.shadow.replace('/20', '/40')}`}
                    >

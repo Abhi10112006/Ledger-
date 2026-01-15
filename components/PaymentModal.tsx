@@ -61,7 +61,6 @@ const PaymentModal: React.FC<Props> = ({ isOpen, onClose, onSave, activeTheme, c
                     {...kbAmount}
                     required 
                     type="text" 
-                    inputMode="none"
                     value={paymentAmount} 
                     onChange={e => setPaymentAmount(e.target.value)} 
                     className={`w-full bg-slate-900 border border-slate-800 rounded-2xl pl-12 pr-5 py-5 text-3xl font-mono font-bold ${activeTheme.text} text-center`} 
