@@ -59,9 +59,7 @@ const DealModal: React.FC<Props> = ({
   });
   
   const kbAmount = useVirtualKeyboard('number', setAmount);
-  // Use direct setter for stability
   const kbPhone = useVirtualKeyboard('number', setFriendPhone);
-  
   const kbNotes = useVirtualKeyboard('text', setNotes);
   const kbInterest = useVirtualKeyboard('number', setInterestRate);
   
@@ -100,8 +98,7 @@ const DealModal: React.FC<Props> = ({
       setSearchResults([]);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = () => {
     if (!friendName || !amount) return;
     
     let finalStartDate = startDate;
@@ -160,14 +157,23 @@ const DealModal: React.FC<Props> = ({
             </h2>
             <button onClick={onClose} className="p-2 hover:bg-slate-800 rounded-full text-slate-400 transition-colors"><X /></button>
           </div>
-          <form onSubmit={handleSubmit} className="p-8 space-y-6">
+          
+          <div 
+            className="p-8 space-y-6" 
+            onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                    if ((e.target as HTMLElement).tagName !== 'TEXTAREA') {
+                        handleSubmit();
+                    }
+                }
+            }}
+          >
             
             <div className="space-y-2 relative">
                 <label className="text-[10px] font-black text-slate-500 ml-1">Friend Name</label>
                 <div className="relative">
                     <input 
                       {...kbName}
-                      required 
                       placeholder="Who are you paying?" 
                       value={friendName} 
                       onChange={e => {
@@ -177,10 +183,7 @@ const DealModal: React.FC<Props> = ({
                           }
                       }}
                       onBlur={(e) => {
-                          // Safely check if virtual keyboard blur exists before calling
-                          if (kbName.onBlur) {
-                              kbName.onBlur(e);
-                          }
+                          if (kbName.onBlur) kbName.onBlur(e);
                           setTimeout(() => setSearchResults([]), 200);
                       }}
                       className={`w-full bg-slate-900 border border-slate-800 rounded-xl px-5 py-4 text-slate-100 placeholder-slate-700 ${initialName ? 'opacity-70 font-bold' : ''} ${selectedProfileId ? 'border-emerald-500/50 pl-10' : ''}`} 
@@ -212,8 +215,6 @@ const DealModal: React.FC<Props> = ({
               <label className="text-[10px] font-black text-slate-500 ml-1">Amount ({currency})</label>
               <input 
                   {...kbAmount}
-                  required 
-                  type="text" 
                   value={amount} 
                   onChange={e => setAmount(e.target.value)} 
                   className="w-full bg-slate-900 border border-slate-800 rounded-xl px-5 py-4 text-slate-100 font-bold text-lg" 
@@ -228,24 +229,23 @@ const DealModal: React.FC<Props> = ({
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <label className="text-[10px] font-black text-slate-500 ml-1">Date Given</label>
-                <input required type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="w-full bg-slate-900 border border-slate-800 rounded-xl px-5 py-4 text-slate-100 font-mono" />
+                <input autoComplete="off" type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="w-full bg-slate-900 border border-slate-800 rounded-xl px-5 py-4 text-slate-100 font-mono" />
               </div>
                <div className="space-y-2">
                 <label className="text-[10px] font-black text-slate-500 ml-1">Time (Optional)</label>
-                <input type="time" value={startTime} onChange={e => setStartTime(e.target.value)} className="w-full bg-slate-900 border border-slate-800 rounded-xl px-5 py-4 text-slate-100 font-mono" />
+                <input autoComplete="off" type="time" value={startTime} onChange={e => setStartTime(e.target.value)} className="w-full bg-slate-900 border border-slate-800 rounded-xl px-5 py-4 text-slate-100 font-mono" />
               </div>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                     <label className="text-[10px] font-black text-slate-500 ml-1">Due Date</label>
-                    <input type="date" value={returnDate} onChange={e => setReturnDate(e.target.value)} className="w-full bg-slate-900 border border-slate-800 rounded-xl px-5 py-4 text-slate-100 font-mono" />
+                    <input autoComplete="off" type="date" value={returnDate} onChange={e => setReturnDate(e.target.value)} className="w-full bg-slate-900 border border-slate-800 rounded-xl px-5 py-4 text-slate-100 font-mono" />
                 </div>
                 <div className="space-y-2">
                     <label className="text-[10px] font-black text-slate-500 ml-1">Phone (Optional)</label>
                     <input 
                       {...kbPhone}
-                      type="text"
                       placeholder="+91 XXXXX XXXXX"
                       value={friendPhone} 
                       onChange={e => setFriendPhone(e.target.value)} 
@@ -258,7 +258,7 @@ const DealModal: React.FC<Props> = ({
               <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                   <label className="text-[10px] font-black text-slate-500 ml-1">Interest (%)</label>
-                  <input {...kbInterest} type="text" value={interestRate} onChange={e => setInterestRate(e.target.value)} className="w-full bg-slate-900 border border-slate-800 rounded-xl px-5 py-4 text-slate-100" />
+                  <input {...kbInterest} value={interestRate} onChange={e => setInterestRate(e.target.value)} className="w-full bg-slate-900 border border-slate-800 rounded-xl px-5 py-4 text-slate-100" />
                   </div>
                   <div className="space-y-2">
                   <label className="text-[10px] font-black text-slate-500 ml-1">Cycle</label>
@@ -280,13 +280,14 @@ const DealModal: React.FC<Props> = ({
             
             <motion.button 
               whileTap={{ scale: 0.98 }}
+              type="button"
+              onClick={handleSubmit}
               className={`w-full py-5 bg-rose-600 text-white rounded-2xl font-black uppercase tracking-widest shadow-xl shadow-rose-900/20`}
             >
                Confirm Loan
             </motion.button>
-          </form>
+          </div>
           
-          {/* Persistent spacer outside the form to avoid margin issues */}
           <div 
              className="w-full transition-[height] duration-300 ease-out shrink-0" 
              style={{ height: isKeyboardVisible ? '280px' : '0px' }} 

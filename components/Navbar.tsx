@@ -367,7 +367,6 @@ const Navbar: React.FC<Props> = ({
                             <label className="text-[10px] font-black text-slate-500 uppercase ml-1">Your Name</label>
                             <input 
                                 {...kbName}
-                                type="text" 
                                 value={tempName}
                                 onChange={(e) => setTempName(e.target.value)}
                                 className="w-full bg-slate-900 border border-slate-800 rounded-2xl px-5 py-4 text-slate-100 font-bold placeholder-slate-700 focus:outline-none focus:border-slate-600 transition-colors"

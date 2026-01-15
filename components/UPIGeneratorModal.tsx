@@ -46,8 +46,7 @@ const UPIGeneratorModal: React.FC<Props> = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen]);
 
-  const generateQR = (e: React.FormEvent) => {
-    e.preventDefault();
+  const generateQR = () => {
     if (!vpa || !name) return;
 
     // Save for future
@@ -153,16 +152,15 @@ const UPIGeneratorModal: React.FC<Props> = ({
 
             <div className="p-6 overflow-y-auto scrollbar-hide">
               {!qrUrl ? (
-                <form onSubmit={generateQR} className="space-y-5">
+                // Replaced <form> with <div>
+                <div className="space-y-5" onKeyDown={(e) => e.key === 'Enter' && generateQR()}>
                   <div className="space-y-2">
                      <label className="text-[10px] font-black text-slate-500 uppercase ml-1">Your Banking Name</label>
                      <input 
                        {...kbName}
-                       type="text" 
                        placeholder="e.g. Abhinav Y" 
                        value={name} 
                        onChange={e => setName(e.target.value)} 
-                       required
                        className="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-3 text-slate-100 font-bold placeholder-slate-700 focus:outline-none focus:border-slate-600 transition-colors"
                      />
                   </div>
@@ -171,11 +169,9 @@ const UPIGeneratorModal: React.FC<Props> = ({
                      <label className="text-[10px] font-black text-slate-500 uppercase ml-1">Your UPI ID (VPA)</label>
                      <input 
                        {...kbVpa}
-                       type="text" 
                        placeholder="username@bank" 
                        value={vpa} 
                        onChange={e => setVpa(e.target.value)}
-                       required 
                        className="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-3 text-slate-100 font-mono placeholder-slate-700 focus:outline-none focus:border-slate-600 transition-colors"
                      />
                   </div>
@@ -184,7 +180,6 @@ const UPIGeneratorModal: React.FC<Props> = ({
                      <label className="text-[10px] font-black text-slate-500 uppercase ml-1">Amount to Receive (₹)</label>
                      <input 
                        {...kbAmount}
-                       type="text" 
                        value={amount} 
                        onChange={e => setAmount(e.target.value)} 
                        className="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-3 text-2xl font-mono font-bold text-emerald-400 placeholder-slate-800 focus:outline-none focus:border-emerald-500/50 transition-colors"
@@ -193,7 +188,8 @@ const UPIGeneratorModal: React.FC<Props> = ({
 
                   <motion.button 
                     whileTap={{ scale: 0.95 }}
-                    type="submit"
+                    type="button"
+                    onClick={generateQR}
                     className={`w-full py-4 mt-2 ${activeTheme.bg} text-slate-950 rounded-2xl font-black uppercase tracking-widest shadow-lg transition-all flex items-center justify-center gap-2`}
                   >
                     <QrCode className="w-5 h-5" /> Generate QR
@@ -202,7 +198,7 @@ const UPIGeneratorModal: React.FC<Props> = ({
                   <p className="text-[10px] text-slate-500 text-center leading-relaxed px-4">
                     Your details will be saved securely on this device for next time.
                   </p>
-                </form>
+                </div>
               ) : (
                 <div className="flex flex-col items-center space-y-6 animate-in zoom-in duration-300">
                    <div className="bg-white p-4 rounded-3xl shadow-xl">

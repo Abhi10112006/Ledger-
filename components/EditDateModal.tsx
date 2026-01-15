@@ -39,8 +39,7 @@ const EditDateModal: React.FC<Props> = ({ isOpen, onClose, onSave, initialDate, 
     }
   }, [initialDate, initialAmount, isOpen]);
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = () => {
     if (!newDueDate || !newAmount) return;
     
     let finalDate = newDueDate;
@@ -70,15 +69,13 @@ const EditDateModal: React.FC<Props> = ({ isOpen, onClose, onSave, initialDate, 
                 <button onClick={onClose} className="text-slate-400 hover:text-white transition-colors"><X /></button>
             </div>
             
-            <form onSubmit={handleSubmit} className="space-y-6">
+            <div className="space-y-6" onKeyDown={(e) => e.key === 'Enter' && handleSubmit()}>
               <div className="space-y-2">
                  <div className="flex items-center gap-2 text-[10px] font-black text-slate-500 uppercase ml-1">
                     <Hash className="w-3 h-3" /> Amount
                  </div>
                  <input 
                    {...kbAmount}
-                   required 
-                   type="text" 
                    value={newAmount} 
                    onChange={e => setNewAmount(e.target.value)} 
                    className="w-full bg-slate-900 border border-slate-800 rounded-2xl px-5 py-4 text-2xl font-mono font-bold text-slate-100 placeholder-slate-700 focus:outline-none focus:border-blue-500 transition-colors"
@@ -90,7 +87,7 @@ const EditDateModal: React.FC<Props> = ({ isOpen, onClose, onSave, initialDate, 
                    <div className="flex items-center gap-2 text-[10px] font-black text-slate-500 uppercase ml-1">
                       <Calendar className="w-3 h-3" /> Date
                    </div>
-                   <input required type="date" value={newDueDate} onChange={e => setNewDueDate(e.target.value)} className="w-full bg-slate-900 border border-slate-800 rounded-xl px-2 py-4 text-sm font-mono font-bold text-slate-300 text-center focus:outline-none focus:border-blue-500" />
+                   <input type="date" value={newDueDate} onChange={e => setNewDueDate(e.target.value)} className="w-full bg-slate-900 border border-slate-800 rounded-xl px-2 py-4 text-sm font-mono font-bold text-slate-300 text-center focus:outline-none focus:border-blue-500" />
                  </div>
                  <div className="space-y-2">
                    <div className="flex items-center gap-2 text-[10px] font-black text-slate-500 uppercase ml-1">
@@ -102,11 +99,12 @@ const EditDateModal: React.FC<Props> = ({ isOpen, onClose, onSave, initialDate, 
               
               <motion.button 
                 whileTap={{ scale: 0.98 }}
+                onClick={handleSubmit}
                 className="w-full py-5 bg-blue-600 text-white rounded-2xl font-black hover:bg-blue-500 transition-all shadow-lg shadow-blue-900/20 flex items-center justify-center gap-2"
               >
                 <Save className="w-4 h-4" /> Save Changes
               </motion.button>
-            </form>
+            </div>
           </motion.div>
         </div>
       )}
