@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { BellRing } from 'lucide-react';
+import { BellRing, QrCode } from 'lucide-react';
 import { Transaction, AppSettings } from '../../types';
 import TrustScoreBadge from '../TrustScoreBadge';
 
@@ -16,9 +16,10 @@ interface Props {
   activeTheme: any;
   nextDueTx: Transaction | null;
   onSetReminder: () => void;
+  onOpenUPI?: () => void;
 }
 
-const ProfileStats: React.FC<Props> = ({ account, settings, activeTheme, nextDueTx, onSetReminder }) => {
+const ProfileStats: React.FC<Props> = ({ account, settings, activeTheme, nextDueTx, onSetReminder, onOpenUPI }) => {
   
   const getAvatarClasses = (score: number) => {
     if (score >= 75) return 'bg-emerald-500 shadow-emerald-500/20';
@@ -58,12 +59,33 @@ const ProfileStats: React.FC<Props> = ({ account, settings, activeTheme, nextDue
           />
        </div>
        <div className="mt-6 flex flex-col items-center gap-3">
-           <div className="p-4 rounded-2xl bg-slate-900/50 border border-slate-800 inline-block min-w-[200px]">
-              <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-1">To Collect</p>
-              <p className={`text-3xl font-mono font-black ${account.totalExposure > 0 ? 'text-emerald-400' : 'text-slate-500'}`}>
-                 {settings.currency}{Math.round(account.totalExposure).toLocaleString('en-IN')}
-              </p>
+           <div className="flex items-stretch justify-center gap-3">
+               <div className="p-4 rounded-2xl bg-slate-900/50 border border-slate-800 flex flex-col justify-center min-w-[160px]">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-1">To Collect</p>
+                  <p className={`text-3xl font-mono font-black ${account.totalExposure > 0 ? 'text-emerald-400' : 'text-slate-500'}`}>
+                     {settings.currency}{Math.round(account.totalExposure).toLocaleString('en-IN')}
+                  </p>
+               </div>
+
+               {settings.currency === '₹' && onOpenUPI && (
+                   <button 
+                     onClick={onOpenUPI}
+                     className={`relative min-w-[90px] px-4 rounded-2xl bg-slate-900/50 border border-slate-800 flex flex-col items-center justify-center gap-2 transition-all group active:scale-95 hover:bg-slate-800 hover:border-slate-700 hover:shadow-lg ${activeTheme.shadow.replace('/20', '/40')}`}
+                   >
+                       {/* Subtle Glow Background */}
+                       <div className={`absolute inset-0 ${activeTheme.bg} opacity-0 group-hover:opacity-10 blur-xl transition-opacity duration-500`}></div>
+                       
+                       <div className={`p-2 rounded-xl bg-slate-950/30 border border-white/5 ${activeTheme.text}`}>
+                          <QrCode className="w-5 h-5" />
+                       </div>
+                       <div className="text-center leading-none">
+                           <span className="block text-[10px] font-black text-slate-400 uppercase tracking-widest group-hover:text-slate-200 transition-colors">UPI</span>
+                           <span className="block text-[7px] font-bold text-slate-600 uppercase tracking-wider mt-0.5 group-hover:text-slate-500 transition-colors">To Collect</span>
+                       </div>
+                   </button>
+               )}
            </div>
+
            {nextDueTx && (
              <button 
                onClick={onSetReminder}

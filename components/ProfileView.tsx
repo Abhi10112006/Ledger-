@@ -368,6 +368,7 @@ const ProfileView: React.FC<Props> = ({
                 activeTheme={activeTheme} 
                 nextDueTx={nextDueTx} 
                 onSetReminder={handleSetReminder}
+                onOpenUPI={() => setIsUPIModalOpen(true)}
             />
           </motion.div>
 
@@ -421,19 +422,6 @@ const ProfileView: React.FC<Props> = ({
              <ArrowUpRight className="w-5 h-5" /> Give
            </motion.button>
            
-           {settings.currency === '₹' && (
-              <motion.button 
-                variants={itemVariants}
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                onClick={() => setIsUPIModalOpen(true)}
-                className="w-14 h-14 bg-slate-800 text-white rounded-2xl shadow-lg border border-slate-700 hover:bg-slate-700 flex items-center justify-center transition-all shrink-0"
-                title="Generate UPI QR"
-              >
-                 <QrCode className="w-6 h-6" />
-              </motion.button>
-           )}
-
            <motion.button 
              variants={itemVariants}
              whileHover={{ scale: 1.05 }}
