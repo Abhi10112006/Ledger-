@@ -208,18 +208,34 @@ const Navbar: React.FC<Props> = ({
       {/* --- DESKTOP LEFT NAVIGATION RAIL --- */}
       <nav className={`
         hidden md:flex fixed z-50 glass border-slate-800/50 transition-all duration-500
-        top-0 left-0 h-screen w-24 border-r py-8 flex-col justify-between
+        top-0 left-0 h-screen w-24 border-r py-6 flex-col justify-between
       `}>
         
-        {/* Desktop Logo Area */}
-        <div className="flex flex-col items-center gap-4 mb-4">
-           <motion.div 
-             whileHover={{ rotate: 15 }}
-             className={`p-4 rounded-2xl bg-slate-900 border border-slate-800 shadow-xl ${activeTheme.text} relative group cursor-default`}
+        {/* Desktop Logo Area & User Name */}
+        <div className="flex flex-col items-center gap-3 mb-2 w-full px-1">
+           <motion.button 
+             onClick={() => { setTempName(settings.userName); setIsEditingName(true); }}
+             whileHover={{ scale: 1.05 }}
+             whileTap={{ scale: 0.95 }}
+             className={`p-3.5 rounded-2xl bg-slate-900 border border-slate-800 shadow-xl ${activeTheme.text} relative group`}
            >
-              <Zap className="w-8 h-8" />
+              <Zap className="w-7 h-7" />
               <div className={`absolute inset-0 ${activeTheme.bg} blur-xl opacity-20 group-hover:opacity-40 transition-opacity`}></div>
-           </motion.div>
+              
+              {/* Edit Indicator */}
+              <div className="absolute -bottom-1 -right-1 p-1 rounded-full bg-slate-800 border border-slate-700 text-slate-400 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <Pencil className="w-2.5 h-2.5" />
+              </div>
+           </motion.button>
+           
+           <button 
+             onClick={() => { setTempName(settings.userName); setIsEditingName(true); }}
+             className="text-center group w-full px-1"
+           >
+              <p className="text-[10px] font-black uppercase tracking-wider text-slate-400 group-hover:text-slate-200 transition-colors line-clamp-2 break-words leading-snug">
+                {settings.userName}
+              </p>
+           </button>
         </div>
 
         {/* Navigation Items */}

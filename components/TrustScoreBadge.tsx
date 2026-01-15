@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { Shield, ShieldAlert, ShieldCheck, Award, X, History, Info, TrendingUp, TrendingDown } from 'lucide-react';
+import { Shield, ShieldAlert, ShieldCheck, Award, X, History, Info, TrendingUp, TrendingDown, Skull, Frown, Meh, Smile } from 'lucide-react';
 import { getTrustBreakdown } from '../utils/calculations';
 import { Transaction } from '../types';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -23,21 +23,59 @@ const TrustScoreBadge: React.FC<Props> = ({ score, friendName, profileId, allTra
     return () => setMounted(false);
   }, []);
 
-  // Safe score handling to prevent crashes
-  const safeScore = isNaN(score) ? 50 : Math.round(score);
+  // Safe score handling
+  const safeScore = isNaN(score) ? 60 : Math.round(score);
 
+  // 7-TIER LOGIC
   const getInfo = () => {
-    if (safeScore >= 90) return { label: 'Elite', color: 'text-cyan-400 border-cyan-500/30 bg-cyan-500/10 shadow-[0_0_15px_rgba(34,211,238,0.2)]', icon: <Award className="w-3.5 h-3.5" /> };
-    if (safeScore >= 75) return { label: 'Reliable', color: 'text-emerald-400 border-emerald-500/30 bg-emerald-500/10', icon: <ShieldCheck className="w-3.5 h-3.5" /> };
-    if (safeScore >= 50) return { label: 'Fair', color: 'text-amber-400 border-amber-500/30 bg-amber-500/10', icon: <Shield className="w-3.5 h-3.5" /> };
-    if (safeScore >= 25) return { label: 'Risky', color: 'text-orange-400 border-orange-500/30 bg-orange-500/10', icon: <ShieldAlert className="w-3.5 h-3.5" /> };
-    return { label: 'Critical', color: 'text-rose-400 border-rose-500/30 bg-rose-500/10 animate-pulse', icon: <ShieldAlert className="w-3.5 h-3.5" /> };
-  };
-
-  const getDescription = () => {
-    if (safeScore >= 75) return "This person is good to give money.";
-    if (safeScore >= 50) return "This person is fair/ok to give money.";
-    return "This person is bad to give money.";
+    if (safeScore >= 91) return { 
+        label: 'Trustworthy', 
+        color: 'text-cyan-400 border-cyan-500/30 bg-cyan-500/10 shadow-[0_0_15px_rgba(34,211,238,0.2)]', 
+        icon: <Award className="w-3.5 h-3.5" />,
+        desc: "Elite Borrower. Always pays on time."
+    };
+    if (safeScore >= 81) return { 
+        label: 'Very Good', 
+        color: 'text-emerald-400 border-emerald-500/30 bg-emerald-500/10', 
+        icon: <ShieldCheck className="w-3.5 h-3.5" />,
+        desc: "Highly reliable. Rarely misses a date."
+    };
+    if (safeScore >= 71) return { 
+        label: 'Good', 
+        color: 'text-green-400 border-green-500/30 bg-green-500/10', 
+        icon: <Smile className="w-3.5 h-3.5" />,
+        desc: "Generally safe. Good repayment history."
+    };
+    if (safeScore >= 61) return { 
+        label: 'Fair', 
+        color: 'text-blue-400 border-blue-500/30 bg-blue-500/10', 
+        icon: <Shield className="w-3.5 h-3.5" />,
+        desc: "Okay to lend. Keep an eye on dates."
+    };
+    if (safeScore >= 51) return { 
+        label: 'Okay', 
+        color: 'text-yellow-400 border-yellow-500/30 bg-yellow-500/10', 
+        icon: <Meh className="w-3.5 h-3.5" />,
+        desc: "Borderline. Reminders might be needed."
+    };
+    if (safeScore >= 41) return { 
+        label: 'Bad', 
+        color: 'text-orange-400 border-orange-500/30 bg-orange-500/10', 
+        icon: <Frown className="w-3.5 h-3.5" />,
+        desc: "Risky. Often late or difficult."
+    };
+    if (safeScore >= 21) return { 
+        label: 'Very Bad', 
+        color: 'text-rose-400 border-rose-500/30 bg-rose-500/10', 
+        icon: <ShieldAlert className="w-3.5 h-3.5" />,
+        desc: "High Risk. Expect delays and issues."
+    };
+    return { 
+        label: 'Worst', 
+        color: 'text-rose-600 border-rose-600/50 bg-rose-950/40 animate-pulse shadow-[0_0_15px_rgba(225,29,72,0.4)]', 
+        icon: <Skull className="w-3.5 h-3.5" />,
+        desc: "Critical Risk. Do not lend."
+    };
   };
 
   const info = getInfo();
@@ -79,8 +117,8 @@ const TrustScoreBadge: React.FC<Props> = ({ score, friendName, profileId, allTra
           {/* Header */}
           <div className="shrink-0 p-5 flex justify-between items-center border-b border-white/5 bg-slate-900/80 backdrop-blur-md">
             <div className="flex items-center gap-3">
-              <div className="p-2 bg-emerald-500/10 rounded-lg">
-                <ShieldCheck className="text-emerald-500 w-5 h-5" />
+              <div className="p-2 bg-slate-800 rounded-lg">
+                <ShieldCheck className="text-slate-200 w-5 h-5" />
               </div>
               <div>
                   <h3 className="text-sm font-black uppercase tracking-widest text-slate-100">Truth Analysis</h3>
@@ -105,10 +143,10 @@ const TrustScoreBadge: React.FC<Props> = ({ score, friendName, profileId, allTra
                 {breakdown.score}
               </div>
               <div className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest shadow-lg relative z-10 ${info.color}`}>
-                Truth Score
+                {info.label} Score
               </div>
               <p className="text-slate-300 font-bold text-sm leading-relaxed max-w-[220px] relative z-10">
-                {getDescription()}
+                {info.desc}
               </p>
             </div>
 
@@ -116,7 +154,7 @@ const TrustScoreBadge: React.FC<Props> = ({ score, friendName, profileId, allTra
             {breakdown.factors.length > 0 && (
               <div className="space-y-3">
                 <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 px-1">
-                  <Info className="w-3 h-3" /> Core Factors
+                  <Info className="w-3 h-3" /> Key Factors
                 </div>
                 <div className="grid grid-cols-1 gap-2">
                   {breakdown.factors.map((f, i) => (
@@ -141,7 +179,7 @@ const TrustScoreBadge: React.FC<Props> = ({ score, friendName, profileId, allTra
             {/* History */}
             <div className="space-y-3">
               <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 px-1">
-                <History className="w-3 h-3" /> Integrity History
+                <History className="w-3 h-3" /> Recent Activity
               </div>
               <div className="space-y-1 pb-4">
                 {breakdown.history.slice(0, 5).map((h, i) => (
