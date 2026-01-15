@@ -94,15 +94,22 @@ const TourOverlay: React.FC<Props> = ({ tourStep, setTourStep, completeTour, act
       targetId: 'tour-keyboard-toggle' 
     },
     { 
+      id: 'tour-account-row',
+      title: "10. Smart Profiles", 
+      desc: "Tap on a friend's card to see their full history, trust score, and repayment timeline.", 
+      icon: <UserCheck className="text-cyan-400" />,
+      targetId: 'tour-account-row' 
+    },
+    { 
       id: 'tour-upi-button',
-      title: "10. UPI Payments", 
-      desc: "Inside a friend's profile, click this QR icon to generate a payment request instantly.", 
+      title: "11. UPI Payments", 
+      desc: "Inside the profile, click this QR icon to generate a payment request instantly.", 
       icon: <QrCode className="text-rose-400" />,
       targetId: 'tour-upi-button' 
     },
     { 
       id: 'tour-backup',
-      title: "11. Save Data", 
+      title: "12. Save Data", 
       desc: "Your data is only on this phone. Click here to download a backup file so you don't lose it.", 
       icon: <Download className="text-amber-400" />,
       targetId: 'tour-backup'

@@ -24,7 +24,7 @@ import { KeyboardProvider, useKeyboard } from './contexts/KeyboardContext';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useVirtualKeyboard } from './hooks/useVirtualKeyboard';
 
-const TOUR_KEY = 'abhi_ledger_tour_complete_v8';
+const TOUR_KEY = 'abhi_ledger_tour_complete_v9';
 const CURRENCIES = ['₹', '$', '€', '£', '¥'];
 
 const THEMES: Record<string, any> = {
@@ -201,11 +201,15 @@ const AppContent: React.FC = () => {
        setIsSettingsModalOpen(true);
     }
     else if (tourStep === 10) {
+        // Close settings, ensure we are on dashboard to show profile list
         setIsSettingsModalOpen(false);
-        // Force open simulated profile for UPI tour step
-        setSelectedProfileId('SIM-PROFILE');
+        setSelectedProfileId(null);
     }
     else if (tourStep === 11) {
+        // Open the simulated profile for UPI step
+        setSelectedProfileId('SIM-PROFILE');
+    }
+    else if (tourStep === 12) {
        setSelectedProfileId(null);
        if (isMobile) setIsMobileMenuOpen(true);
     }

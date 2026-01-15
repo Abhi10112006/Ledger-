@@ -490,9 +490,15 @@ export const useLedger = (tourStep: number, searchQuery: string = '') => {
       repayments: []
     };
 
-    const txToProcess = (transactions.length === 0 && tourStep >= 3) 
-      ? [simulationTx] 
-      : transactions;
+    let txToProcess = [...transactions];
+    const simExists = txToProcess.some(t => t.profileId === 'SIM-PROFILE');
+
+    // Ensure Sim Profile exists if:
+    // 1. We are at Step 11 (UPI Tour) - Required because App.tsx forces this ID
+    // 2. We are in Tour Mode (Steps 3+) AND have no data (need something to show)
+    if ((tourStep === 11 && !simExists) || (transactions.length === 0 && tourStep >= 3)) {
+       if (!simExists) txToProcess.push(simulationTx);
+    }
 
     const grouped: Record<string, Transaction[]> = {};
     txToProcess.forEach(t => {

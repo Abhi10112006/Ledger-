@@ -177,7 +177,10 @@ const DealModal: React.FC<Props> = ({
                           }
                       }}
                       onBlur={(e) => {
-                          kbName.onBlur(e);
+                          // Safely check if virtual keyboard blur exists before calling
+                          if (kbName.onBlur) {
+                              kbName.onBlur(e);
+                          }
                           setTimeout(() => setSearchResults([]), 200);
                       }}
                       className={`w-full bg-slate-900 border border-slate-800 rounded-xl px-5 py-4 text-slate-100 placeholder-slate-700 ${initialName ? 'opacity-70 font-bold' : ''} ${selectedProfileId ? 'border-emerald-500/50 pl-10' : ''}`} 

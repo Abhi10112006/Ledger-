@@ -26,6 +26,7 @@ const AccountRow: React.FC<Props> = ({ account, settings, activeTheme, onClick, 
 
   return (
     <motion.div 
+      id={index === 0 ? 'tour-account-row' : undefined}
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -20 }}
