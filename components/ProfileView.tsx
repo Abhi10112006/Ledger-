@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { ArrowUpRight, ArrowDownLeft, AlertTriangle } from 'lucide-react';
+import { ArrowUpRight, ArrowDownLeft, AlertTriangle, QrCode } from 'lucide-react';
 import { Transaction, AppSettings } from '../types';
 import { generateStatementPDF } from '../utils/pdfGenerator';
 import { generateShareCard, generateReceiptCard, generateLoanCard } from '../utils/imageGenerator';
@@ -10,6 +10,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import ProfileHeader from './profile/ProfileHeader';
 import ProfileStats from './profile/ProfileStats';
 import HistoryItem from './profile/HistoryItem';
+import UPIGeneratorModal from './UPIGeneratorModal';
 
 interface Props {
   account: {
@@ -29,6 +30,7 @@ interface Props {
   onDeleteProfile: () => void;
   onUpdateDueDate: (txId: string) => void;
   onEditRepayment: (txId: string, repId: string) => void;
+  onUpdateSettings: (key: keyof AppSettings, value: string) => void;
 }
 
 const ProfileView: React.FC<Props> = ({ 
@@ -42,7 +44,8 @@ const ProfileView: React.FC<Props> = ({
   onDeleteRepayment,
   onDeleteProfile,
   onUpdateDueDate,
-  onEditRepayment
+  onEditRepayment,
+  onUpdateSettings
 }) => {
   const [deleteConfirm, setDeleteConfirm] = useState<{
     type: 'PROFILE' | 'TRANSACTION' | 'REPAYMENT';
@@ -53,6 +56,9 @@ const ProfileView: React.FC<Props> = ({
   const [isSharing, setIsSharing] = useState(false);
   const [sharingId, setSharingId] = useState<string | null>(null);
   const [activeItemKey, setActiveItemKey] = useState<string | null>(null);
+  
+  // UPI Modal State
+  const [isUPIModalOpen, setIsUPIModalOpen] = useState(false);
 
   // 1. Flatten History: Combine Loans (Starts) and Repayments into one timeline
   const historyItems = account.transactions.flatMap(tx => {
@@ -404,28 +410,52 @@ const ProfileView: React.FC<Props> = ({
         </div>
 
         {/* BOTTOM ACTIONS */}
-        <div className="absolute bottom-0 left-0 right-0 px-6 pb-[calc(env(safe-area-inset-bottom)+1rem)] pt-8 grid grid-cols-2 gap-4 bg-gradient-to-t from-slate-950 via-slate-950/95 to-transparent z-30 backdrop-blur-[2px]">
+        <div className="absolute bottom-0 left-0 right-0 px-6 pb-[calc(env(safe-area-inset-bottom)+1rem)] pt-8 flex items-center gap-3 bg-gradient-to-t from-slate-950 via-slate-950/95 to-transparent z-30 backdrop-blur-[2px]">
            <motion.button 
              variants={itemVariants}
              whileHover={{ scale: 1.05 }}
              whileTap={{ scale: 0.95 }}
              onClick={onGive}
-             className="bg-rose-600 text-white p-4 rounded-2xl font-black uppercase tracking-widest shadow-lg shadow-rose-900/20 transition-all flex items-center justify-center gap-2 hover:bg-rose-500"
+             className="flex-1 bg-rose-600 text-white p-4 rounded-2xl font-black uppercase tracking-widest shadow-lg shadow-rose-900/20 transition-all flex items-center justify-center gap-2 hover:bg-rose-500"
            >
-             <ArrowUpRight className="w-5 h-5" /> Give Money
+             <ArrowUpRight className="w-5 h-5" /> Give
            </motion.button>
+           
+           {settings.currency === '₹' && (
+              <motion.button 
+                variants={itemVariants}
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => setIsUPIModalOpen(true)}
+                className="w-14 h-14 bg-slate-800 text-white rounded-2xl shadow-lg border border-slate-700 hover:bg-slate-700 flex items-center justify-center transition-all shrink-0"
+                title="Generate UPI QR"
+              >
+                 <QrCode className="w-6 h-6" />
+              </motion.button>
+           )}
+
            <motion.button 
              variants={itemVariants}
              whileHover={{ scale: 1.05 }}
              whileTap={{ scale: 0.95 }}
              onClick={() => onReceive(null)}
              disabled={account.totalExposure <= 0}
-             className={`p-4 rounded-2xl font-black uppercase tracking-widest shadow-lg transition-all flex items-center justify-center gap-2 ${account.totalExposure <= 0 ? 'bg-slate-800 text-slate-500 cursor-not-allowed' : 'bg-emerald-600 text-white shadow-emerald-900/20 hover:bg-emerald-500'}`}
+             className={`flex-1 p-4 rounded-2xl font-black uppercase tracking-widest shadow-lg transition-all flex items-center justify-center gap-2 ${account.totalExposure <= 0 ? 'bg-slate-800 text-slate-500 cursor-not-allowed' : 'bg-emerald-600 text-white shadow-emerald-900/20 hover:bg-emerald-500'}`}
            >
-             <ArrowDownLeft className="w-5 h-5" /> Got Money
+             <ArrowDownLeft className="w-5 h-5" /> Got
            </motion.button>
         </div>
       </motion.div>
+      
+      {/* UPI Generator Modal */}
+      <UPIGeneratorModal 
+          isOpen={isUPIModalOpen} 
+          onClose={() => setIsUPIModalOpen(false)}
+          defaultAmount={account.totalExposure}
+          settings={settings}
+          onUpdateSettings={onUpdateSettings}
+          activeTheme={activeTheme}
+      />
 
       {/* DELETE CONFIRMATION OVERLAY */}
       {deleteConfirm && (

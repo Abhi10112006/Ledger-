@@ -29,8 +29,6 @@ const SettingsModal: React.FC<Props> = ({
   const [activeTab, setActiveTab] = useState<'general' | 'visual' | 'interface' | 'contact'>('general');
   const [displayName, setDisplayName] = useState('ABHINAV YADUVANSHI');
   
-  const kbName = useVirtualKeyboard('text', (val) => updateSetting('userName', val));
-
   useEffect(() => {
     if (tourStep && tourStep >= 6 && tourStep <= 8) {
       setActiveTab('visual');
@@ -61,7 +59,7 @@ const SettingsModal: React.FC<Props> = ({
   }, [activeTab]);
 
   const tabs = [
-    { id: 'general', label: 'My Name', icon: <Settings className="w-4 h-4" /> },
+    { id: 'general', label: 'General', icon: <Settings className="w-4 h-4" /> },
     { id: 'visual', label: 'Look & Feel', icon: <Eye className="w-4 h-4" /> },
     { id: 'interface', label: 'Layout', icon: <Sliders className="w-4 h-4" /> },
     { id: 'contact', label: 'Credits', icon: <Terminal className="w-4 h-4" /> },
@@ -129,19 +127,9 @@ const SettingsModal: React.FC<Props> = ({
               <motion.div variants={containerVariants} className="space-y-8">
                 <motion.div variants={itemVariants} className="space-y-4">
                   <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-500">
-                    <Type className="w-3 h-3" /> My Details
+                    <Type className="w-3 h-3" /> Core Details
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <label className="text-xs text-slate-400 font-medium">My Name</label>
-                      <input 
-                        {...kbName}
-                        type="text" 
-                        value={settings.userName}
-                        onChange={(e) => updateSetting('userName', e.target.value)}
-                        className="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-3 text-slate-100 placeholder-slate-600 focus:outline-none focus:border-slate-600 transition-colors"
-                      />
-                    </div>
                      <div className="space-y-2">
                       <label className="text-xs text-slate-400 font-medium">Currency Symbol</label>
                       <div className="flex gap-2">

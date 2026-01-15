@@ -1,9 +1,10 @@
 
-import React from 'react';
-import { Zap, MonitorDown, Settings, HelpCircle, Download, LogOut, AlertTriangle, Menu, X, Type } from 'lucide-react';
+import React, { useState } from 'react';
+import { Zap, MonitorDown, Settings, HelpCircle, Download, LogOut, AlertTriangle, Menu, X, Type, Pencil, Save } from 'lucide-react';
 import { AppSettings } from '../types';
 import { motion, AnimatePresence } from 'framer-motion';
 import { resetDB } from '../utils/db';
+import { useVirtualKeyboard } from '../hooks/useVirtualKeyboard';
 
 interface Props {
   settings: AppSettings;
@@ -19,6 +20,7 @@ interface Props {
   onOpenTypographyModal: () => void;
   isMobileMenuOpen: boolean;
   setIsMobileMenuOpen: (isOpen: boolean) => void;
+  updateSetting: (key: keyof AppSettings, value: any) => void;
 }
 
 const Navbar: React.FC<Props> = ({
@@ -34,14 +36,26 @@ const Navbar: React.FC<Props> = ({
   handleInstallClick,
   onOpenTypographyModal,
   isMobileMenuOpen,
-  setIsMobileMenuOpen
+  setIsMobileMenuOpen,
+  updateSetting
 }) => {
   const [showResetConfirm, setShowResetConfirm] = React.useState(false);
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [tempName, setTempName] = useState(settings.userName);
+  
+  const kbName = useVirtualKeyboard('text', setTempName);
 
   const handleFactoryReset = async () => {
     await resetDB();
     localStorage.clear();
     window.location.reload();
+  };
+
+  const saveName = () => {
+      if(tempName.trim()) {
+          updateSetting('userName', tempName);
+      }
+      setIsEditingName(false);
   };
 
   const NavItem = ({ 
@@ -102,12 +116,20 @@ const Navbar: React.FC<Props> = ({
         className="md:hidden fixed top-0 left-0 right-0 h-16 glass border-b border-slate-800/50 z-40 flex items-center justify-between px-6"
         style={{ paddingTop: 'env(safe-area-inset-top)' }}
       >
-        <div className="flex items-center gap-3">
+        <button 
+            onClick={() => { setTempName(settings.userName); setIsEditingName(true); }}
+            className="flex items-center gap-3 active:scale-95 transition-transform"
+        >
           <div className={`p-2 rounded-xl bg-slate-900/50 border border-slate-800 ${activeTheme.text}`}>
              <Zap className="w-5 h-5" />
           </div>
-          <h1 className="font-bold text-lg tracking-tight text-slate-200">{settings.userName}</h1>
-        </div>
+          <div className="flex items-center gap-2">
+             <h1 className="font-bold text-lg tracking-tight text-slate-200">{settings.userName}</h1>
+             <div className="p-1 rounded-full bg-slate-800/50 text-slate-500">
+                <Pencil className="w-3 h-3" />
+             </div>
+          </div>
+        </button>
         
         <motion.button 
           whileTap={{ scale: 0.9 }}
@@ -303,6 +325,50 @@ const Navbar: React.FC<Props> = ({
            </motion.div>
         </div>
       )}
+      </AnimatePresence>
+
+      {/* --- EDIT NAME MODAL --- */}
+      <AnimatePresence>
+        {isEditingName && (
+            <div className="fixed inset-0 z-[2200] flex items-center justify-center p-4">
+                <motion.div 
+                    initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                    onClick={() => setIsEditingName(false)}
+                    className="absolute inset-0 bg-slate-950/80 backdrop-blur-sm"
+                />
+                <motion.div 
+                    initial={{ scale: 0.9, opacity: 0, y: 20 }}
+                    animate={{ scale: 1, opacity: 1, y: 0 }}
+                    exit={{ scale: 0.9, opacity: 0, y: 20 }}
+                    className="glass w-full max-w-sm rounded-[2.5rem] p-6 relative z-10"
+                >
+                    <div className="flex justify-between items-center mb-6">
+                        <h2 className="text-xl font-black text-white">Change Name</h2>
+                        <button onClick={() => setIsEditingName(false)} className="p-2 text-slate-400 hover:text-white"><X className="w-5 h-5" /></button>
+                    </div>
+                    <div className="space-y-4">
+                        <div className="space-y-2">
+                            <label className="text-[10px] font-black text-slate-500 uppercase ml-1">Your Name</label>
+                            <input 
+                                {...kbName}
+                                type="text" 
+                                value={tempName}
+                                onChange={(e) => setTempName(e.target.value)}
+                                className="w-full bg-slate-900 border border-slate-800 rounded-2xl px-5 py-4 text-slate-100 font-bold placeholder-slate-700 focus:outline-none focus:border-slate-600 transition-colors"
+                                autoFocus
+                            />
+                        </div>
+                        <motion.button 
+                            whileTap={{ scale: 0.95 }}
+                            onClick={saveName}
+                            className={`w-full py-4 ${activeTheme.bg} text-slate-950 rounded-2xl font-black uppercase tracking-widest flex items-center justify-center gap-2`}
+                        >
+                            <Save className="w-4 h-4" /> Save
+                        </motion.button>
+                    </div>
+                </motion.div>
+            </div>
+        )}
       </AnimatePresence>
     </>
   );

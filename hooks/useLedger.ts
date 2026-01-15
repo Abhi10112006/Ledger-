@@ -22,6 +22,8 @@ const DEFAULT_SETTINGS: AppSettings = {
   background: 'solid',
   currency: '₹',
   language: 'en',
+  upiId: '',
+  upiName: '',
   baseColor: 'slate',
   glowIntensity: 0.5,
   glassBlur: 16,

@@ -232,6 +232,7 @@ const AppContent: React.FC = () => {
           handleExport={handleExport} onLogout={handleLogout} deferredPrompt={deferredPrompt}
           handleInstallClick={handleInstallClick} onOpenTypographyModal={() => openModal(setIsTypographyModalOpen)}
           isMobileMenuOpen={isMobileMenuOpen} setIsMobileMenuOpen={(v) => v ? openModal(setIsMobileMenuOpen) : setIsMobileMenuOpen(false)}
+          updateSetting={updateSetting}
         />
         <main className="max-w-4xl mx-auto px-6 space-y-8 pt-24 pb-8 md:pl-32 md:pt-12 md:pr-6 relative">
           <DashboardStats stats={stats} settings={settings} activeTheme={activeTheme} tourStep={tourStep} onShowActiveDeals={() => openModal(setIsActiveDealsModalOpen)} />
@@ -310,6 +311,7 @@ const AppContent: React.FC = () => {
                     setActiveRepaymentId(repId);
                     openModal(setIsEditDateModalOpen); 
                 }}
+                onUpdateSettings={updateSetting}
              />
           </motion.div>
         )}

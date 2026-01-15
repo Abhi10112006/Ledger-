@@ -1,3 +1,4 @@
+
 import React from 'react';
 
 export type InterestType = 'none' | 'daily' | 'monthly' | 'yearly';
@@ -53,6 +54,10 @@ export interface AppSettings {
   background: BackgroundType;
   currency: string;
   language?: string;
+  
+  // UPI Settings
+  upiId?: string;
+  upiName?: string;
   
   // Visual Engine
   baseColor: BaseColor;

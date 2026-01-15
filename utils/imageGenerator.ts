@@ -37,6 +37,17 @@ function wrapText(ctx: CanvasRenderingContext2D, text: string, x: number, y: num
   ctx.fillText(line, x, currentY);
 }
 
+// Helper to load image
+const loadImage = (url: string): Promise<HTMLImageElement> => {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.crossOrigin = "Anonymous";
+    img.onload = () => resolve(img);
+    img.onerror = reject;
+    img.src = url;
+  });
+};
+
 // --- SHARED SETUP ---
 const setupCanvas = (size: number) => {
   const canvas = document.createElement('canvas');
@@ -521,6 +532,104 @@ export const generateLoanCard = async (
     canvas.toBlob((blob) => {
       if (blob) {
         const file = new File([blob], `Loan_Contract_${borrowerName.replace(/\s/g, '_')}.png`, { type: 'image/png' });
+        resolve(file);
+      } else {
+        resolve(null);
+      }
+    }, 'image/png');
+  });
+};
+
+export const generateUPIQrCard = async (
+  qrUrl: string,
+  userName: string,
+  amount: string,
+  vpa: string
+): Promise<File | null> => {
+  const size = 1080;
+  const { canvas, ctx } = setupCanvas(size);
+  if (!ctx) return null;
+
+  const bgDark = '#020617';
+  const bgCard = '#0f172a';
+  const textLight = '#f8fafc';
+  
+  const accent = '#10b981'; // Emerald for money
+
+  // Draw Background
+  drawBackground(ctx, size, bgDark);
+  
+  // Card Container
+  const cardMargin = 100;
+  const cardWidth = size - (cardMargin * 2);
+  const cardHeight = size - (cardMargin * 2);
+  const cardRadius = 40;
+
+  ctx.shadowColor = accent;
+  ctx.shadowBlur = 60;
+  ctx.fillStyle = bgCard;
+  roundRect(ctx, cardMargin, cardMargin, cardWidth, cardHeight, cardRadius);
+  ctx.fill();
+  
+  ctx.shadowBlur = 0; // Reset shadow
+
+  ctx.strokeStyle = '#334155';
+  ctx.lineWidth = 4;
+  ctx.stroke();
+
+  // Load QR Image
+  try {
+      const qrImg = await loadImage(qrUrl);
+      
+      // Draw QR Code centered
+      const qrSize = 500;
+      const qrX = (size - qrSize) / 2;
+      const qrY = cardMargin + 80;
+      
+      // White background for QR to ensure readability
+      ctx.fillStyle = '#ffffff';
+      roundRect(ctx, qrX - 20, qrY - 20, qrSize + 40, qrSize + 40, 20);
+      ctx.fill();
+      
+      ctx.drawImage(qrImg, qrX, qrY, qrSize, qrSize);
+      
+  } catch (e) {
+      console.error("Failed to load QR image for canvas", e);
+      return null;
+  }
+
+  // Text Below
+  ctx.textAlign = 'center';
+  
+  // Amount
+  ctx.fillStyle = accent;
+  ctx.font = 'bold 80px "Inter", sans-serif';
+  ctx.fillText(`₹${amount}`, size / 2, cardMargin + 680);
+
+  // "Scan to pay..."
+  ctx.fillStyle = '#94a3b8'; // Slate 400
+  ctx.font = '500 32px "Inter", sans-serif';
+  ctx.fillText("SCAN TO PAY YOUR LOAN TO", size / 2, cardMargin + 760);
+
+  // User Name
+  ctx.fillStyle = textLight;
+  ctx.font = 'bold 60px "Inter", sans-serif';
+  ctx.fillText(userName.toUpperCase(), size / 2, cardMargin + 830);
+  
+  // VPA
+  ctx.fillStyle = '#cbd5e1'; // Slate 300 - High contrast against #020617
+  ctx.font = 'bold 34px "Courier New", monospace';
+  ctx.shadowColor = '#000000';
+  ctx.shadowBlur = 4;
+  ctx.fillText(vpa, size / 2, cardMargin + 900);
+  ctx.shadowBlur = 0; // Reset
+
+  drawBranding(ctx, size);
+
+  return new Promise((resolve) => {
+    canvas.toBlob((blob) => {
+      if (blob) {
+        const file = new File([blob], `UPI_Payment_${userName.replace(/\s/g, '_')}.png`, { type: 'image/png' });
         resolve(file);
       } else {
         resolve(null);
