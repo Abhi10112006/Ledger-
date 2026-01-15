@@ -147,6 +147,43 @@ export const KeyboardProvider: React.FC<{ children: ReactNode }> = ({ children }
     return () => document.removeEventListener('click', handleClick);
   }, [openKeyboard]);
 
+  // --- APP RESUME HANDLING ---
+  // Fixes issue where native keyboard appears when minimizing and restoring app
+  useEffect(() => {
+    const handleResume = () => {
+      // Small delay to allow browser to complete focus restoration
+      setTimeout(() => {
+        const el = document.activeElement as HTMLElement;
+        if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA')) {
+            const input = el as HTMLInputElement | HTMLTextAreaElement;
+            const type = input.getAttribute('type');
+            const ignoredTypes = ['file', 'checkbox', 'radio', 'submit', 'button', 'image', 'range', 'color', 'hidden', 'date', 'time', 'datetime-local'];
+            if (type && ignoredTypes.includes(type)) return;
+
+            // Enforce inputMode to kill native keyboard
+            input.inputMode = 'none';
+            
+            // Re-open our virtual keyboard if it should be there
+            openKeyboard(input);
+        }
+      }, 100);
+    };
+
+    const onVisibilityChange = () => {
+        if (document.visibilityState === 'visible') {
+            handleResume();
+        }
+    };
+
+    window.addEventListener('focus', handleResume);
+    document.addEventListener('visibilitychange', onVisibilityChange);
+
+    return () => {
+        window.removeEventListener('focus', handleResume);
+        document.removeEventListener('visibilitychange', onVisibilityChange);
+    };
+  }, [openKeyboard]);
+
   return (
     <KeyboardContext.Provider value={{
       isVisible,
