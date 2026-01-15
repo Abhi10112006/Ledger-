@@ -1,36 +1,41 @@
 
-import React from 'react';
+import React, { useMemo } from 'react';
 import { useKeyboard } from '../contexts/KeyboardContext';
 
 type KeyboardType = 'text' | 'number' | 'email';
 
 export const useVirtualKeyboard = (
-  type: KeyboardType = 'text', 
+  type: KeyboardType = 'text',
   onChange?: (val: string) => void
 ) => {
   const { openKeyboard, closeKeyboard } = useKeyboard();
 
-  return {
-    readOnly: false, 
-    inputMode: 'none' as const, 
+  // Memoize props to prevent unnecessary re-renders and focus thrashing
+  return useMemo(() => ({
+    inputMode: 'none' as const,
     autoComplete: 'off',
     autoCorrect: 'off',
     autoCapitalize: 'off',
     spellCheck: false,
-    onFocus: (e: React.FocusEvent<HTMLInputElement>) => {
-      openKeyboard(e.target, type, onChange);
+    'data-vk': type, // Store type in DOM for robust detection
+    
+    onFocus: (e: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+      openKeyboard(e.currentTarget as HTMLInputElement, type);
     },
-    // Adding TouchStart ensures mobile devices trigger this before native focus/click quirks
-    onTouchStart: (e: React.TouchEvent<HTMLInputElement>) => {
-      // Don't prevent default to allow focus, but trigger keyboard logic
-      openKeyboard(e.currentTarget, type, onChange);
+    
+    onTouchStart: (e: React.TouchEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+      // Trigger open on touch to bypass some mobile behaviors
+      openKeyboard(e.currentTarget as HTMLInputElement, type);
     },
-    onClick: (e: React.MouseEvent<HTMLInputElement>) => {
-      openKeyboard(e.currentTarget, type, onChange);
+    
+    onClick: (e: React.MouseEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+      openKeyboard(e.currentTarget as HTMLInputElement, type);
     },
-    onBlur: (e: React.FocusEvent<HTMLInputElement>) => {
-        closeKeyboard();
+    
+    onBlur: () => {
+      closeKeyboard();
     },
-    className: 'cursor-pointer select-none' 
-  };
+    
+    className: 'cursor-pointer select-none'
+  }), [openKeyboard, closeKeyboard, type]);
 };

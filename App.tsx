@@ -269,9 +269,15 @@ const AppContent: React.FC = () => {
               </AnimatePresence>
             </div>
           </div>
-          {/* Keyboard Spacer for Main Dashboard */}
-          {isKeyboardVisible && <div style={{ height: '350px' }} className="transition-all duration-300" />}
         </main>
+        
+        {/* Persistent Keyboard Spacer placed after main content */}
+        <div className="max-w-4xl mx-auto px-6">
+           <div 
+              className="transition-[height] duration-300 ease-out" 
+              style={{ height: isKeyboardVisible ? '350px' : '0px' }} 
+           />
+        </div>
         
         <motion.button 
           id="tour-add-profile" 

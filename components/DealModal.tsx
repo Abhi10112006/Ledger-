@@ -283,11 +283,13 @@ const DealModal: React.FC<Props> = ({
             >
                Confirm Loan
             </motion.button>
-            
-            {/* Spacer for keyboard */}
-            {isKeyboardVisible && <div style={{ height: '280px' }} className="w-full transition-all duration-300" />}
-
           </form>
+          
+          {/* Persistent spacer outside the form to avoid margin issues */}
+          <div 
+             className="w-full transition-[height] duration-300 ease-out shrink-0" 
+             style={{ height: isKeyboardVisible ? '280px' : '0px' }} 
+          />
         </motion.div>
       </div>
     )}
