@@ -1,5 +1,5 @@
 
-const CACHE_NAME = 'abhi-ledger-v39-pwa-restore';
+const CACHE_NAME = 'abhi-ledger-v40-visual-update';
 
 // Core assets required for the app shell
 // We only cache the strict list of files we know exist.
