@@ -56,7 +56,7 @@ const AppContent: React.FC = () => {
   const [selectedProfileId, setSelectedProfileId] = useState<string | null>(null);
 
   const {
-    transactions, settings, isLoggedIn, deferredPrompt, accounts, allAccounts, stats,
+    transactions, settings, isLoggedIn, accounts, allAccounts, stats, showInstallButton,
     setIsLoggedIn, updateSetting, addLoan, addPayment, addProfilePayment, editTransaction, editRepayment,
     deleteTransaction, deleteRepayment, deleteProfile, handleExport, handleImport, handleInstallClick
   } = useLedger(tourStep, searchQuery);
@@ -228,7 +228,7 @@ const AppContent: React.FC = () => {
     return (
       <WelcomeScreen 
         settings={settings} activeTheme={activeTheme} onLogin={() => setIsLoggedIn(true)} 
-        deferredPrompt={deferredPrompt} handleInstallClick={handleInstallClick}
+        showInstallButton={showInstallButton} handleInstallClick={handleInstallClick}
         handleImport={handleImport} updateSetting={updateSetting}
       />
     );
@@ -251,7 +251,7 @@ const AppContent: React.FC = () => {
         <Navbar 
           settings={settings} activeTheme={activeTheme} tourStep={tourStep} setTourStep={setTourStep}
           onOpenTutorialSelection={() => setTourStep(0)} setIsSettingsModalOpen={(v) => v ? openModal(setIsSettingsModalOpen) : setIsSettingsModalOpen(false)}
-          handleExport={handleExport} onLogout={handleLogout} deferredPrompt={deferredPrompt}
+          handleExport={handleExport} onLogout={handleLogout} showInstallButton={showInstallButton}
           handleInstallClick={handleInstallClick} onOpenTypographyModal={() => openModal(setIsTypographyModalOpen)}
           isMobileMenuOpen={isMobileMenuOpen} setIsMobileMenuOpen={(v) => v ? openModal(setIsMobileMenuOpen) : setIsMobileMenuOpen(false)}
           updateSetting={updateSetting}

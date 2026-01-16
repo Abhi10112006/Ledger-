@@ -8,7 +8,7 @@ interface Props {
   settings: AppSettings;
   activeTheme: any;
   onLogin: () => void;
-  deferredPrompt: any;
+  showInstallButton: boolean;
   handleInstallClick: () => void;
   handleImport: (e: React.ChangeEvent<HTMLInputElement>) => void;
   updateSetting: (key: keyof AppSettings, value: any) => void;
@@ -18,7 +18,7 @@ const WelcomeScreen: React.FC<Props> = ({
     settings, 
     activeTheme, 
     onLogin, 
-    deferredPrompt, 
+    showInstallButton, 
     handleInstallClick, 
     handleImport
 }) => {
@@ -71,7 +71,7 @@ const WelcomeScreen: React.FC<Props> = ({
             Start Fresh
           </motion.button>
           
-          {deferredPrompt && (
+          {showInstallButton && (
             <motion.button 
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}

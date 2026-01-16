@@ -1,5 +1,5 @@
 
-const CACHE_NAME = 'abhi-ledger-v37-clean';
+const CACHE_NAME = 'abhi-ledger-v38-clean';
 
 // Core assets required for the app shell
 // We only cache the strict list of files we know exist.
@@ -48,6 +48,11 @@ self.addEventListener('activate', (event) => {
 
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
+
+  // 0. APK Downloads: Bypass Service Worker completely
+  if (url.pathname.endsWith('.apk')) {
+    return; // Let the browser handle the request directly
+  }
 
   // 1. ASSET LINKS: Network Only (Critical for TWA Verification)
   // This ensures Android verification always hits the live server.

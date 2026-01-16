@@ -15,7 +15,7 @@ interface Props {
   setIsSettingsModalOpen: (isOpen: boolean) => void;
   handleExport: () => void;
   onLogout: () => void;
-  deferredPrompt: any;
+  showInstallButton: boolean;
   handleInstallClick: () => void;
   onOpenTypographyModal: () => void;
   isMobileMenuOpen: boolean;
@@ -32,7 +32,7 @@ const Navbar: React.FC<Props> = ({
   setIsSettingsModalOpen,
   handleExport,
   onLogout,
-  deferredPrompt,
+  showInstallButton,
   handleInstallClick,
   onOpenTypographyModal,
   isMobileMenuOpen,
@@ -165,7 +165,7 @@ const Navbar: React.FC<Props> = ({
             </div>
             
             <div className="p-6 grid grid-cols-2 gap-4 overflow-y-auto">
-               {deferredPrompt && (
+               {showInstallButton && (
                  <motion.button variants={itemVariants} onClick={() => { handleInstallClick(); setIsMobileMenuOpen(false); }} className={`p-6 rounded-2xl bg-slate-900/50 border border-slate-800 flex flex-col items-center gap-3 ${activeTheme.text}`}>
                     <MonitorDown className="w-8 h-8" />
                     <span className="text-xs font-bold uppercase tracking-widest text-slate-300">Install App</span>
@@ -241,7 +241,7 @@ const Navbar: React.FC<Props> = ({
         {/* Navigation Items */}
         <div className="flex flex-col items-center gap-4 w-full justify-start">
            
-           {deferredPrompt && (
+           {showInstallButton && (
              <NavItem icon={MonitorDown} label="Install" onClick={handleInstallClick} color={activeTheme.text} />
            )}
 
