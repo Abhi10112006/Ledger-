@@ -20,6 +20,7 @@ import TypographyModal from './components/TypographyModal';
 import ActiveDealsModal from './components/ActiveDealsModal';
 import ErrorBoundary from './components/ErrorBoundary';
 import VirtualKeyboard from './components/VirtualKeyboard';
+import SystemBoot from './components/SystemBoot';
 import { KeyboardProvider, useKeyboard } from './contexts/KeyboardContext';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useVirtualKeyboard } from './hooks/useVirtualKeyboard';
@@ -37,6 +38,7 @@ const THEMES: Record<string, any> = {
 
 const AppContent: React.FC = () => {
   const [tourStep, setTourStep] = useState<number>(-1);
+  const [isBooting, setIsBooting] = useState(true);
   
   // Modal States
   const [isDashboardDealModalOpen, setIsDashboardDealModalOpen] = useState(false);
@@ -110,6 +112,7 @@ const AppContent: React.FC = () => {
     closeAd();
     closeKeyboard();
     setIsLoggedIn(false);
+    // Note: We DO NOT reset isBooting here, so the user sees the Welcome Screen immediately without boot animation
   }, [closeAd, setIsLoggedIn, closeKeyboard]);
 
   const navigateToProfile = (profileId: string) => {
@@ -224,16 +227,6 @@ const AppContent: React.FC = () => {
      checkEligibility();
   }, [checkEligibility]);
 
-  if (!isLoggedIn) {
-    return (
-      <WelcomeScreen 
-        settings={settings} activeTheme={activeTheme} onLogin={() => setIsLoggedIn(true)} 
-        showInstallButton={showInstallButton} handleInstallClick={handleInstallClick}
-        handleImport={handleImport} updateSetting={updateSetting}
-      />
-    );
-  }
-
   const getRadius = () => settings.cornerRadius === 'sharp' ? '0px' : settings.cornerRadius === 'round' ? '0.75rem' : '2rem';
   const getPadding = () => settings.density === 'compact' ? '1rem' : '1.5rem';
   const getFontClass = () => ({ mono: 'font-mono-app', sans: 'font-sans-app', system: 'font-system-app', serif: 'font-serif-app', comic: 'font-comic-app' }[settings.fontStyle] || 'font-sans-app');
@@ -246,160 +239,179 @@ const AppContent: React.FC = () => {
        {settings.enableGrain && <div className="grain-overlay"></div>}
        {settings.background === 'nebula' && <div className={`fixed top-0 left-0 right-0 h-[50vh] ${activeTheme.bg}/10 blur-[120px] pointer-events-none rounded-b-full`}></div>}
 
-      {/* --- DASHBOARD LAYER --- */}
-      <div>
-        <Navbar 
-          settings={settings} activeTheme={activeTheme} tourStep={tourStep} setTourStep={setTourStep}
-          onOpenTutorialSelection={() => setTourStep(0)} setIsSettingsModalOpen={(v) => v ? openModal(setIsSettingsModalOpen) : setIsSettingsModalOpen(false)}
-          handleExport={handleExport} onLogout={handleLogout} showInstallButton={showInstallButton}
-          handleInstallClick={handleInstallClick} onOpenTypographyModal={() => openModal(setIsTypographyModalOpen)}
-          isMobileMenuOpen={isMobileMenuOpen} setIsMobileMenuOpen={(v) => v ? openModal(setIsMobileMenuOpen) : setIsMobileMenuOpen(false)}
-          updateSetting={updateSetting}
-        />
-        <main className="max-w-4xl mx-auto px-6 space-y-8 pt-24 pb-8 md:pl-32 md:pt-12 md:pr-6 relative">
-          <DashboardStats stats={stats} settings={settings} activeTheme={activeTheme} tourStep={tourStep} onShowActiveDeals={() => openModal(setIsActiveDealsModalOpen)} />
-          <div className="space-y-6">
-            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 border-b border-slate-800/50 pb-6 mt-12">
+       {/* GLOBAL SYSTEM BOOT OVERLAY */}
+       <AnimatePresence>
+         {isBooting && (
+            <SystemBoot activeTheme={activeTheme} onComplete={() => setIsBooting(false)} />
+         )}
+       </AnimatePresence>
+
+       {/* MAIN APP CONTENT */}
+       {!isBooting && (
+         !isLoggedIn ? (
+            <WelcomeScreen 
+              settings={settings} activeTheme={activeTheme} onLogin={() => setIsLoggedIn(true)} 
+              showInstallButton={showInstallButton} handleInstallClick={handleInstallClick}
+              handleImport={handleImport} updateSetting={updateSetting}
+            />
+         ) : (
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.5 }}>
+              {/* --- DASHBOARD LAYER --- */}
               <div>
-                <h2 className="text-2xl font-black text-slate-200 tracking-tight">People</h2>
-                <p className="text-xs text-slate-500 font-bold uppercase tracking-widest mt-1">{accounts.length} Friends added</p>
+                <Navbar 
+                  settings={settings} activeTheme={activeTheme} tourStep={tourStep} setTourStep={setTourStep}
+                  onOpenTutorialSelection={() => setTourStep(0)} setIsSettingsModalOpen={(v) => v ? openModal(setIsSettingsModalOpen) : setIsSettingsModalOpen(false)}
+                  handleExport={handleExport} onLogout={handleLogout} showInstallButton={showInstallButton}
+                  handleInstallClick={handleInstallClick} onOpenTypographyModal={() => openModal(setIsTypographyModalOpen)}
+                  isMobileMenuOpen={isMobileMenuOpen} setIsMobileMenuOpen={(v) => v ? openModal(setIsMobileMenuOpen) : setIsMobileMenuOpen(false)}
+                  updateSetting={updateSetting}
+                />
+                <main className="max-w-4xl mx-auto px-6 space-y-8 pt-24 pb-8 md:pl-32 md:pt-12 md:pr-6 relative">
+                  <DashboardStats stats={stats} settings={settings} activeTheme={activeTheme} tourStep={tourStep} onShowActiveDeals={() => openModal(setIsActiveDealsModalOpen)} />
+                  <div className="space-y-6">
+                    <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 border-b border-slate-800/50 pb-6 mt-12">
+                      <div>
+                        <h2 className="text-2xl font-black text-slate-200 tracking-tight">People</h2>
+                        <p className="text-xs text-slate-500 font-bold uppercase tracking-widest mt-1">{accounts.length} Friends added</p>
+                      </div>
+                      
+                      <div id="tour-search" className="relative group flex-grow sm:w-64">
+                          <div className={`absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none transition-colors ${searchQuery ? activeTheme.text : 'text-slate-500'}`}><Search className="h-4 w-4" /></div>
+                          <input 
+                            {...kbSearch}
+                            value={searchQuery} 
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            className="block w-full pl-10 pr-3 py-2.5 bg-slate-900/50 border border-slate-800 rounded-xl text-xs font-mono text-slate-100 placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-slate-700 focus:border-slate-700 transition-all uppercase tracking-wider" 
+                            placeholder="Search Name..." 
+                          />
+                      </div>
+                    </div>
+                    <div className="space-y-4">
+                      <AnimatePresence>
+                        {accounts.length > 0 ? accounts.map((account, index) => (
+                          <AccountRow key={account.id} account={account} settings={settings} activeTheme={activeTheme} onClick={() => navigateToProfile(account.id)} index={index} />
+                        )) : (
+                          <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="glass border-slate-800/40 border-dashed border-2 text-center" style={{ borderRadius: 'var(--app-radius)', padding: '3rem' }}>
+                            <div className="bg-slate-900/50 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4 border border-slate-800"><UserPlus className="w-10 h-10 text-slate-700" /></div>
+                            <h3 className="text-xl font-bold text-slate-300 mb-2">No Friends Added</h3>
+                            <button onClick={() => { setSearchQuery(''); openModal(setIsDashboardDealModalOpen); }} className={`px-8 py-3 ${activeTheme.bg} text-slate-950 rounded-xl font-bold hover:brightness-110 transition-all`}>Add a Friend</button>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </div>
+                  </div>
+                </main>
+                
+                {/* Persistent Keyboard Spacer placed after main content */}
+                <div className="max-w-4xl mx-auto px-6">
+                   <div 
+                      className="transition-[height] duration-300 ease-out" 
+                      style={{ height: isKeyboardVisible ? '350px' : '0px' }} 
+                   />
+                </div>
+                
+                <motion.button 
+                  id="tour-add-profile" 
+                  onClick={() => openModal(setIsDashboardDealModalOpen)} 
+                  whileHover={{ scale: 1.1, rotate: 90 }} 
+                  whileTap={{ scale: 0.9 }} 
+                  className={`fixed bottom-8 right-6 md:right-8 w-16 h-16 md:w-18 md:h-18 ${activeTheme.bg} hover:brightness-110 text-slate-950 rounded-[2rem] flex items-center justify-center shadow-2xl transition-all group z-30`}
+                >
+                  <Plus className="w-8 h-8 md:w-10 md:h-10 transition-transform duration-300" />
+                </motion.button>
               </div>
-              
-              <div id="tour-search" className="relative group flex-grow sm:w-64">
-                  <div className={`absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none transition-colors ${searchQuery ? activeTheme.text : 'text-slate-500'}`}><Search className="h-4 w-4" /></div>
-                  <input 
-                    {...kbSearch}
-                    value={searchQuery} 
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="block w-full pl-10 pr-3 py-2.5 bg-slate-900/50 border border-slate-800 rounded-xl text-xs font-mono text-slate-100 placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-slate-700 focus:border-slate-700 transition-all uppercase tracking-wider" 
-                    placeholder="Search Name..." 
-                  />
-              </div>
-            </div>
-            <div className="space-y-4">
+
               <AnimatePresence>
-                {accounts.length > 0 ? accounts.map((account, index) => (
-                  <AccountRow key={account.id} account={account} settings={settings} activeTheme={activeTheme} onClick={() => navigateToProfile(account.id)} index={index} />
-                )) : (
-                  <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="glass border-slate-800/40 border-dashed border-2 text-center" style={{ borderRadius: 'var(--app-radius)', padding: '3rem' }}>
-                    <div className="bg-slate-900/50 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4 border border-slate-800"><UserPlus className="w-10 h-10 text-slate-700" /></div>
-                    <h3 className="text-xl font-bold text-slate-300 mb-2">No Friends Added</h3>
-                    <button onClick={() => { setSearchQuery(''); openModal(setIsDashboardDealModalOpen); }} className={`px-8 py-3 ${activeTheme.bg} text-slate-950 rounded-xl font-bold hover:brightness-110 transition-all`}>Add a Friend</button>
+                {selectedProfileId && activeProfile && (
+                  <motion.div 
+                    key="profile-layer" 
+                    className="fixed inset-0 z-[100] isolate"
+                    initial={{ x: '100%' }} 
+                    animate={{ x: 0 }} 
+                    exit={{ x: '100%' }}
+                    transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                    style={{ backgroundColor: 'transparent' }}
+                  >
+                     <ProfileView 
+                        account={activeProfile} settings={settings} activeTheme={activeTheme}
+                        onBack={handleBackAction}
+                        onGive={() => openModal(setIsProfileDealModalOpen)}
+                        onReceive={(txId) => { 
+                            setActiveTxId(txId);
+                            openModal(setIsPaymentModalOpen); 
+                        }}
+                        onDeleteTransaction={deleteTransaction} onDeleteRepayment={deleteRepayment}
+                        onDeleteProfile={() => { deleteProfile(activeProfile.id); handleBackAction(); }}
+                        onUpdateDueDate={(txId) => { setActiveTxId(txId); openModal(setIsEditDateModalOpen); }}
+                        onEditRepayment={(txId, repId) => { 
+                            setActiveTxId(txId); 
+                            setActiveRepaymentId(repId);
+                            openModal(setIsEditDateModalOpen); 
+                        }}
+                        onUpdateSettings={updateSetting}
+                     />
                   </motion.div>
                 )}
               </AnimatePresence>
-            </div>
-          </div>
-        </main>
-        
-        {/* Persistent Keyboard Spacer placed after main content */}
-        <div className="max-w-4xl mx-auto px-6">
-           <div 
-              className="transition-[height] duration-300 ease-out" 
-              style={{ height: isKeyboardVisible ? '350px' : '0px' }} 
-           />
-        </div>
-        
-        <motion.button 
-          id="tour-add-profile" 
-          onClick={() => openModal(setIsDashboardDealModalOpen)} 
-          whileHover={{ scale: 1.1, rotate: 90 }} 
-          whileTap={{ scale: 0.9 }} 
-          className={`fixed bottom-8 right-6 md:right-8 w-16 h-16 md:w-18 md:h-18 ${activeTheme.bg} hover:brightness-110 text-slate-950 rounded-[2rem] flex items-center justify-center shadow-2xl transition-all group z-30`}
-        >
-          <Plus className="w-8 h-8 md:w-10 md:h-10 transition-transform duration-300" />
-        </motion.button>
-      </div>
+              
+              <SponsorModal isOpen={isAdOpen} onClose={closeAd} activeTheme={activeTheme} ad={currentAd} onBackup={handleExport} />
+              <TourOverlay tourStep={tourStep} setTourStep={setTourStep} completeTour={handleCompleteTour} activeTheme={activeTheme} />
+              
+              <SettingsModal isOpen={isSettingsModalOpen} onClose={closeModal} settings={settings} updateSetting={updateSetting} activeTheme={activeTheme} themes={THEMES} currencies={CURRENCIES} tourStep={tourStep} />
+              <TypographyModal isOpen={isTypographyModalOpen} onClose={closeModal} currentFont={settings.fontStyle} onSelect={(font) => updateSetting('fontStyle', font)} activeTheme={activeTheme} />
+              <ActiveDealsModal isOpen={isActiveDealsModalOpen} onClose={closeModal} transactions={transactions} currency={settings.currency} activeTheme={activeTheme} onSelectDeal={navigateToProfile} />
+              
+              <DealModal 
+                isOpen={isDashboardDealModalOpen} 
+                onClose={closeModal} 
+                onSave={(data) => { addLoan(data); setSearchQuery(''); closeModal(); }} 
+                activeTheme={activeTheme} 
+                currency={settings.currency} 
+                initialName="" 
+                initialProfileId={undefined} 
+                existingAccounts={allAccounts}
+              />
 
-      <AnimatePresence>
-        {selectedProfileId && activeProfile && (
-          <motion.div 
-            key="profile-layer" 
-            className="fixed inset-0 z-[100] isolate"
-            initial={{ x: '100%' }} 
-            animate={{ x: 0 }} 
-            exit={{ x: '100%' }}
-            transition={{ type: "spring", stiffness: 300, damping: 30 }}
-            style={{ backgroundColor: 'transparent' }}
-          >
-             <ProfileView 
-                account={activeProfile} settings={settings} activeTheme={activeTheme}
-                onBack={handleBackAction}
-                onGive={() => openModal(setIsProfileDealModalOpen)}
-                onReceive={(txId) => { 
-                    setActiveTxId(txId);
-                    openModal(setIsPaymentModalOpen); 
-                }}
-                onDeleteTransaction={deleteTransaction} onDeleteRepayment={deleteRepayment}
-                onDeleteProfile={() => { deleteProfile(activeProfile.id); handleBackAction(); }}
-                onUpdateDueDate={(txId) => { setActiveTxId(txId); openModal(setIsEditDateModalOpen); }}
-                onEditRepayment={(txId, repId) => { 
-                    setActiveTxId(txId); 
-                    setActiveRepaymentId(repId);
-                    openModal(setIsEditDateModalOpen); 
-                }}
-                onUpdateSettings={updateSetting}
-             />
-          </motion.div>
-        )}
-      </AnimatePresence>
-      
-      <SponsorModal isOpen={isAdOpen} onClose={closeAd} activeTheme={activeTheme} ad={currentAd} onBackup={handleExport} />
-      <TourOverlay tourStep={tourStep} setTourStep={setTourStep} completeTour={handleCompleteTour} activeTheme={activeTheme} />
-      
-      <SettingsModal isOpen={isSettingsModalOpen} onClose={closeModal} settings={settings} updateSetting={updateSetting} activeTheme={activeTheme} themes={THEMES} currencies={CURRENCIES} tourStep={tourStep} />
-      <TypographyModal isOpen={isTypographyModalOpen} onClose={closeModal} currentFont={settings.fontStyle} onSelect={(font) => updateSetting('fontStyle', font)} activeTheme={activeTheme} />
-      <ActiveDealsModal isOpen={isActiveDealsModalOpen} onClose={closeModal} transactions={transactions} currency={settings.currency} activeTheme={activeTheme} onSelectDeal={navigateToProfile} />
-      
-      <DealModal 
-        isOpen={isDashboardDealModalOpen} 
-        onClose={closeModal} 
-        onSave={(data) => { addLoan(data); setSearchQuery(''); closeModal(); }} 
-        activeTheme={activeTheme} 
-        currency={settings.currency} 
-        initialName="" 
-        initialProfileId={undefined} 
-        existingAccounts={allAccounts}
-      />
+              <DealModal 
+                isOpen={isProfileDealModalOpen} 
+                onClose={closeModal} 
+                onSave={(data) => { addLoan(data); closeModal(); }} 
+                activeTheme={activeTheme} 
+                currency={settings.currency} 
+                initialName={activeProfile ? activeProfile.name : ''} 
+                initialProfileId={activeProfile ? activeProfile.id : undefined} 
+                existingAccounts={allAccounts}
+              />
 
-      <DealModal 
-        isOpen={isProfileDealModalOpen} 
-        onClose={closeModal} 
-        onSave={(data) => { addLoan(data); closeModal(); }} 
-        activeTheme={activeTheme} 
-        currency={settings.currency} 
-        initialName={activeProfile ? activeProfile.name : ''} 
-        initialProfileId={activeProfile ? activeProfile.id : undefined} 
-        existingAccounts={allAccounts}
-      />
-
-      <PaymentModal isOpen={isPaymentModalOpen} onClose={closeModal} onSave={handlePaymentSave} activeTheme={activeTheme} currency={settings.currency} />
-      
-      <EditDateModal 
-         isOpen={isEditDateModalOpen} 
-         onClose={closeModal} 
-         onSave={(amount, date) => { 
-            if (activeRepaymentId && activeTxId) {
-                editRepayment(activeTxId, activeRepaymentId, { amount, date });
-            } else {
-                editTransaction(activeTxId, { amount, date }); 
-            }
-            closeModal(); 
-         }} 
-         initialDate={activeRepaymentId ? (activeRepayment?.date || '') : (activeTx?.returnDate || '')} 
-         initialAmount={activeRepaymentId ? (activeRepayment?.amount || 0) : (activeTx?.principalAmount || 0)}
-         title={activeRepaymentId ? "Edit Payment" : "Edit Loan"}
-      />
-      
-      <DeleteModal isOpen={isDeleteModalOpen} onClose={closeModal} onConfirm={() => { deleteTransaction(activeTxId); closeModal(); }} />
-      
-      {/* VIRTUAL KEYBOARD */}
-      <VirtualKeyboard 
-        activeTheme={activeTheme} 
-        settings={settings}
-        updateSetting={updateSetting}
-      />
-      
+              <PaymentModal isOpen={isPaymentModalOpen} onClose={closeModal} onSave={handlePaymentSave} activeTheme={activeTheme} currency={settings.currency} />
+              
+              <EditDateModal 
+                 isOpen={isEditDateModalOpen} 
+                 onClose={closeModal} 
+                 onSave={(amount, date) => { 
+                    if (activeRepaymentId && activeTxId) {
+                        editRepayment(activeTxId, activeRepaymentId, { amount, date });
+                    } else {
+                        editTransaction(activeTxId, { amount, date }); 
+                    }
+                    closeModal(); 
+                 }} 
+                 initialDate={activeRepaymentId ? (activeRepayment?.date || '') : (activeTx?.returnDate || '')} 
+                 initialAmount={activeRepaymentId ? (activeRepayment?.amount || 0) : (activeTx?.principalAmount || 0)}
+                 title={activeRepaymentId ? "Edit Payment" : "Edit Loan"}
+              />
+              
+              <DeleteModal isOpen={isDeleteModalOpen} onClose={closeModal} onConfirm={() => { deleteTransaction(activeTxId); closeModal(); }} />
+              
+              {/* VIRTUAL KEYBOARD */}
+              <VirtualKeyboard 
+                activeTheme={activeTheme} 
+                settings={settings}
+                updateSetting={updateSetting}
+              />
+            </motion.div>
+         )
+       )}
     </div>
   );
 };
