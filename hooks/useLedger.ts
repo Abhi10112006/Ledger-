@@ -94,13 +94,10 @@ export const useLedger = (tourStep: number, searchQuery: string = '') => {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [sortBy, setSortBy] = useState<SortOption>('recent');
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
-  const [isAndroid, setIsAndroid] = useState(false);
   const [isStandalone, setIsStandalone] = useState(false);
 
   // --- INITIAL DATA LOAD (IndexedDB + Migration) ---
   useEffect(() => {
-    setIsAndroid(/Android/i.test(navigator.userAgent));
-
     // Detect Standalone Mode (PWA or APK)
     const mq = window.matchMedia('(display-mode: standalone)');
     const checkStandalone = () => {
@@ -178,17 +175,6 @@ export const useLedger = (tourStep: number, searchQuery: string = '') => {
   // --- PERSISTENCE HANDLERS ---
 
   const handleInstallClick = async () => {
-    if (isAndroid) {
-      // Direct APK Download for Android users
-      const link = document.createElement('a');
-      link.href = '/app.apk';
-      link.setAttribute('download', 'AbhiLedger.apk');
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      return;
-    }
-
     if (!deferredPrompt) return;
     deferredPrompt.prompt();
     const { outcome } = await deferredPrompt.userChoice;
@@ -580,8 +566,8 @@ export const useLedger = (tourStep: number, searchQuery: string = '') => {
   // Install Button Logic:
   // Show ONLY if:
   // 1. Not in Standalone Mode (PWA or APK)
-  // 2. AND (Device is Android OR Browser fired beforeinstallprompt)
-  const showInstallButton = !isStandalone && (isAndroid || !!deferredPrompt);
+  // 2. AND Browser fired beforeinstallprompt
+  const showInstallButton = !isStandalone && !!deferredPrompt;
 
   return {
     transactions, settings, isLoggedIn, deferredPrompt, sortBy, accounts, allAccounts, stats,
