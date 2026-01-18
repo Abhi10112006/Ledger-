@@ -1,9 +1,13 @@
 
 import React, { useState } from 'react';
-import { ShieldAlert, Download, Globe } from 'lucide-react';
+import { ShieldAlert, Download, Globe, Save } from 'lucide-react';
 import AndroidInstallModal from './AndroidInstallModal';
 
-const AndroidBlocker = () => {
+interface Props {
+  onBackup?: () => void;
+}
+
+const AndroidBlocker: React.FC<Props> = ({ onBackup }) => {
   const [showInstall, setShowInstall] = useState(false);
 
   return (
@@ -36,6 +40,15 @@ const AndroidBlocker = () => {
         >
            <Download className="w-5 h-5" /> Download App (APK)
         </button>
+
+        {onBackup && (
+          <button 
+            onClick={onBackup}
+            className="w-full py-4 bg-red-950/40 hover:bg-red-900/40 text-red-400 border border-red-900/50 hover:border-red-500/50 rounded-xl mb-4 font-bold text-xs uppercase tracking-widest flex items-center justify-center gap-2 transition-all"
+          >
+             <Save className="w-4 h-4" /> Rescue Data (Backup)
+          </button>
+        )}
 
         <a 
           href="https://abhis-ledger.vercel.app/"

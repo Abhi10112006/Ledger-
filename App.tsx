@@ -74,13 +74,19 @@ const AppContent: React.FC = () => {
     setKeyboardEnabled(!!settings.useVirtualKeyboard);
   }, [settings.useVirtualKeyboard, setKeyboardEnabled]);
 
-  // Detect Android Web
+  // Detect Android Web & PWA (Block everything except the native APK/TWA)
   useEffect(() => {
     const ua = navigator.userAgent.toLowerCase();
     const isAndroid = ua.includes('android');
-    const isStandalone = window.matchMedia('(display-mode: standalone)').matches; // Checks if installed PWA/APK
-    // We block if it's Android AND NOT running as an installed app
-    if (isAndroid && !isStandalone) {
+    
+    // Strict Check: Only allow if coming from the specific Trusted Web Activity (APK)
+    // PWA (Add to Homescreen) does NOT set this referrer.
+    // External apps (Gmail, WhatsApp) set their own package names, so they will still be blocked.
+    // NOTE: This requires the APK to be a TWA associated with this domain via assetlinks.json
+    const isTWA = document.referrer.includes('android-app://app.vercel.ledger69.twa');
+
+    // We block if it's Android AND NOT the verified native application
+    if (isAndroid && !isTWA) {
       setIsAndroidWeb(true);
       setIsBooting(false); // Stop boot if blocked
     }
@@ -248,7 +254,7 @@ const AppContent: React.FC = () => {
   const getBackgroundClass = () => settings.background === 'nebula' ? 'bg-gradient-to-br from-[var(--app-bg)] via-slate-900/50 to-[var(--app-bg)]' : settings.background === 'grid' ? 'bg-[linear-gradient(to_right,#80808008_1px,transparent_1px),linear-gradient(to_bottom,#80808008_1px,transparent_1px)] bg-[size:24px_24px]' : '';
 
   if (isAndroidWeb) {
-    return <AndroidBlocker />;
+    return <AndroidBlocker onBackup={handleExport} />;
   }
 
   return (
