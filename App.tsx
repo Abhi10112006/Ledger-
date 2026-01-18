@@ -21,6 +21,7 @@ import ActiveDealsModal from './components/ActiveDealsModal';
 import ErrorBoundary from './components/ErrorBoundary';
 import VirtualKeyboard from './components/VirtualKeyboard';
 import SystemBoot from './components/SystemBoot';
+import AndroidBlocker from './components/AndroidBlocker';
 import { KeyboardProvider, useKeyboard } from './contexts/KeyboardContext';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useVirtualKeyboard } from './hooks/useVirtualKeyboard';
@@ -39,6 +40,7 @@ const THEMES: Record<string, any> = {
 const AppContent: React.FC = () => {
   const [tourStep, setTourStep] = useState<number>(-1);
   const [isBooting, setIsBooting] = useState(true);
+  const [isAndroidWeb, setIsAndroidWeb] = useState(false);
   
   // Modal States
   const [isDashboardDealModalOpen, setIsDashboardDealModalOpen] = useState(false);
@@ -71,6 +73,18 @@ const AppContent: React.FC = () => {
   useEffect(() => {
     setKeyboardEnabled(!!settings.useVirtualKeyboard);
   }, [settings.useVirtualKeyboard, setKeyboardEnabled]);
+
+  // Detect Android Web
+  useEffect(() => {
+    const ua = navigator.userAgent.toLowerCase();
+    const isAndroid = ua.includes('android');
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches; // Checks if installed PWA/APK
+    // We block if it's Android AND NOT running as an installed app
+    if (isAndroid && !isStandalone) {
+      setIsAndroidWeb(true);
+      setIsBooting(false); // Stop boot if blocked
+    }
+  }, []);
 
   // Initialize virtual keyboard for search
   const kbSearch = useVirtualKeyboard('text', setSearchQuery);
@@ -232,6 +246,10 @@ const AppContent: React.FC = () => {
   const getFontClass = () => ({ mono: 'font-mono-app', sans: 'font-sans-app', system: 'font-system-app', serif: 'font-serif-app', comic: 'font-comic-app' }[settings.fontStyle] || 'font-sans-app');
   const getBaseColor = () => settings.baseColor === 'oled' ? '#000000' : '#020617';
   const getBackgroundClass = () => settings.background === 'nebula' ? 'bg-gradient-to-br from-[var(--app-bg)] via-slate-900/50 to-[var(--app-bg)]' : settings.background === 'grid' ? 'bg-[linear-gradient(to_right,#80808008_1px,transparent_1px),linear-gradient(to_bottom,#80808008_1px,transparent_1px)] bg-[size:24px_24px]' : '';
+
+  if (isAndroidWeb) {
+    return <AndroidBlocker />;
+  }
 
   return (
     <div className={`min-h-screen text-slate-100 pb-safe selection:bg-emerald-500/30 ${getFontClass()} ${getBackgroundClass()}`}>
