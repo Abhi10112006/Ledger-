@@ -1,0 +1,92 @@
+
+/**
+ * Version Management Utility
+ * 
+ * How it works:
+ * - APP_VERSION is the hardcoded current version of the APK.
+ * - On startup, the app fetches `version.json` from a hosted URL (GitHub raw file).
+ * - If the remote version is newer, an UpdateBanner is shown to the user.
+ * 
+ * To release a new version:
+ * 1. Update APP_VERSION in this file.
+ * 2. Update the `version` field in /public/version.json.
+ * 3. Deploy the new app build.
+ * 4. Users will see the update banner on next app launch.
+ */
+
+export const APP_VERSION = '2.0.0';
+export const APP_VERSION_NAME = 'Haptics & Cleanup Update';
+
+// Primary URL: raw GitHub file from the app's actual repository
+const VERSION_URL = 'https://raw.githubusercontent.com/Abhi10112006/Ledger-/main/public/version.json';
+
+// Fallback URL — Vercel deployment of the same app
+const VERSION_URL_FALLBACK = 'https://abhis-ledger.vercel.app/version.json';
+
+export interface VersionInfo {
+  version: string;
+  versionName: string;
+  releaseDate: string;
+  changelog: string[];
+  downloadUrl?: string;
+  isForced?: boolean; // if true, user cannot dismiss the update banner
+}
+
+/**
+ * Parses semantic version strings like "2.0.0" and compares them.
+ * Returns true if `remote` is newer than `local`.
+ */
+const isNewerVersion = (local: string, remote: string): boolean => {
+  const parse = (v: string) => v.split('.').map(n => parseInt(n, 10) || 0);
+  const [lMaj, lMin, lPatch] = parse(local);
+  const [rMaj, rMin, rPatch] = parse(remote);
+
+  if (rMaj !== lMaj) return rMaj > lMaj;
+  if (rMin !== lMin) return rMin > lMin;
+  return rPatch > lPatch;
+};
+
+/**
+ * Fetches the remote version manifest.
+ * Returns null on network failure — app should continue normally.
+ */
+export const fetchRemoteVersion = async (): Promise<VersionInfo | null> => {
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 5000); // 5s timeout
+
+    let response = await fetch(VERSION_URL, {
+      cache: 'no-store',
+      signal: controller.signal
+    }).catch(() => null);
+
+    clearTimeout(timeout);
+
+    if (!response || !response.ok) {
+      // Try fallback
+      response = await fetch(VERSION_URL_FALLBACK, { cache: 'no-store' }).catch(() => null);
+    }
+
+    if (!response || !response.ok) return null;
+
+    const data: VersionInfo = await response.json();
+    return data;
+  } catch {
+    return null;
+  }
+};
+
+/**
+ * Main check function.
+ * Returns VersionInfo if an update is available, or null if already up-to-date.
+ */
+export const checkForUpdate = async (): Promise<VersionInfo | null> => {
+  const remote = await fetchRemoteVersion();
+  if (!remote) return null;
+
+  if (isNewerVersion(APP_VERSION, remote.version)) {
+    return remote;
+  }
+
+  return null;
+};
