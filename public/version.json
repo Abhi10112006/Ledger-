@@ -14,7 +14,7 @@
  * 4. Users will see the update banner on next app launch.
  */
 
-export const APP_VERSION = '2.0.0';
+export const APP_VERSION = '2.1.0';
 export const APP_VERSION_NAME = 'Haptics & Cleanup Update';
 
 // Primary URL: raw GitHub file from the app's actual repository
