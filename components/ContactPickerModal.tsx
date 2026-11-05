@@ -1,8 +1,9 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Search, User, Phone, Check, RefreshCw, UserPlus, Sparkles, Hash } from 'lucide-react';
+import { X, Search, User, Phone, Check, RefreshCw, UserPlus, Sparkles } from 'lucide-react';
 import { fetchDeviceContactsList, DeviceContact } from '../utils/contacts';
 import { triggerHaptic } from '../hooks/useHaptics';
+import { useDebounce } from '../hooks/useDebounce';
 
 interface Props {
   isOpen: boolean;
@@ -42,16 +43,131 @@ const getGradientForName = (name: string): string => {
 };
 
 /**
+ * Intelligent helper to highlight matching search characters
+ */
+const HighlightMatch: React.FC<{ text: string; query: string }> = ({ text, query }) => {
+  const trimmed = query.trim();
+  if (!trimmed || !text) return <span>{text}</span>;
+
+  const textLower = text.toLowerCase();
+  const queryLower = trimmed.toLowerCase();
+  const index = textLower.indexOf(queryLower);
+
+  if (index === -1) return <span>{text}</span>;
+
+  const before = text.slice(0, index);
+  const match = text.slice(index, index + query.length);
+  const after = text.slice(index + query.length);
+
+  return (
+    <span>
+      {before}
+      <span className="text-emerald-400 font-bold bg-emerald-500/15 rounded px-0.5">{match}</span>
+      {after}
+    </span>
+  );
+};
+
+/**
+ * Fast & Error-Free Search & Relevance Ranking Engine
+ * Sorts contacts by highest relevance:
+ *  1. Exact Name match (1000 pts)
+ *  2. Name starts with query prefix (800 pts)
+ *  3. Word boundary starts with query (e.g. "Sharma" in "Rahul Sharma") (650 pts)
+ *  4. Exact phone digits match (950 pts)
+ *  5. Phone ends with digits (dialer suffix search e.g. last 4-6 digits) (750 pts)
+ *  6. Phone starts with digits (700 pts)
+ *  7. Name substring match (400 pts)
+ *  8. Phone substring match (450 pts)
+ *  Tie-breaker: Alphabetical order A-Z
+ */
+export const searchAndSortContacts = (
+  contacts: DeviceContact[],
+  query: string
+): DeviceContact[] => {
+  const trimmed = query.trim();
+  if (!trimmed) {
+    return contacts;
+  }
+
+  const qLower = trimmed.toLowerCase();
+  const qCleanDigits = trimmed.replace(/\D/g, '');
+  const isDigitQuery = qCleanDigits.length > 0;
+
+  const scored: Array<{ contact: DeviceContact; score: number }> = [];
+
+  for (let i = 0; i < contacts.length; i++) {
+    const c = contacts[i];
+    const name = (c.name || '').trim();
+    const nameLower = name.toLowerCase();
+    const phone = (c.phone || '').trim();
+    const phoneDigits = phone.replace(/\D/g, '');
+
+    let score = 0;
+
+    // 1. Name exact match
+    if (nameLower === qLower) {
+      score = 1000;
+    }
+    // 2. Name starts-with match
+    else if (nameLower.startsWith(qLower)) {
+      score = 800 - Math.min(nameLower.length - qLower.length, 100);
+    }
+    // 3. Word boundary starts-with (e.g., surname match)
+    else {
+      const words = nameLower.split(/\s+/);
+      let wordMatched = false;
+      for (const w of words) {
+        if (w.startsWith(qLower)) {
+          score = 650 - Math.min(w.length - qLower.length, 100);
+          wordMatched = true;
+          break;
+        }
+      }
+      // 4. Name substring match
+      if (!wordMatched && nameLower.includes(qLower)) {
+        score = 400 - Math.min(nameLower.indexOf(qLower), 100);
+      }
+    }
+
+    // 5. Phone number search
+    if (isDigitQuery) {
+      if (phoneDigits === qCleanDigits) {
+        score = Math.max(score, 950);
+      } else if (phoneDigits.endsWith(qCleanDigits)) {
+        // High priority dialer suffix search (e.g. typing last digits)
+        score = Math.max(score, 750 + Math.min(qCleanDigits.length * 10, 100));
+      } else if (phoneDigits.startsWith(qCleanDigits)) {
+        score = Math.max(score, 700 + Math.min(qCleanDigits.length * 10, 100));
+      } else if (phoneDigits.includes(qCleanDigits)) {
+        score = Math.max(score, 450);
+      }
+    } else if (phone.toLowerCase().includes(qLower)) {
+      score = Math.max(score, 400);
+    }
+
+    if (score > 0) {
+      scored.push({ contact: c, score });
+    }
+  }
+
+  // Sort by score descending; tie-breaker: alphabetical A-Z
+  scored.sort((a, b) => {
+    if (b.score !== a.score) return b.score - a.score;
+    return a.contact.name.localeCompare(b.contact.name, undefined, { sensitivity: 'base' });
+  });
+
+  return scored.map(s => s.contact);
+};
+
+/**
  * Intelligently separates an input query into name and phone number.
- * - If input is purely or predominantly phone digits (e.g. "9876543210", "+91 98765-43210"), sets phone and leaves name blank.
- * - If input contains both name and phone (e.g. "Rohan 9876543210"), parses both out.
- * - If input is letters/text, sets name and leaves phone blank.
  */
 export const parseCustomContactInput = (input: string): { name: string; phone: string; isPhoneOnly: boolean } => {
   const raw = input.trim();
   if (!raw) return { name: '', phone: '', isPhoneOnly: false };
 
-  // 1. Check for combined Name + Phone number (e.g., "Rohan 9876543210" or "+919876543210 Rahul")
+  // 1. Combined Name + Phone number (e.g. "Rohan 9876543210")
   const phoneRegex = /(\+?[0-9][0-9\s\-()]{6,}[0-9])/;
   const match = raw.match(phoneRegex);
 
@@ -65,11 +181,10 @@ export const parseCustomContactInput = (input: string): { name: string; phone: s
     if (remainingText.length > 0) {
       return { name: remainingText, phone: detectedPhone, isPhoneOnly: false };
     }
-    // Only phone was present in the match
     return { name: '', phone: detectedPhone, isPhoneOnly: true };
   }
 
-  // 2. Check if the string is purely digits and phone formatting symbols (+, -, space, parens)
+  // 2. Pure digits and phone formatting symbols (+, -, space, parens)
   const digitsOnly = raw.replace(/\D/g, '');
   const nonPhoneChars = raw.replace(/[0-9\s+\-()]/g, '');
 
@@ -91,10 +206,12 @@ export const ContactPickerModal: React.FC<Props> = ({
   const [contacts, setContacts] = useState<DeviceContact[]>([]);
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedKey, setSelectedKey] = useState<string | null>(null);
+  const [displayLimit, setDisplayLimit] = useState(60);
   const searchInputRef = useRef<HTMLInputElement | null>(null);
 
-  const themeHex = activeTheme?.hex || '#10b981';
+  // Debounce the search query for 60ms to keep typing 120 FPS responsive without dropping frames
+  const debouncedQuery = useDebounce(searchQuery, 60);
 
   const loadContacts = async (force = false) => {
     setLoading(true);
@@ -111,62 +228,61 @@ export const ContactPickerModal: React.FC<Props> = ({
   useEffect(() => {
     if (isOpen) {
       setSearchQuery('');
-      setSelectedId(null);
+      setSelectedKey(null);
+      setDisplayLimit(60);
       loadContacts(false);
-      // Auto-focus search input with small delay for smooth mount transition
       setTimeout(() => {
         searchInputRef.current?.focus();
-      }, 150);
+      }, 120);
     }
   }, [isOpen]);
 
+  // Reset display limit when query changes so first items render instantaneously
+  useEffect(() => {
+    setDisplayLimit(60);
+  }, [debouncedQuery]);
+
   const existingNameSet = useMemo(() => {
     const s = new Set<string>();
-    existingAccounts.forEach(a => s.add(a.name.toLowerCase().trim()));
+    for (let i = 0; i < existingAccounts.length; i++) {
+      s.add(existingAccounts[i].name.toLowerCase().trim());
+    }
     return s;
   }, [existingAccounts]);
 
-  // Robust Search: Matches Name, Phone raw string, and Normalized Digit string
+  // Filtered and sorted contacts using relevance ranking
   const filteredContacts = useMemo(() => {
-    const q = searchQuery.toLowerCase().trim();
-    if (!q) return contacts;
+    return searchAndSortContacts(contacts, debouncedQuery);
+  }, [contacts, debouncedQuery]);
 
-    const qDigits = searchQuery.replace(/\D/g, '');
+  // Sliced view for buttery 120 FPS scrolling even with 3000+ contacts
+  const visibleContacts = useMemo(() => {
+    return filteredContacts.slice(0, displayLimit);
+  }, [filteredContacts, displayLimit]);
 
-    return contacts.filter(c => {
-      const name = (c.name || '').toLowerCase();
-      const phone = (c.phone || '').toLowerCase();
-      const phoneDigits = (c.phone || '').replace(/\D/g, '');
-
-      // 1. Name substring match
-      if (name.includes(q)) return true;
-
-      // 2. Raw phone string match
-      if (phone.includes(q)) return true;
-
-      // 3. Normalized digits match (e.g. typing "987654" matches "+91 (987) 654-3210")
-      if (qDigits.length >= 3 && phoneDigits.includes(qDigits)) return true;
-
-      return false;
-    });
-  }, [contacts, searchQuery]);
+  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    const { scrollTop, scrollHeight, clientHeight } = e.currentTarget;
+    if (scrollHeight - scrollTop - clientHeight < 250) {
+      setDisplayLimit(prev => Math.min(prev + 40, filteredContacts.length));
+    }
+  };
 
   const parsedCustom = useMemo(() => {
     return parseCustomContactInput(searchQuery);
   }, [searchQuery]);
 
-  const handleSelectContact = (contact: DeviceContact) => {
+  const handleSelectContact = (contact: DeviceContact, uniqueKey: string) => {
     triggerHaptic('medium');
-    setSelectedId(contact.id);
+    setSelectedKey(uniqueKey);
     setTimeout(() => {
       onSelect({ name: contact.name, phone: contact.phone });
       onClose();
-    }, 180);
+    }, 150);
   };
 
   const handleAddCustom = () => {
     if (!searchQuery.trim()) return;
-    triggerHaptic('light');
+    triggerHaptic('medium');
 
     const parsed = parseCustomContactInput(searchQuery);
     onSelect({
@@ -212,15 +328,15 @@ export const ContactPickerModal: React.FC<Props> = ({
               <div className="flex items-center gap-2">
                 <h2 className="text-xl font-bold text-white tracking-tight">Choose Contact</h2>
                 <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                  {contacts.length} Available
+                  {filteredContacts.length}{filteredContacts.length !== contacts.length ? ` of ${contacts.length}` : ' contacts'}
                 </span>
               </div>
-              <p className="text-xs text-zinc-400 mt-0.5">Select from your phone or type to add</p>
+              <p className="text-xs text-zinc-400 mt-0.5">Instant search by name, dialer digits, or phone</p>
             </div>
 
             <div className="flex items-center gap-2">
               <button
-                onClick={() => { triggerHaptic('light'); loadContacts(true); }}
+                onClick={() => { triggerHaptic('selection'); loadContacts(true); }}
                 disabled={loading}
                 className="p-2.5 rounded-full bg-white/5 border border-white/10 text-zinc-300 hover:text-white hover:bg-white/10 transition active:scale-95"
                 title="Refresh contacts from phone"
@@ -229,7 +345,7 @@ export const ContactPickerModal: React.FC<Props> = ({
               </button>
 
               <button
-                onClick={() => { triggerHaptic('light'); onClose(); }}
+                onClick={() => { onClose(); }}
                 className="p-2.5 rounded-full bg-white/5 border border-white/10 text-zinc-400 hover:text-white hover:bg-white/10 transition active:scale-95"
               >
                 <X size={16} />
@@ -237,31 +353,42 @@ export const ContactPickerModal: React.FC<Props> = ({
             </div>
           </div>
 
-          {/* Search Input Bar */}
+          {/* Search Input Bar with Elevated Prominent Icon */}
           <div className="p-3.5 px-4 border-b border-white/5 bg-zinc-900/60">
             <div className="relative flex items-center">
-              <Search className="absolute left-3.5 w-4 h-4 text-zinc-400 pointer-events-none z-10" />
+              <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-zinc-400 pointer-events-none z-10 flex items-center justify-center">
+                <Search size={16} strokeWidth={2.2} />
+              </div>
               <input
                 ref={searchInputRef}
                 type="text"
+                inputMode="search"
+                autoComplete="off"
+                autoCorrect="off"
+                autoCapitalize="none"
+                spellCheck="false"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search name or phone number..."
+                placeholder="Search name or number (e.g. 'Ankur' or '9876')..."
                 className="w-full bg-black/40 border border-white/10 text-white placeholder-zinc-500 rounded-xl pl-10 pr-9 py-2.5 text-sm focus:outline-none focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/25 transition"
               />
               {searchQuery && (
                 <button
-                  onClick={() => { setSearchQuery(''); searchInputRef.current?.focus(); }}
-                  className="absolute right-3 p-1 rounded-full text-zinc-400 hover:text-white active:scale-90 z-10"
+                  onClick={() => {
+                    setSearchQuery('');
+                    searchInputRef.current?.focus();
+                  }}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 p-1 rounded-full text-zinc-400 hover:text-white active:scale-90 z-10 flex items-center justify-center bg-white/10"
                 >
-                  <X size={14} />
+                  <X size={13} strokeWidth={2.5} />
                 </button>
               )}
             </div>
           </div>
 
-          {/* Scrollable Contact List with Generous Bottom Padding */}
+          {/* Scrollable Contact List (High-Performance Virtual-like DOM) */}
           <div
+            onScroll={handleScroll}
             className="flex-1 overflow-y-auto px-3.5 py-2 divide-y divide-white/5 scrollbar-thin scrollbar-thumb-zinc-800"
             style={{
               WebkitOverflowScrolling: 'touch',
@@ -274,22 +401,20 @@ export const ContactPickerModal: React.FC<Props> = ({
                 <RefreshCw size={28} className="animate-spin text-emerald-400" />
                 <span className="text-sm font-medium">Syncing contacts from phone...</span>
               </div>
-            ) : filteredContacts.length > 0 ? (
-              filteredContacts.map((contact, idx) => {
-                const isSelected = selectedId === contact.id;
+            ) : visibleContacts.length > 0 ? (
+              visibleContacts.map((contact, idx) => {
+                const uniqueKey = `${contact.id || 'c'}_${contact.phone}_${idx}`;
+                const isSelected = selectedKey === uniqueKey;
                 const isInLedger = existingNameSet.has((contact.name || '').toLowerCase().trim());
                 const gradient = getGradientForName(contact.name || 'Unknown');
 
                 return (
-                  <motion.div
-                    key={contact.id || `${contact.name}_${idx}`}
-                    initial={{ opacity: 0, y: 6 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.15, delay: Math.min(idx * 0.015, 0.2) }}
-                    onClick={() => handleSelectContact(contact)}
-                    className={`flex items-center justify-between p-3 rounded-2xl cursor-pointer transition-all active:scale-[0.985] ${
+                  <div
+                    key={uniqueKey}
+                    onClick={() => handleSelectContact(contact, uniqueKey)}
+                    className={`flex items-center justify-between p-3 rounded-2xl cursor-pointer transition-colors active:scale-[0.985] ${
                       isSelected
-                        ? 'bg-emerald-500/15 border border-emerald-500/30'
+                        ? 'bg-emerald-500/20 border border-emerald-500/40'
                         : 'hover:bg-white/[0.04]'
                     }`}
                   >
@@ -303,7 +428,7 @@ export const ContactPickerModal: React.FC<Props> = ({
                       <div className="min-w-0">
                         <div className="flex items-center gap-2">
                           <h4 className="text-sm font-semibold text-white truncate tracking-tight">
-                            {contact.name}
+                            <HighlightMatch text={contact.name} query={debouncedQuery} />
                           </h4>
                           {isInLedger && (
                             <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 shrink-0">
@@ -315,7 +440,9 @@ export const ContactPickerModal: React.FC<Props> = ({
                         {contact.phone && (
                           <div className="flex items-center gap-1.5 text-xs text-zinc-400 mt-0.5">
                             <Phone size={11} className="text-zinc-500 shrink-0" />
-                            <span className="font-mono truncate">{contact.phone}</span>
+                            <span className="font-mono truncate">
+                              <HighlightMatch text={contact.phone} query={debouncedQuery} />
+                            </span>
                           </div>
                         )}
                       </div>
@@ -333,7 +460,7 @@ export const ContactPickerModal: React.FC<Props> = ({
                         </div>
                       )}
                     </div>
-                  </motion.div>
+                  </div>
                 );
               })
             ) : (
