@@ -1,9 +1,14 @@
-
 import React, { useState, useEffect } from 'react';
-import { Settings, X, Type, Palette, Layout, CheckCircle2, Sliders, Smartphone, Eye, Grid, Terminal, Mail, Sparkles, Keyboard, Code } from 'lucide-react';
-import { AppSettings, ThemeColor, CornerRadius } from '../types';
+import {
+  X, Check, Lock, Film, Sliders, CheckCircle2, ChevronRight,
+  ShieldCheck, KeyRound, Fingerprint, ScanFace
+} from 'lucide-react';
+import { AppSettings, ThemeColor, CornerRadius, BaseColor, BackgroundType, Density } from '../types';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useVirtualKeyboard } from '../hooks/useVirtualKeyboard';
+import { useHaptics } from '../hooks/useHaptics';
+import { APP_VERSION } from '../utils/version';
+import { SetPinModal } from './SetPinModal';
+import { useBackHandler } from '../utils/backHandler';
 
 interface Props {
   isOpen: boolean;
@@ -16,6 +21,159 @@ interface Props {
   tourStep?: number;
 }
 
+// ────────────────────────────────────────────────
+// iOS Toggle Component
+// ────────────────────────────────────────────────
+const Toggle: React.FC<{ on: boolean; onToggle: () => void; color: string }> = ({ on, onToggle, color }) => (
+  <div
+    onClick={onToggle}
+    style={{
+      width: 51,
+      height: 31,
+      borderRadius: 100,
+      cursor: 'pointer',
+      background: on ? color : 'rgba(120, 120, 128, 0.32)',
+      position: 'relative',
+      transition: 'background 0.22s cubic-bezier(0.16, 1, 0.3, 1)',
+      flexShrink: 0,
+    }}
+  >
+    <div
+      style={{
+        position: 'absolute',
+        top: 2,
+        left: on ? 22 : 2,
+        width: 27,
+        height: 27,
+        borderRadius: 100,
+        background: '#FFFFFF',
+        boxShadow: '0 2px 6px rgba(0,0,0,0.4)',
+        transition: 'left 0.22s cubic-bezier(0.16, 1, 0.3, 1)',
+      }}
+    />
+  </div>
+);
+
+// ────────────────────────────────────────────────
+// Radio Check Circle (Matches Image 3)
+// ────────────────────────────────────────────────
+const RadioCheck: React.FC<{ checked: boolean; color: string }> = ({ checked, color }) => (
+  <div
+    style={{
+      width: 22,
+      height: 22,
+      borderRadius: 11,
+      background: checked ? color : 'transparent',
+      border: checked ? 'none' : '1.5px solid rgba(255, 255, 255, 0.25)',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      flexShrink: 0,
+      transition: 'all 0.18s ease',
+    }}
+  >
+    {checked && <Check size={14} color="#000000" strokeWidth={3} />}
+  </div>
+);
+
+// ────────────────────────────────────────────────
+// Section Label
+// ────────────────────────────────────────────────
+const SectionLabel: React.FC<{ children: React.ReactNode }> = ({ children }) => (
+  <div
+    style={{
+      fontSize: 11,
+      fontWeight: 600,
+      color: 'rgba(235, 235, 245, 0.4)',
+      textTransform: 'uppercase',
+      letterSpacing: '0.06em',
+      padding: '16px 16px 8px',
+      fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Text", Inter, sans-serif',
+    }}
+  >
+    {children}
+  </div>
+);
+
+// ────────────────────────────────────────────────
+// Live Preview Card (for desktop)
+// ────────────────────────────────────────────────
+const PreviewCard: React.FC<{ settings: AppSettings; activeTheme: any }> = ({ settings, activeTheme }) => {
+  const getRadius = () => (settings.cornerRadius === 'sharp' ? '4px' : settings.cornerRadius === 'round' ? '12px' : '24px');
+  const getFontClass = () =>
+    ({
+      mono: 'font-mono-app',
+      sans: 'font-sans-app',
+      system: 'font-system-app',
+      outfit: 'font-outfit-app',
+      jakarta: 'font-jakarta-app',
+      playfair: 'font-playfair-app',
+      serif: 'font-serif-app',
+      comic: 'font-comic-app',
+    }[settings.fontStyle] || 'font-sans-app');
+
+  return (
+    <div style={{ padding: '0 12px' }}>
+      <div style={{ fontSize: 11, fontWeight: 600, color: 'rgba(235,235,245,0.3)', textTransform: 'uppercase', letterSpacing: '0.08em', textAlign: 'center', marginBottom: 12 }}>
+        Live Preview
+      </div>
+      <div
+        style={{
+          background: settings.baseColor === 'oled' ? '#000000' : '#1C1C1E',
+          borderRadius: 22,
+          padding: 16,
+          border: '0.5px solid rgba(255,255,255,0.08)',
+        }}
+      >
+        <div style={{ marginBottom: 14 }}>
+          <div style={{ fontSize: 11, color: 'rgba(235,235,245,0.4)', marginBottom: 4 }}>Total Outstanding</div>
+          <div className={getFontClass()} style={{ fontSize: 26, fontWeight: 700, color: activeTheme.hex, letterSpacing: '-0.02em' }}>
+            {settings.currency}2,194
+          </div>
+        </div>
+
+        <div
+          style={{
+            background: 'rgba(255, 255, 255, 0.05)',
+            borderRadius: getRadius(),
+            padding: '12px 14px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: 10,
+          }}
+        >
+          <div
+            style={{
+              width: 32,
+              height: 32,
+              borderRadius: 10,
+              background: '#FF3B30',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontWeight: 700,
+              fontSize: 14,
+              color: '#FFFFFF',
+              flexShrink: 0,
+            }}
+          >
+            C
+          </div>
+          <div style={{ flex: 1 }}>
+            <div className={getFontClass()} style={{ fontSize: 13, fontWeight: 600, color: '#fff' }}>Capital</div>
+            <div style={{ fontSize: 10, color: 'rgba(235,235,245,0.4)' }}>2 transactions</div>
+          </div>
+          <div style={{ fontSize: 13, fontWeight: 700, color: '#FFFFFF' }}>{settings.currency}1,550</div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ────────────────────────────────────────────────
+// Main Settings Modal
+// ────────────────────────────────────────────────
 const SettingsModal: React.FC<Props> = ({
   isOpen,
   onClose,
@@ -23,321 +181,1028 @@ const SettingsModal: React.FC<Props> = ({
   updateSetting,
   activeTheme,
   themes,
-  currencies,
-  tourStep
+  tourStep,
 }) => {
-  const [activeTab, setActiveTab] = useState<'general' | 'visual' | 'interface' | 'contact'>('general');
-  const [displayName, setDisplayName] = useState('ABHINAV YADUVANSHI');
-  
+  const [activeTab, setActiveTab] = useState<'general' | 'visual' | 'layout'>('general');
+  const [customCurrency, setCustomCurrency] = useState('');
+  const [isEditingCustomCurrency, setIsEditingCustomCurrency] = useState(false);
+  const [isSetPinModalOpen, setIsSetPinModalOpen] = useState(false);
+
+  useBackHandler(isSetPinModalOpen, () => {
+    setIsSetPinModalOpen(false);
+  });
+  const haptic = useHaptics();
+
   useEffect(() => {
     if (tourStep) {
-      if (tourStep >= 6 && tourStep <= 8) {
-        setActiveTab('visual');
-      } else if (tourStep === 9) {
-        setActiveTab('interface');
-      }
+      if (tourStep >= 6 && tourStep <= 8) setActiveTab('visual');
+      else if (tourStep === 9) setActiveTab('layout');
     }
   }, [tourStep]);
-  
-  useEffect(() => {
-    if (activeTab === 'contact') {
-      const target = 'ABHINAV YADUVANSHI';
-      const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789@#$%&';
-      let iteration = 0;
-      
-      const interval = setInterval(() => {
-        setDisplayName(
-          target.split('').map((letter, index) => {
-            if (index < iteration) return target[index];
-            if (letter === ' ') return ' ';
-            return chars[Math.floor(Math.random() * chars.length)];
-          }).join('')
-        );
-        
-        if (iteration >= target.length) clearInterval(interval);
-        iteration += 1 / 2;
-      }, 30);
-      
-      return () => clearInterval(interval);
-    }
-  }, [activeTab]);
+
+  const isOled = settings.baseColor === 'oled';
+  const sheetBg = isOled ? '#000000' : '#141416';
+  const cardBg = isOled ? 'rgba(255, 255, 255, 0.05)' : '#1C1C1E';
+  const cardBorder = isOled ? '0.5px solid rgba(255, 255, 255, 0.08)' : '0.5px solid rgba(255, 255, 255, 0.06)';
+
+  // Currencies list matching Image 2 without duplicate
+  const standardCurrencies = ['₹', '$', '€', '₩', '£', '¥'];
+  const isCustomActive = !standardCurrencies.includes(settings.currency);
 
   const tabs = [
-    { id: 'general', label: 'General', icon: <Settings className="w-4 h-4" /> },
-    { id: 'visual', label: 'Look & Feel', icon: <Eye className="w-4 h-4" /> },
-    { id: 'interface', label: 'Layout', icon: <Sliders className="w-4 h-4" /> },
-    { id: 'contact', label: 'Credits', icon: <Terminal className="w-4 h-4" /> },
+    { id: 'general', label: 'General' },
+    { id: 'visual', label: 'Look & Feel' },
+    { id: 'layout', label: 'Layout' },
   ];
-
-  const containerVariants = {
-    hidden: { opacity: 0 },
-    visible: { opacity: 1, transition: { staggerChildren: 0.1, delayChildren: 0.1 } },
-    exit: { opacity: 0 }
-  };
-
-  const itemVariants = {
-    hidden: { opacity: 0, y: 10, scale: 0.98 },
-    visible: { opacity: 1, y: 0, scale: 1, transition: { type: "spring", stiffness: 400, damping: 30 } }
-  };
 
   return (
     <AnimatePresence>
-    {isOpen && (
-      <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4">
-        <motion.div 
-           initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-           onClick={onClose}
-           className="absolute inset-0 bg-slate-950/80 backdrop-blur-sm"
-        />
-        
-        <motion.div 
-          initial={{ scale: 0.95, opacity: 0, y: 30 }}
-          animate={{ scale: 1, opacity: 1, y: 0 }}
-          exit={{ scale: 0.95, opacity: 0, y: 30 }}
-          transition={{ type: "spring", stiffness: 300, damping: 25 }}
-          className="glass w-full max-w-2xl rounded-[2rem] shadow-[0_0_100px_rgba(0,0,0,0.8)] overflow-hidden flex flex-col max-h-[90vh] relative z-10"
-          style={{ borderRadius: 'var(--app-radius)' }}
-        >
-          <div className="p-6 border-b border-slate-800 flex justify-between items-center bg-slate-900/40 shrink-0">
-            <h2 className="text-xl font-black flex items-center gap-3"><Settings className={`${activeTheme.text} w-5 h-5`} /> Settings</h2>
-            <button onClick={onClose} className="p-2 hover:bg-slate-800 rounded-full text-slate-400 transition-colors"><X className="w-5 h-5" /></button>
-          </div>
+      {isOpen && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 2000, display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}>
+          {/* Backdrop */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={onClose}
+            style={{
+              position: 'absolute',
+              inset: 0,
+              background: 'rgba(0,0,0,0.65)',
+              backdropFilter: 'blur(10px)',
+              WebkitBackdropFilter: 'blur(10px)',
+            }}
+          />
 
-          <div className="flex border-b border-slate-800 overflow-x-auto shrink-0 px-2 pt-2 bg-slate-900/30">
-            {tabs.map(tab => (
-              <button
-                key={tab.id}
-                id={tab.id === 'visual' ? 'tour-visual-tab' : tab.id === 'interface' ? 'tour-interface-tab' : undefined}
-                onClick={() => setActiveTab(tab.id as any)}
-                className={`relative flex items-center gap-2 px-6 py-4 text-xs font-bold uppercase tracking-wider transition-colors z-10 ${activeTab === tab.id ? activeTheme.text : 'text-slate-500 hover:text-slate-300'}`}
+          {/* Sheet */}
+          <motion.div
+            initial={{ y: '100%' }}
+            animate={{ y: 0 }}
+            exit={{ y: '100%' }}
+            transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+            style={{
+              position: 'relative',
+              width: '100%',
+              maxWidth: 540,
+              maxHeight: '94vh',
+              borderTopLeftRadius: 28,
+              borderTopRightRadius: 28,
+              background: sheetBg,
+              border: '0.5px solid rgba(255,255,255,0.12)',
+              boxShadow: '0 -16px 48px rgba(0,0,0,0.8)',
+              display: 'flex',
+              flexDirection: 'column',
+              paddingBottom: 'calc(env(safe-area-inset-bottom, 16px) + 12px)',
+              fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Text", Inter, sans-serif',
+              overflow: 'hidden',
+            }}
+            className="md:max-h-[88vh] md:rounded-[28px]"
+          >
+            {/* Ambient top radial accent glow */}
+            <div
+              style={{
+                position: 'absolute',
+                top: 0,
+                left: '50%',
+                transform: 'translateX(-50%)',
+                width: '90%',
+                height: 180,
+                background: `radial-gradient(ellipse at top center, ${activeTheme.hex}30 0%, transparent 68%)`,
+                pointerEvents: 'none',
+                zIndex: 0,
+              }}
+            />
+
+            {/* Grab handle */}
+            <div style={{ display: 'flex', justifyContent: 'center', paddingTop: 12, paddingBottom: 4, position: 'relative', zIndex: 1 }}>
+              <div style={{ width: 36, height: 4, borderRadius: 2, background: 'rgba(255,255,255,0.2)' }} />
+            </div>
+
+            {/* Header: "Settings" on left, (X) on right */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 20px 14px', position: 'relative', zIndex: 1 }}>
+              <h2
+                style={{
+                  margin: 0,
+                  fontSize: 22,
+                  fontWeight: 700,
+                  letterSpacing: '-0.02em',
+                  color: '#FFFFFF',
+                  fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", Inter, sans-serif',
+                }}
               >
-                {tab.icon} {tab.label}
-                {activeTab === tab.id && (
-                  <motion.div
-                    layoutId="activeTab"
-                    className={`absolute inset-0 border-b-2 ${activeTheme.border} bg-slate-800/50 rounded-t-lg -z-10`}
-                    transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
-                  />
-                )}
-              </button>
-            ))}
-          </div>
-          
-          <div className="p-6 space-y-8 overflow-y-auto min-h-[300px] scrollbar-hide">
-            <AnimatePresence mode="wait">
-            <motion.div key={activeTab} variants={containerVariants} initial="hidden" animate="visible" exit="exit">
-            {/* GENERAL TAB */}
-            {activeTab === 'general' && (
-              <motion.div variants={containerVariants} className="space-y-8">
-                <motion.div variants={itemVariants} className="space-y-4">
-                  <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-500">
-                    <Type className="w-3 h-3" /> Core Details
-                  </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                     <div className="space-y-2">
-                      <label className="text-xs text-slate-400 font-medium">Currency Symbol</label>
-                      <div className="flex gap-2">
-                        {currencies.map(c => (
-                          <button
-                            key={c}
-                            onClick={() => updateSetting('currency', c)}
-                            className={`w-10 h-10 rounded-lg font-mono font-bold flex items-center justify-center transition-all ${settings.currency === c ? `${activeTheme.bg} text-slate-950 scale-110 shadow-lg` : 'bg-slate-900 text-slate-400 hover:bg-slate-800'}`}
-                          >
-                            {c}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                </motion.div>
+                Settings
+              </h2>
 
-                <motion.div variants={itemVariants} className="space-y-4">
-                  <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-500">
-                    <Palette className="w-3 h-3" /> App Color
-                  </div>
-                  <div className="grid grid-cols-5 gap-3">
-                    {(Object.keys(themes) as ThemeColor[]).map((t) => (
-                      <motion.button
-                        key={t}
-                        whileHover={{ scale: 1.15, rotate: 5 }}
-                        whileTap={{ scale: 0.9 }}
-                        onClick={() => updateSetting('themeColor', t)}
-                        className={`aspect-square rounded-2xl flex items-center justify-center transition-all border-2 ${settings.themeColor === t ? 'border-white shadow-[0_0_20px_rgba(255,255,255,0.3)]' : 'border-transparent opacity-60 hover:opacity-100'}`}
-                        style={{ backgroundColor: themes[t].hex }}
-                        title={themes[t].name}
-                      >
-                        {settings.themeColor === t && <CheckCircle2 className="w-5 h-5 text-slate-950 animate-in zoom-in duration-300" />}
-                      </motion.button>
-                    ))}
-                  </div>
-                </motion.div>
-              </motion.div>
-            )}
+              <motion.button
+                whileTap={{ scale: 0.9 }}
+                onClick={onClose}
+                style={{
+                  width: 32,
+                  height: 32,
+                  borderRadius: 16,
+                  background: 'rgba(255, 255, 255, 0.1)',
+                  border: 'none',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                  color: 'rgba(235, 235, 245, 0.7)',
+                }}
+              >
+                <X size={16} />
+              </motion.button>
+            </div>
 
-            {/* VISUAL ENGINE TAB */}
-            {activeTab === 'visual' && (
-              <motion.div variants={containerVariants} className="space-y-8">
-                {/* Background Base */}
-                <motion.div variants={itemVariants} className="space-y-4" id="tour-visual-base">
-                  <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-500">
-                    <Layout className="w-3 h-3" /> Background Style
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <button onClick={() => updateSetting('baseColor', 'slate')} className={`p-4 rounded-xl border text-left transition-all ${settings.baseColor === 'slate' ? `${activeTheme.border} bg-slate-800/50 shadow-lg` : 'border-slate-800 bg-slate-900/50 hover:bg-slate-800/30'}`}>
-                      <div className="font-bold text-sm">Dark Grey</div>
-                      <div className="text-[10px] text-slate-500">Soft and professional.</div>
-                    </button>
-                    <button onClick={() => updateSetting('baseColor', 'oled')} className={`p-4 rounded-xl border text-left transition-all ${settings.baseColor === 'oled' ? `${activeTheme.border} bg-black shadow-lg` : 'border-slate-800 bg-slate-950 hover:bg-black'}`}>
-                      <div className="font-bold text-sm">Pitch Black</div>
-                      <div className="text-[10px] text-slate-500">Pure black background.</div>
-                    </button>
-                  </div>
-                </motion.div>
-
-                 {/* Background Texture */}
-                <motion.div variants={itemVariants} className="space-y-4">
-                   <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-500"><Grid className="w-3 h-3" /> Texture</div>
-                  <div className="grid grid-cols-3 gap-3">
-                     {['solid', 'nebula', 'grid'].map((bg) => (
-                        <button key={bg} onClick={() => updateSetting('background', bg)} className={`p-3 rounded-xl border transition-all text-center capitalize text-xs font-bold hover:scale-105 active:scale-95 ${settings.background === bg ? `${activeTheme.bg} text-slate-950 shadow-lg` : 'border-slate-800 text-slate-400 hover:bg-slate-800'}`}>{bg}</button>
-                     ))}
-                  </div>
-                </motion.div>
-
-                {/* Glass Material Tuner */}
-                <motion.div variants={itemVariants} className="space-y-6 p-5 rounded-2xl bg-slate-900/30 border border-slate-800 backdrop-blur-md" id="tour-visual-glass">
-                   <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-500"><Eye className="w-3 h-3" /> Effects</div>
-                      <div className="flex items-center gap-2">
-                         <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mr-2">Film Grain</label>
-                         <button onClick={() => updateSetting('enableGrain', !settings.enableGrain)} className={`w-10 h-5 rounded-full relative transition-colors duration-300 ${settings.enableGrain ? activeTheme.bg : 'bg-slate-700'}`}>
-                           <div className={`absolute top-1 w-3 h-3 bg-white rounded-full transition-all duration-300 ${settings.enableGrain ? 'left-6' : 'left-1'}`}></div>
-                         </button>
-                      </div>
-                   </div>
-
-                   <div className="space-y-4">
-                      <div className="space-y-2">
-                         <div className="flex justify-between text-xs font-medium text-slate-400"><span>Blur Strength</span><span>{settings.glassBlur}px</span></div>
-                         <input type="range" min="0" max="40" step="2" value={settings.glassBlur} onChange={(e) => updateSetting('glassBlur', parseInt(e.target.value))} className="w-full h-1 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-white hover:accent-slate-200 transition-all" />
-                      </div>
-                      <div className="space-y-2">
-                         <div className="flex justify-between text-xs font-medium text-slate-400"><span>Transparency</span><span>{Math.round(settings.glassOpacity * 100)}%</span></div>
-                         <input type="range" min="0.2" max="0.95" step="0.05" value={settings.glassOpacity} onChange={(e) => updateSetting('glassOpacity', parseFloat(e.target.value))} className="w-full h-1 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-white hover:accent-slate-200 transition-all" />
-                      </div>
-                      <div className="space-y-2">
-                         <div className="flex justify-between text-xs font-medium text-slate-400"><span>System Glow</span><span>{Math.round(settings.glowIntensity * 100)}%</span></div>
-                         <input type="range" min="0" max="1" step="0.1" value={settings.glowIntensity} onChange={(e) => updateSetting('glowIntensity', parseFloat(e.target.value))} className="w-full h-1 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-white hover:accent-slate-200 transition-all" />
-                      </div>
-                   </div>
-                </motion.div>
-              </motion.div>
-            )}
-
-            {/* INTERFACE TUNER TAB */}
-            {activeTab === 'interface' && (
-               <motion.div variants={containerVariants} className="space-y-8">
-                 {/* Keyboard Settings */}
-                 <motion.div variants={itemVariants} className="space-y-4" id="tour-keyboard-toggle">
-                    <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-500"><Keyboard className="w-3 h-3" /> Input Method</div>
-                    
-                    <div className="p-4 rounded-xl border border-slate-800 bg-slate-900/50">
-                        <div className="flex items-center justify-between mb-2">
-                            <span className="text-sm font-bold text-slate-200">Virtual Keyboard</span>
-                            <button 
-                                onClick={() => updateSetting('useVirtualKeyboard', !settings.useVirtualKeyboard)} 
-                                className={`w-12 h-6 rounded-full relative transition-colors duration-300 ${settings.useVirtualKeyboard ? activeTheme.bg : 'bg-slate-700'}`}
-                            >
-                                <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all duration-300 ${settings.useVirtualKeyboard ? 'left-7' : 'left-1'}`}></div>
-                            </button>
-                        </div>
-                        <p className="text-[10px] text-amber-500/80 font-medium leading-relaxed">
-                            Experimental: Matches app aesthetics but may contain bugs. Turn off to use system keyboard.
-                        </p>
-                    </div>
-                 </motion.div>
-
-                 {/* Density */}
-                 <motion.div variants={itemVariants} className="space-y-4">
-                    <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-500"><Layout className="w-3 h-3" /> Screen Spacing</div>
-                    <div className="grid grid-cols-2 gap-4">
-                      <button onClick={() => updateSetting('density', 'comfortable')} className={`p-4 rounded-xl border text-left transition-all ${settings.density === 'comfortable' ? `${activeTheme.border} bg-slate-800/50 shadow-lg` : 'border-slate-800 bg-slate-900/50 hover:bg-slate-800/30'}`}>
-                        <div className="font-bold text-sm mb-1">Comfortable</div>
-                        <div className="w-full h-2 bg-slate-700 rounded-full mb-2"></div><div className="w-2/3 h-2 bg-slate-700 rounded-full"></div>
-                      </button>
-                      <button onClick={() => updateSetting('density', 'compact')} className={`p-4 rounded-xl border text-left transition-all ${settings.density === 'compact' ? `${activeTheme.border} bg-slate-800/50 shadow-lg` : 'border-slate-800 bg-slate-900/50 hover:bg-slate-800/30'}`}>
-                        <div className="font-bold text-sm mb-1">Compact</div>
-                        <div className="w-full h-1.5 bg-slate-700 rounded-full mb-1.5"></div><div className="w-2/3 h-1.5 bg-slate-700 rounded-full"></div>
-                      </button>
-                    </div>
-                 </motion.div>
-
-                 {/* Corner Radius */}
-                 <motion.div variants={itemVariants} className="space-y-4">
-                    <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-500"><Smartphone className="w-3 h-3" /> Button Shape</div>
-                    <div className="flex gap-4">
-                       {(['sharp', 'round', 'pill'] as CornerRadius[]).map(r => (
-                          <button key={r} onClick={() => updateSetting('cornerRadius', r)} className={`flex-1 h-16 border transition-all hover:scale-105 active:scale-95 ${settings.cornerRadius === r ? `${activeTheme.bg} text-slate-950 border-transparent shadow-lg` : 'bg-slate-900 border-slate-800 text-slate-400 hover:bg-slate-800'}`} style={{ borderRadius: r === 'sharp' ? '0px' : r === 'round' ? '8px' : '24px' }}>
-                            <span className="text-xs font-bold uppercase">{r}</span>
-                          </button>
-                       ))}
-                    </div>
-                 </motion.div>
-               </motion.div>
-            )}
-            
-            {/* DEVELOPER CONTACT TAB */}
-            {activeTab === 'contact' && (
-              <div className="flex flex-col items-center justify-center min-h-[400px] perspective-1000">
-                  <motion.div initial={{ rotateX: 10, opacity: 0, y: 50 }} animate={{ rotateX: [5, 10, 5], rotateY: [-5, 5, -5], y: [0, -15, 0], opacity: 1 }} transition={{ rotateX: { duration: 6, repeat: Infinity, ease: "easeInOut" }, rotateY: { duration: 8, repeat: Infinity, ease: "easeInOut" }, y: { duration: 4, repeat: Infinity, ease: "easeInOut" }, opacity: { duration: 0.5 } }} className="relative group w-full max-w-sm cursor-default preserve-3d">
-                    <motion.div animate={{ scale: [1, 1.2, 1], opacity: [0.2, 0.5, 0.2] }} transition={{ duration: 3, repeat: Infinity }} className={`absolute -top-10 -left-10 w-32 h-32 rounded-full ${activeTheme.bg} blur-[60px] opacity-20 -z-10`} />
-                     <motion.div animate={{ scale: [1, 1.3, 1], opacity: [0.2, 0.4, 0.2] }} transition={{ duration: 4, repeat: Infinity, delay: 1 }} className={`absolute -bottom-10 -right-10 w-40 h-40 rounded-full bg-slate-700 blur-[60px] opacity-20 -z-10`} />
-                    <div className="relative w-full aspect-[1.58/1] rounded-2xl bg-slate-950 border border-slate-700/50 shadow-[0_0_50px_rgba(0,0,0,0.5)] overflow-hidden transform-style-3d backdrop-blur-xl">
-                       <motion.div className="absolute inset-0 bg-gradient-to-b from-transparent via-white/10 to-transparent w-full h-1/3 pointer-events-none z-20" initial={{ top: '-100%' }} animate={{ top: '200%' }} transition={{ duration: 3, repeat: Infinity, ease: "linear", repeatDelay: 1 }} />
-                       <div className="absolute inset-0 bg-gradient-to-br from-slate-900 via-slate-900 to-slate-950 z-0"></div>
-                       <div className={`absolute inset-0 opacity-10 bg-[radial-gradient(circle_at_50%_50%,${activeTheme.hex},transparent_70%)] group-hover:opacity-30 transition-opacity duration-500`}></div>
-                       <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808008_1px,transparent_1px),linear-gradient(to_bottom,#80808008_1px,transparent_1px)] bg-[size:16px_16px] pointer-events-none z-0"></div>
-                       <div className="absolute inset-0 p-6 flex flex-col justify-between z-10">
-                          <div className="flex justify-between items-start">
-                             <div className={`p-2 rounded-lg bg-slate-900/80 border border-slate-700/50 ${activeTheme.text} shadow-[0_0_15px_rgba(0,0,0,0.3)]`}><Code className="w-6 h-6" /></div>
-                             <div className="text-[9px] font-mono text-slate-500 uppercase tracking-widest text-right leading-tight">
-                                <motion.span initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 1 }}>ID: ABHI_1289<br/></motion.span>
-                                <motion.span initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 1.2 }}>LOC: GRID_NODE_7<br/></motion.span>
-                                <motion.span initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 1.4 }} className={activeTheme.text}>STATUS: ONLINE</motion.span>
-                             </div>
-                          </div>
-                          <div className="space-y-2 mt-2">
-                             <div className="flex items-center gap-2"><span className={`h-px w-8 ${activeTheme.bg}`}></span><span className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em]">Architect</span></div>
-                             <h3 className="text-xl sm:text-2xl font-black text-white tracking-tight break-words drop-shadow-md">{displayName}<motion.span animate={{ opacity: [0, 1, 0] }} transition={{ duration: 0.8, repeat: Infinity }} className={`${activeTheme.text}`}>_</motion.span></h3>
-                          </div>
-                          <div className="flex items-center gap-3 mt-2">
-                             <a href="mailto:abhiyaduvanshi@zohomail.in" className="flex-1 flex items-center justify-between px-3 py-2 rounded-xl bg-slate-900/80 border border-slate-700 hover:border-slate-500 transition-all group/btn hover:bg-slate-800">
-                                <div className="flex items-center gap-3 overflow-hidden"><Mail className="w-4 h-4 text-slate-400 shrink-0" /><span className="text-[10px] sm:text-xs font-mono text-slate-300 truncate">abhiyaduvanshi@zohomail.in</span></div>
-                                <Sparkles className="w-4 h-4 text-slate-500 group-hover/btn:text-white shrink-0" />
-                             </a>
-                          </div>
-                       </div>
-                    </div>
-                  </motion.div>
-                  <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5 }} className="mt-10 text-center space-y-2 relative">
-                     <p className="text-xs text-slate-500 font-mono flex items-center justify-center gap-2"><span>&lt;</span><motion.span initial={{ width: 0 }} animate={{ width: "auto" }} transition={{ duration: 2, delay: 1, ease: "steps(20)" }} className="overflow-hidden whitespace-nowrap inline-block align-bottom">SYSTEM_HQ_ONLINE</motion.span><span>/&gt;</span></p>
-                     <p className="text-slate-400 text-sm max-w-xs mx-auto leading-relaxed">For bug reports, feature requests, and sponsorship protocols, establish connection with the mainframe.</p>
-                     <div className="pt-4">
-                        <a href="https://abhis-ledger.vercel.app/" target="_blank" rel="noopener noreferrer" className={`relative inline-flex items-center justify-center px-6 py-3 text-xs font-bold ${activeTheme.text} uppercase tracking-widest border ${activeTheme.border} rounded-xl hover:bg-slate-900 transition-colors group overflow-hidden`}>
-                            <span className="relative z-10">Visit Official Frequency</span>
-                            <div className={`absolute inset-0 ${activeTheme.bg} opacity-0 group-hover:opacity-10 transition-opacity`}></div>
-                            <Sparkles className="w-4 h-4 ml-2 animate-pulse" />
-                        </a>
-                     </div>
-                  </motion.div>
+            {/* Segmented Capsule Tab Bar (Matches Image 2 & 3) */}
+            <div style={{ padding: '0 16px 14px', position: 'relative', zIndex: 1, flexShrink: 0 }}>
+              <div
+                style={{
+                  background: 'rgba(255, 255, 255, 0.08)',
+                  borderRadius: 100,
+                  padding: 4,
+                  display: 'flex',
+                  gap: 4,
+                }}
+              >
+                {tabs.map((tab) => {
+                  const isActive = activeTab === tab.id;
+                  return (
+                    <motion.button
+                      key={tab.id}
+                      whileTap={{ scale: 0.97 }}
+                      id={tab.id === 'visual' ? 'tour-visual-tab' : tab.id === 'layout' ? 'tour-interface-tab' : undefined}
+                      onClick={() => {
+                        haptic('selection');
+                        setActiveTab(tab.id as any);
+                      }}
+                      style={{
+                        flex: 1,
+                        padding: '9px 12px',
+                        borderRadius: 100,
+                        background: isActive ? activeTheme.hex : 'transparent',
+                        color: isActive ? '#000000' : 'rgba(235, 235, 245, 0.65)',
+                        border: 'none',
+                        cursor: 'pointer',
+                        fontSize: 14,
+                        fontWeight: 600,
+                        letterSpacing: '-0.01em',
+                        transition: 'background 0.2s cubic-bezier(0.16, 1, 0.3, 1), color 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
+                      }}
+                    >
+                      {tab.label}
+                    </motion.button>
+                  );
+                })}
               </div>
-            )}
-            </motion.div>
-            </AnimatePresence>
-          </div>
-        </motion.div>
-      </div>
-    )}
+            </div>
+
+            {/* Main Content Area */}
+            <div style={{ display: 'flex', flex: 1, overflow: 'hidden', position: 'relative', zIndex: 1 }}>
+              {/* Form Scroll Container */}
+              <div style={{ flex: 1, overflowY: 'auto' }} className="scrollbar-hide">
+                <AnimatePresence mode="wait">
+                  <motion.div
+                    key={activeTab}
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -8 }}
+                    transition={{ duration: 0.16 }}
+                    style={{ paddingBottom: 24 }}
+                  >
+                    {/* ══════════════════════════════════════════════════ */}
+                    {/* TAB 1: GENERAL (Matches Image 2)                  */}
+                    {/* ══════════════════════════════════════════════════ */}
+                    {activeTab === 'general' && (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                        {/* 1. CURRENCY */}
+                        <div>
+                          <SectionLabel>Currency</SectionLabel>
+                          <div
+                            style={{
+                              background: cardBg,
+                              border: cardBorder,
+                              borderRadius: 20,
+                              margin: '0 16px',
+                              padding: 12,
+                            }}
+                          >
+                            {/* Row 1: 5 Currencies */}
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 8, marginBottom: 8 }}>
+                              {standardCurrencies.slice(0, 5).map((c) => {
+                                const isSelected = settings.currency === c;
+                                return (
+                                  <motion.button
+                                    key={c}
+                                    whileTap={{ scale: 0.95 }}
+                                    onClick={() => {
+                                      haptic('selection');
+                                      updateSetting('currency', c);
+                                      setIsEditingCustomCurrency(false);
+                                    }}
+                                    style={{
+                                      height: 48,
+                                      borderRadius: 14,
+                                      background: isSelected ? activeTheme.hex : 'rgba(255, 255, 255, 0.05)',
+                                      color: isSelected ? '#000000' : 'rgba(235, 235, 245, 0.85)',
+                                      border: isSelected ? 'none' : '0.5px solid rgba(255, 255, 255, 0.06)',
+                                      fontSize: 16,
+                                      fontWeight: 700,
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      justifyContent: 'center',
+                                      cursor: 'pointer',
+                                    }}
+                                  >
+                                    {c}
+                                  </motion.button>
+                                );
+                              })}
+                            </div>
+
+                            {/* Row 2: 6th Currency (¥) + Custom Button */}
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 4fr', gap: 8 }}>
+                              {/* ¥ button */}
+                              <motion.button
+                                whileTap={{ scale: 0.95 }}
+                                onClick={() => {
+                                  haptic('selection');
+                                  updateSetting('currency', '¥');
+                                  setIsEditingCustomCurrency(false);
+                                }}
+                                style={{
+                                  height: 48,
+                                  borderRadius: 14,
+                                  background: settings.currency === '¥' ? activeTheme.hex : 'rgba(255, 255, 255, 0.05)',
+                                  color: settings.currency === '¥' ? '#000000' : 'rgba(235, 235, 245, 0.85)',
+                                  border: settings.currency === '¥' ? 'none' : '0.5px solid rgba(255, 255, 255, 0.06)',
+                                  fontSize: 16,
+                                  fontWeight: 700,
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  cursor: 'pointer',
+                                }}
+                              >
+                                ¥
+                              </motion.button>
+
+                              {/* Custom Currency Slot */}
+                              {isEditingCustomCurrency ? (
+                                <div style={{ display: 'flex', gap: 6 }}>
+                                  <input
+                                    type="text"
+                                    maxLength={5}
+                                    placeholder="e.g. AUD"
+                                    value={customCurrency}
+                                    onChange={(e) => setCustomCurrency(e.target.value.toUpperCase())}
+                                    autoFocus
+                                    style={{
+                                      flex: 1,
+                                      height: 48,
+                                      borderRadius: 14,
+                                      background: 'rgba(255, 255, 255, 0.08)',
+                                      border: `1.5px solid ${activeTheme.hex}`,
+                                      color: '#FFFFFF',
+                                      fontSize: 15,
+                                      fontWeight: 600,
+                                      textAlign: 'center',
+                                      outline: 'none',
+                                      boxSizing: 'border-box',
+                                    }}
+                                  />
+                                  <motion.button
+                                    whileTap={{ scale: 0.95 }}
+                                    onClick={() => {
+                                      if (customCurrency.trim()) {
+                                        updateSetting('currency', customCurrency.trim());
+                                        haptic('success');
+                                      }
+                                      setIsEditingCustomCurrency(false);
+                                    }}
+                                    style={{
+                                      padding: '0 16px',
+                                      height: 48,
+                                      borderRadius: 14,
+                                      background: activeTheme.hex,
+                                      color: '#000000',
+                                      border: 'none',
+                                      fontWeight: 700,
+                                      fontSize: 14,
+                                      cursor: 'pointer',
+                                    }}
+                                  >
+                                    Set
+                                  </motion.button>
+                                </div>
+                              ) : (
+                                <motion.button
+                                  whileTap={{ scale: 0.98 }}
+                                  onClick={() => {
+                                    setIsEditingCustomCurrency(true);
+                                    setCustomCurrency(isCustomActive ? settings.currency : '');
+                                  }}
+                                  style={{
+                                    height: 48,
+                                    borderRadius: 14,
+                                    background: isCustomActive ? activeTheme.hex : 'rgba(255, 255, 255, 0.05)',
+                                    color: isCustomActive ? '#000000' : 'rgba(235, 235, 245, 0.85)',
+                                    border: isCustomActive ? 'none' : '0.5px solid rgba(255, 255, 255, 0.06)',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    gap: 8,
+                                    fontSize: 14,
+                                    fontWeight: 600,
+                                    cursor: 'pointer',
+                                  }}
+                                >
+                                  <span>{isCustomActive ? settings.currency : 'Custom'}</span>
+                                  <span style={{ fontSize: 16 }}>+</span>
+                                </motion.button>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* 2. SECURITY GATE & BIOMETRICS */}
+                        <div>
+                          <SectionLabel>Security & Biometrics</SectionLabel>
+                          <div
+                            style={{
+                              background: cardBg,
+                              border: cardBorder,
+                              borderRadius: 20,
+                              margin: '0 16px',
+                              padding: '14px 16px',
+                              display: 'flex',
+                              flexDirection: 'column',
+                              gap: 14,
+                            }}
+                          >
+                            {/* Main Toggle */}
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+                                <div
+                                  style={{
+                                    width: 38,
+                                    height: 38,
+                                    borderRadius: 12,
+                                    background: `${activeTheme.hex}22`,
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    color: activeTheme.hex,
+                                    flexShrink: 0,
+                                  }}
+                                >
+                                  <ShieldCheck size={20} />
+                                </div>
+                                <div>
+                                  <div style={{ fontSize: 15, fontWeight: 600, color: '#FFFFFF', letterSpacing: '-0.01em' }}>
+                                    App Launch Gate
+                                  </div>
+                                  <div style={{ fontSize: 12, color: 'rgba(235, 235, 245, 0.45)', marginTop: 2 }}>
+                                    Fingerprint, Face Lock & 6-Digit PIN
+                                  </div>
+                                </div>
+                              </div>
+
+                              <Toggle
+                                on={!!settings.useBiometricLock}
+                                onToggle={() => {
+                                  haptic('selection');
+                                  const nextVal = !settings.useBiometricLock;
+                                  updateSetting('useBiometricLock', nextVal);
+                                  if (nextVal && !settings.securityPinHash) {
+                                    setIsSetPinModalOpen(true);
+                                  }
+                                }}
+                                color={activeTheme.hex}
+                              />
+                            </div>
+
+                            {/* Sub-settings when Security Gate is enabled */}
+                            {settings.useBiometricLock && (
+                              <div
+                                style={{
+                                  display: 'flex',
+                                  flexDirection: 'column',
+                                  gap: 12,
+                                  paddingTop: 12,
+                                  borderTop: '0.5px solid rgba(255, 255, 255, 0.08)',
+                                }}
+                              >
+                                {/* 6-Digit PIN Row */}
+                                <div
+                                  onClick={() => {
+                                    haptic('light');
+                                    setIsSetPinModalOpen(true);
+                                  }}
+                                  style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'space-between',
+                                    background: 'rgba(255, 255, 255, 0.04)',
+                                    borderRadius: 14,
+                                    padding: '10px 12px',
+                                    cursor: 'pointer',
+                                    border: '0.5px solid rgba(255, 255, 255, 0.06)',
+                                  }}
+                                >
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                                    <KeyRound size={16} style={{ color: activeTheme.hex }} />
+                                    <div>
+                                      <div style={{ fontSize: 13, fontWeight: 600, color: '#FFFFFF' }}>
+                                        6-Digit Security PIN
+                                      </div>
+                                      <div style={{ fontSize: 11, color: 'rgba(235, 235, 245, 0.45)' }}>
+                                        {settings.securityPinHash ? 'Configured (●●●●●●)' : 'Not set (Tap to configure)'}
+                                      </div>
+                                    </div>
+                                  </div>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                    <span style={{ fontSize: 12, color: activeTheme.hex, fontWeight: 600 }}>
+                                      {settings.securityPinHash ? 'Change' : 'Set PIN'}
+                                    </span>
+                                    <ChevronRight size={14} style={{ color: 'rgba(235, 235, 245, 0.3)' }} />
+                                  </div>
+                                </div>
+
+                                {/* Preferred Launch Method */}
+                                <div>
+                                  <div style={{ fontSize: 11, fontWeight: 600, color: 'rgba(235, 235, 245, 0.5)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 6 }}>
+                                    Preferred Launch Method
+                                  </div>
+                                  <div style={{ display: 'flex', gap: 6 }}>
+                                    {[
+                                      { id: 'any', label: 'All 3 (Any)' },
+                                      { id: 'biometric', label: 'Biometrics' },
+                                      { id: 'pin', label: '6-Digit PIN' },
+                                    ].map((opt) => {
+                                      const isSel = (settings.preferredUnlockMode || 'any') === opt.id;
+                                      return (
+                                        <button
+                                          key={opt.id}
+                                          type="button"
+                                          onClick={() => {
+                                            haptic('selection');
+                                            updateSetting('preferredUnlockMode', opt.id);
+                                          }}
+                                          style={{
+                                            flex: 1,
+                                            height: 32,
+                                            borderRadius: 10,
+                                            border: isSel ? `1px solid ${activeTheme.hex}70` : '0.5px solid rgba(255, 255, 255, 0.08)',
+                                            background: isSel ? `${activeTheme.hex}25` : 'rgba(255, 255, 255, 0.04)',
+                                            color: isSel ? '#FFFFFF' : 'rgba(235, 235, 245, 0.6)',
+                                            fontSize: 11.5,
+                                            fontWeight: isSel ? 600 : 500,
+                                            cursor: 'pointer',
+                                          }}
+                                        >
+                                          {opt.label}
+                                        </button>
+                                      );
+                                    })}
+                                  </div>
+                                </div>
+
+                                {/* Auto-lock timeout */}
+                                <div>
+                                  <div style={{ fontSize: 11, fontWeight: 600, color: 'rgba(235, 235, 245, 0.5)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 6 }}>
+                                    Auto-Lock When Leaving App
+                                  </div>
+                                  <div style={{ display: 'flex', gap: 6 }}>
+                                    {[
+                                      { val: 0, label: 'Immediately' },
+                                      { val: 60, label: 'After 1 Min' },
+                                      { val: 300, label: 'After 5 Min' },
+                                    ].map((opt) => {
+                                      const isSel = (settings.securityLockTimeout ?? 0) === opt.val;
+                                      return (
+                                        <button
+                                          key={opt.val}
+                                          type="button"
+                                          onClick={() => {
+                                            haptic('selection');
+                                            updateSetting('securityLockTimeout', opt.val);
+                                          }}
+                                          style={{
+                                            flex: 1,
+                                            height: 32,
+                                            borderRadius: 10,
+                                            border: isSel ? `1px solid ${activeTheme.hex}70` : '0.5px solid rgba(255, 255, 255, 0.08)',
+                                            background: isSel ? `${activeTheme.hex}25` : 'rgba(255, 255, 255, 0.04)',
+                                            color: isSel ? '#FFFFFF' : 'rgba(235, 235, 245, 0.6)',
+                                            fontSize: 11.5,
+                                            fontWeight: isSel ? 600 : 500,
+                                            cursor: 'pointer',
+                                          }}
+                                        >
+                                          {opt.label}
+                                        </button>
+                                      );
+                                    })}
+                                  </div>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* 3. THEME (Color Swatches - Matches Image 2) */}
+                        <div>
+                          <SectionLabel>Theme</SectionLabel>
+                          <div
+                            style={{
+                              background: cardBg,
+                              border: cardBorder,
+                              borderRadius: 20,
+                              margin: '0 16px',
+                              padding: 16,
+                            }}
+                          >
+                            {/* Card Header: THEME COLOR on left, Name on right */}
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+                              <span style={{ fontSize: 12, fontWeight: 700, color: '#FFFFFF', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                                Theme Color
+                              </span>
+                              <span style={{ fontSize: 13, fontWeight: 600, color: 'rgba(235, 235, 245, 0.55)', textTransform: 'capitalize' }}>
+                                {themes[settings.themeColor]?.name?.replace(/Cyber |Neon |Tron |Laser |Solar |Minimalist |Tokyo |Crimson |Aurora |Carbon /g, '') || settings.themeColor}
+                              </span>
+                            </div>
+
+                            {/* 10 Color Swatches Grid (2 rows of 5) */}
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 12 }}>
+                              {(Object.keys(themes) as ThemeColor[]).map((t) => {
+                                const isSelected = settings.themeColor === t;
+                                const themeHex = themes[t].hex;
+
+                                return (
+                                  <div key={t} style={{ display: 'flex', justifyContent: 'center' }}>
+                                    <motion.button
+                                      whileTap={{ scale: 0.88 }}
+                                      onClick={() => {
+                                        haptic('selection');
+                                        updateSetting('themeColor', t);
+                                      }}
+                                      title={themes[t].name}
+                                      style={{
+                                        position: 'relative',
+                                        width: 44,
+                                        height: 44,
+                                        borderRadius: 22,
+                                        background: themeHex,
+                                        border: isSelected ? '2.5px solid #FFFFFF' : 'none',
+                                        boxShadow: isSelected ? `0 0 0 3px ${themeHex}60` : 'none',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        cursor: 'pointer',
+                                        padding: 0,
+                                        transition: 'transform 0.15s ease, box-shadow 0.15s ease',
+                                      }}
+                                    >
+                                      {isSelected && <Check size={18} color="#000000" strokeWidth={3} />}
+                                    </motion.button>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* ══════════════════════════════════════════════════ */}
+                    {/* TAB 2: LOOK & FEEL (Matches Image 3 Left)         */}
+                    {/* ══════════════════════════════════════════════════ */}
+                    {activeTab === 'visual' && (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                        {/* 1. BACKGROUND (Pitch Black vs Dark Grey) */}
+                        <div>
+                          <SectionLabel>Background</SectionLabel>
+                          <div
+                            style={{
+                              background: cardBg,
+                              border: cardBorder,
+                              borderRadius: 20,
+                              margin: '0 16px',
+                              overflow: 'hidden',
+                            }}
+                          >
+                            {[
+                              { key: 'oled' as BaseColor, label: 'Pitch Black', sub: 'Pure OLED black' },
+                              { key: 'slate' as BaseColor, label: 'Dark Grey', sub: 'Soft dark grey' },
+                            ].map(({ key, label, sub }, i) => {
+                              const isChecked = settings.baseColor === key;
+                              return (
+                                <div
+                                  key={key}
+                                  onClick={() => {
+                                    haptic('selection');
+                                    updateSetting('baseColor', key);
+                                  }}
+                                  style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'space-between',
+                                    padding: '14px 16px',
+                                    borderBottom: i === 0 ? '0.5px solid rgba(255, 255, 255, 0.06)' : 'none',
+                                    cursor: 'pointer',
+                                  }}
+                                >
+                                  <div>
+                                    <div style={{ fontSize: 15, fontWeight: 600, color: '#FFFFFF', letterSpacing: '-0.01em' }}>
+                                      {label}
+                                    </div>
+                                    <div style={{ fontSize: 12, color: 'rgba(235, 235, 245, 0.45)', marginTop: 2 }}>
+                                      {sub}
+                                    </div>
+                                  </div>
+                                  <RadioCheck checked={isChecked} color={activeTheme.hex} />
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+
+                        {/* 2. TEXTURE (Solid / Nebula / Grid) */}
+                        <div>
+                          <SectionLabel>Texture</SectionLabel>
+                          <div
+                            style={{
+                              background: cardBg,
+                              border: cardBorder,
+                              borderRadius: 20,
+                              margin: '0 16px',
+                              overflow: 'hidden',
+                            }}
+                          >
+                            {[
+                              { key: 'solid' as BackgroundType, label: 'Solid' },
+                              { key: 'nebula' as BackgroundType, label: 'Nebula' },
+                              { key: 'grid' as BackgroundType, label: 'Grid' },
+                            ].map(({ key, label }, i) => {
+                              const isChecked = settings.background === key;
+                              return (
+                                <div
+                                  key={key}
+                                  onClick={() => {
+                                    haptic('selection');
+                                    updateSetting('background', key);
+                                  }}
+                                  style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'space-between',
+                                    padding: '14px 16px',
+                                    borderBottom: i < 2 ? '0.5px solid rgba(255, 255, 255, 0.06)' : 'none',
+                                    cursor: 'pointer',
+                                  }}
+                                >
+                                  <span style={{ fontSize: 15, fontWeight: 500, color: '#FFFFFF' }}>{label}</span>
+                                  <RadioCheck checked={isChecked} color={activeTheme.hex} />
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+
+                        {/* 3. EFFECTS (Film Grain + Sliders) */}
+                        <div>
+                          <SectionLabel>Effects</SectionLabel>
+                          <div
+                            style={{
+                              background: cardBg,
+                              border: cardBorder,
+                              borderRadius: 20,
+                              margin: '0 16px',
+                              overflow: 'hidden',
+                            }}
+                          >
+                            {/* Film Grain Toggle Row */}
+                            <div
+                              style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'space-between',
+                                padding: '14px 16px',
+                                borderBottom: '0.5px solid rgba(255, 255, 255, 0.06)',
+                              }}
+                            >
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                                <div
+                                  style={{
+                                    width: 34,
+                                    height: 34,
+                                    borderRadius: 10,
+                                    background: `${activeTheme.hex}22`,
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    color: activeTheme.hex,
+                                  }}
+                                >
+                                  <Film size={18} />
+                                </div>
+                                <div>
+                                  <div style={{ fontSize: 15, fontWeight: 600, color: '#FFFFFF' }}>Film Grain</div>
+                                  <div style={{ fontSize: 12, color: 'rgba(235, 235, 245, 0.45)', marginTop: 2 }}>
+                                    Adds analog film texture
+                                  </div>
+                                </div>
+                              </div>
+                              <Toggle
+                                on={!!settings.enableGrain}
+                                onToggle={() => {
+                                  haptic('double');
+                                  updateSetting('enableGrain', !settings.enableGrain);
+                                }}
+                                color={activeTheme.hex}
+                              />
+                            </div>
+
+                            {/* Sliders Rows */}
+                            {[
+                              { key: 'glassBlur', label: 'Blur Strength', min: 0, max: 40, step: 2, display: `${settings.glassBlur}px`, isInt: true },
+                              { key: 'glassOpacity', label: 'Card Opacity', min: 0.2, max: 0.95, step: 0.05, display: `${Math.round(settings.glassOpacity * 100)}%`, isInt: false },
+                              { key: 'glowIntensity', label: 'Glow Intensity', min: 0, max: 1, step: 0.1, display: `${Math.round(settings.glowIntensity * 100)}%`, isInt: false },
+                            ].map(({ key, label, min, max, step, display, isInt }, i) => (
+                              <div
+                                key={key}
+                                style={{
+                                  padding: '12px 16px',
+                                  borderBottom: i < 2 ? '0.5px solid rgba(255, 255, 255, 0.06)' : 'none',
+                                }}
+                              >
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                                  <span style={{ fontSize: 14, fontWeight: 500, color: 'rgba(235, 235, 245, 0.8)' }}>
+                                    {label}
+                                  </span>
+                                  <span style={{ fontSize: 12, fontWeight: 600, color: 'rgba(235, 235, 245, 0.5)' }}>
+                                    {display}
+                                  </span>
+                                </div>
+                                <input
+                                  type="range"
+                                  min={min}
+                                  max={max}
+                                  step={step}
+                                  value={(settings as any)[key]}
+                                  onChange={(e) => updateSetting(key as any, isInt ? parseInt(e.target.value) : parseFloat(e.target.value))}
+                                  style={{
+                                    width: '100%',
+                                    accentColor: activeTheme.hex,
+                                    height: 5,
+                                    cursor: 'pointer',
+                                  }}
+                                />
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* ══════════════════════════════════════════════════ */}
+                    {/* TAB 3: LAYOUT (Matches Image 3 Right)             */}
+                    {/* ══════════════════════════════════════════════════ */}
+                    {activeTab === 'layout' && (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                        {/* 1. INPUT METHOD */}
+                        <div>
+                          <SectionLabel>Input Method</SectionLabel>
+                          <div
+                            style={{
+                              background: cardBg,
+                              border: cardBorder,
+                              borderRadius: 20,
+                              margin: '0 16px',
+                              overflow: 'hidden',
+                            }}
+                          >
+                            <div
+                              style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'space-between',
+                                padding: '14px 16px',
+                              }}
+                            >
+                              <div>
+                                <div style={{ fontSize: 15, fontWeight: 600, color: '#FFFFFF', letterSpacing: '-0.01em' }}>
+                                  Virtual Keyboard
+                                </div>
+                                <div style={{ fontSize: 12, color: 'rgba(235, 235, 245, 0.45)', marginTop: 2 }}>
+                                  Custom keyboard design
+                                </div>
+                              </div>
+                              <Toggle
+                                on={!!settings.useVirtualKeyboard}
+                                onToggle={() => {
+                                  haptic('double');
+                                  updateSetting('useVirtualKeyboard', !settings.useVirtualKeyboard);
+                                }}
+                                color={activeTheme.hex}
+                              />
+                            </div>
+
+                            {/* Keyboard Sub-Settings if enabled */}
+                            <AnimatePresence>
+                              {settings.useVirtualKeyboard && (
+                                <motion.div
+                                  initial={{ height: 0, opacity: 0 }}
+                                  animate={{ height: 'auto', opacity: 1 }}
+                                  exit={{ height: 0, opacity: 0 }}
+                                  style={{ overflow: 'hidden' }}
+                                >
+                                  {/* Scale slider */}
+                                  <div style={{ padding: '10px 16px', borderTop: '0.5px solid rgba(255,255,255,0.05)' }}>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+                                      <span style={{ fontSize: 14, color: 'rgba(235,235,245,0.7)' }}>Keyboard Scale</span>
+                                      <span style={{ fontSize: 12, color: 'rgba(235,235,245,0.45)' }}>{Math.round((settings.keyboardScale || 1) * 100)}%</span>
+                                    </div>
+                                    <input
+                                      type="range"
+                                      min={0.8}
+                                      max={1.2}
+                                      step={0.05}
+                                      value={settings.keyboardScale || 1}
+                                      onChange={(e) => updateSetting('keyboardScale', parseFloat(e.target.value))}
+                                      style={{ width: '100%', accentColor: activeTheme.hex }}
+                                    />
+                                  </div>
+
+                                  {/* Skin buttons */}
+                                  <div style={{ padding: '10px 16px 14px', borderTop: '0.5px solid rgba(255,255,255,0.05)' }}>
+                                    <div style={{ fontSize: 12, color: 'rgba(235,235,245,0.4)', marginBottom: 8 }}>Keyboard Skin</div>
+                                    <div style={{ display: 'flex', gap: 8 }}>
+                                      {(['dark', 'grey', 'light'] as const).map((t) => (
+                                        <button
+                                          key={t}
+                                          onClick={() => {
+                                            haptic('selection');
+                                            updateSetting('keyboardTheme', t);
+                                          }}
+                                          style={{
+                                            flex: 1,
+                                            height: 38,
+                                            borderRadius: 12,
+                                            background: settings.keyboardTheme === t ? activeTheme.hex : 'rgba(255,255,255,0.06)',
+                                            color: settings.keyboardTheme === t ? '#000' : 'rgba(235,235,245,0.7)',
+                                            fontFamily: 'inherit',
+                                            fontWeight: 600,
+                                            fontSize: 13,
+                                            border: 'none',
+                                            cursor: 'pointer',
+                                            textTransform: 'capitalize',
+                                          }}
+                                        >
+                                          {t}
+                                        </button>
+                                      ))}
+                                    </div>
+                                  </div>
+                                </motion.div>
+                              )}
+                            </AnimatePresence>
+                          </div>
+                        </div>
+
+                        {/* 2. DENSITY (Comfortable vs Compact) */}
+                        <div>
+                          <SectionLabel>Density</SectionLabel>
+                          <div
+                            style={{
+                              background: cardBg,
+                              border: cardBorder,
+                              borderRadius: 20,
+                              margin: '0 16px',
+                              overflow: 'hidden',
+                            }}
+                          >
+                            {[
+                              { key: 'comfortable' as Density, label: 'Comfortable', sub: 'More spacing' },
+                              { key: 'compact' as Density, label: 'Compact', sub: 'Denser layout' },
+                            ].map(({ key, label, sub }, i) => {
+                              const isChecked = settings.density === key;
+                              return (
+                                <div
+                                  key={key}
+                                  onClick={() => {
+                                    haptic('selection');
+                                    updateSetting('density', key);
+                                  }}
+                                  style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'space-between',
+                                    padding: '14px 16px',
+                                    borderBottom: i === 0 ? '0.5px solid rgba(255, 255, 255, 0.06)' : 'none',
+                                    cursor: 'pointer',
+                                  }}
+                                >
+                                  <div>
+                                    <div style={{ fontSize: 15, fontWeight: 600, color: '#FFFFFF', letterSpacing: '-0.01em' }}>
+                                      {label}
+                                    </div>
+                                    <div style={{ fontSize: 12, color: 'rgba(235, 235, 245, 0.45)', marginTop: 2 }}>
+                                      {sub}
+                                    </div>
+                                  </div>
+                                  <RadioCheck checked={isChecked} color={activeTheme.hex} />
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+
+                        {/* 3. CORNER STYLE (Sharp / Round / Pill - Matches Image 3) */}
+                        <div>
+                          <SectionLabel>Corner Style</SectionLabel>
+                          <div
+                            style={{
+                              display: 'flex',
+                              gap: 10,
+                              margin: '0 16px',
+                            }}
+                          >
+                            {(['sharp', 'round', 'pill'] as CornerRadius[]).map((r) => {
+                              const isSelected = settings.cornerRadius === r;
+                              return (
+                                <motion.button
+                                  key={r}
+                                  whileTap={{ scale: 0.96 }}
+                                  onClick={() => {
+                                    haptic('selection');
+                                    updateSetting('cornerRadius', r);
+                                  }}
+                                  style={{
+                                    flex: 1,
+                                    height: 52,
+                                    borderRadius: 16,
+                                    background: isSelected ? activeTheme.hex : cardBg,
+                                    color: isSelected ? '#000000' : 'rgba(235, 235, 245, 0.8)',
+                                    border: isSelected ? 'none' : cardBorder,
+                                    fontFamily: 'inherit',
+                                    fontWeight: 600,
+                                    fontSize: 14,
+                                    cursor: 'pointer',
+                                    textTransform: 'capitalize',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    transition: 'all 0.15s ease',
+                                  }}
+                                >
+                                  {r}
+                                </motion.button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </motion.div>
+                </AnimatePresence>
+
+                {/* Footer: Version */}
+                <div style={{ textAlign: 'center', padding: '16px 0 6px' }}>
+                  <span style={{ fontSize: 12, color: 'rgba(235, 235, 245, 0.35)', fontWeight: 500 }}>
+                    App version v{APP_VERSION}
+                  </span>
+                </div>
+              </div>
+
+              {/* Desktop Live Preview Panel */}
+              <div
+                className="hidden md:flex"
+                style={{
+                  width: 240,
+                  flexShrink: 0,
+                  borderLeft: '0.5px solid rgba(255,255,255,0.06)',
+                  background: 'rgba(0,0,0,0.3)',
+                  padding: '20px 0',
+                  overflowY: 'auto',
+                  alignItems: 'flex-start',
+                  justifyContent: 'center',
+                }}
+              >
+                <PreviewCard settings={settings} activeTheme={activeTheme} />
+              </div>
+            </div>
+          </motion.div>
+
+          <SetPinModal
+            isOpen={isSetPinModalOpen}
+            onClose={() => setIsSetPinModalOpen(false)}
+            activeTheme={activeTheme}
+            currentPinHash={settings.securityPinHash}
+            onPinSaved={(newHash) => updateSetting('securityPinHash', newHash)}
+          />
+        </div>
+      )}
     </AnimatePresence>
   );
 };

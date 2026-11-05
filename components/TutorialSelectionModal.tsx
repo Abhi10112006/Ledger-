@@ -1,6 +1,6 @@
-
 import React from 'react';
-import { X, PlayCircle, MousePointer2, MonitorPlay } from 'lucide-react';
+import { X, PlayCircle, Compass } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 
 interface Props {
   isOpen: boolean;
@@ -10,65 +10,180 @@ interface Props {
   activeTheme: any;
 }
 
-const TutorialSelectionModal: React.FC<Props> = ({ isOpen, onClose, onSelectVideo, onSelectInteractive, activeTheme }) => {
+const TutorialSelectionModal: React.FC<Props> = ({ isOpen, onClose, onSelectVideo, onSelectInteractive }) => {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[2500] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">
-      <div 
-        className="glass w-full max-w-md rounded-[2rem] p-6 animate-in zoom-in-95 duration-200 border border-white/5 relative overflow-hidden shadow-2xl"
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* Decorative BG */}
-        <div className={`absolute -top-20 -right-20 w-48 h-48 ${activeTheme.bg} blur-[60px] opacity-20 pointer-events-none`}></div>
+    <AnimatePresence>
+      <div className="fixed inset-0 z-[2500] flex items-end sm:items-center justify-center">
+        {/* Backdrop */}
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          onClick={onClose}
+          className="absolute inset-0 bg-black/60 backdrop-blur-md"
+        />
 
-        <div className="flex justify-between items-center mb-6 relative z-10">
-          <div className="flex items-center gap-2">
-            <MonitorPlay className={`w-5 h-5 ${activeTheme.text}`} />
-            <h2 className="text-xl font-black text-white tracking-tight">TRAINING MODULE</h2>
+        {/* Bottom Sheet */}
+        <motion.div
+          initial={{ y: '100%' }}
+          animate={{ y: 0 }}
+          exit={{ y: '100%' }}
+          transition={{ type: 'spring', damping: 28, stiffness: 320 }}
+          style={{
+            position: 'relative',
+            width: '100%',
+            maxWidth: 440,
+            background: '#1C1C1E',
+            borderTopLeftRadius: 28,
+            borderTopRightRadius: 28,
+            borderTop: '0.5px solid rgba(255, 255, 255, 0.15)',
+            boxShadow: '0 -10px 40px rgba(0,0,0,0.7)',
+            padding: '12px 20px 24px 20px',
+            paddingBottom: 'calc(env(safe-area-inset-bottom, 16px) + 20px)',
+            fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Text", Inter, sans-serif',
+          }}
+          className="sm:rounded-b-[28px] sm:border-b sm:border-white/10"
+        >
+          {/* Grabber */}
+          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 16 }}>
+            <div
+              style={{
+                width: 36,
+                height: 5,
+                borderRadius: 3,
+                background: 'rgba(255, 255, 255, 0.25)',
+              }}
+            />
           </div>
-          <button onClick={onClose} className="p-2 hover:bg-slate-800 rounded-full text-slate-400 transition-colors">
-            <X className="w-5 h-5" />
-          </button>
-        </div>
 
-        <div className="grid grid-cols-1 gap-4 relative z-10">
+          {/* Header */}
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              marginBottom: 20,
+            }}
+          >
+            <h2
+              style={{
+                margin: 0,
+                fontSize: 18,
+                fontWeight: 600,
+                color: '#FFFFFF',
+                letterSpacing: '-0.02em',
+              }}
+            >
+              Tutorial & Help
+            </h2>
+            <button
+              type="button"
+              onClick={onClose}
+              style={{
+                width: 30,
+                height: 30,
+                borderRadius: 15,
+                background: 'rgba(255, 255, 255, 0.08)',
+                border: 'none',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: 'rgba(235, 235, 245, 0.6)',
+                cursor: 'pointer',
+              }}
+            >
+              <X size={16} />
+            </button>
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             {/* Video Option */}
-            <button 
+            <motion.button
+              whileTap={{ scale: 0.98 }}
               onClick={onSelectVideo}
-              className="group relative p-5 rounded-2xl bg-slate-900/50 border border-slate-800 hover:border-slate-700 transition-all text-left overflow-hidden"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 14,
+                padding: '16px',
+                borderRadius: 18,
+                background: 'rgba(255, 255, 255, 0.04)',
+                border: '0.5px solid rgba(255, 255, 255, 0.08)',
+                textAlign: 'left',
+                cursor: 'pointer',
+              }}
             >
-              <div className={`absolute inset-0 ${activeTheme.bg} opacity-0 group-hover:opacity-5 transition-opacity duration-500`}></div>
-              <div className="flex items-start gap-4">
-                <div className={`p-3 rounded-xl bg-slate-800 group-hover:${activeTheme.bg} transition-colors duration-300`}>
-                   <PlayCircle className={`w-6 h-6 ${activeTheme.text} group-hover:text-slate-950`} />
+              <div
+                style={{
+                  width: 44,
+                  height: 44,
+                  borderRadius: 14,
+                  background: 'rgba(10, 132, 255, 0.15)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: '#0A84FF',
+                  flexShrink: 0,
+                }}
+              >
+                <PlayCircle size={22} />
+              </div>
+              <div>
+                <div style={{ fontSize: 16, fontWeight: 600, color: '#FFFFFF', letterSpacing: '-0.01em' }}>
+                  Video Walkthrough
                 </div>
-                <div>
-                   <h3 className="text-lg font-bold text-slate-100 group-hover:text-white mb-1">Visual Feed</h3>
-                   <p className="text-xs text-slate-400 font-medium leading-relaxed">Watch a high-speed system overview video.</p>
+                <div style={{ fontSize: 13, color: 'rgba(235, 235, 245, 0.55)', marginTop: 2 }}>
+                  Watch a quick overview of how Ledger works
                 </div>
               </div>
-            </button>
+            </motion.button>
 
-            {/* Interactive Option */}
-            <button 
+            {/* Interactive Tour */}
+            <motion.button
+              whileTap={{ scale: 0.98 }}
               onClick={onSelectInteractive}
-              className="group relative p-5 rounded-2xl bg-slate-900/50 border border-slate-800 hover:border-slate-700 transition-all text-left overflow-hidden"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 14,
+                padding: '16px',
+                borderRadius: 18,
+                background: 'rgba(255, 255, 255, 0.04)',
+                border: '0.5px solid rgba(255, 255, 255, 0.08)',
+                textAlign: 'left',
+                cursor: 'pointer',
+              }}
             >
-              <div className={`absolute inset-0 ${activeTheme.bg} opacity-0 group-hover:opacity-5 transition-opacity duration-500`}></div>
-              <div className="flex items-start gap-4">
-                <div className={`p-3 rounded-xl bg-slate-800 group-hover:${activeTheme.bg} transition-colors duration-300`}>
-                   <MousePointer2 className={`w-6 h-6 ${activeTheme.text} group-hover:text-slate-950`} />
+              <div
+                style={{
+                  width: 44,
+                  height: 44,
+                  borderRadius: 14,
+                  background: 'rgba(48, 209, 88, 0.15)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: '#30D158',
+                  flexShrink: 0,
+                }}
+              >
+                <Compass size={22} />
+              </div>
+              <div>
+                <div style={{ fontSize: 16, fontWeight: 600, color: '#FFFFFF', letterSpacing: '-0.01em' }}>
+                  Interactive Tour
                 </div>
-                <div>
-                   <h3 className="text-lg font-bold text-slate-100 group-hover:text-white mb-1">Neural Link</h3>
-                   <p className="text-xs text-slate-400 font-medium leading-relaxed">Initiate the interactive step-by-step guided tour.</p>
+                <div style={{ fontSize: 13, color: 'rgba(235, 235, 245, 0.55)', marginTop: 2 }}>
+                  Step-by-step interactive guidance on key features
                 </div>
               </div>
-            </button>
-        </div>
+            </motion.button>
+          </div>
+        </motion.div>
       </div>
-    </div>
+    </AnimatePresence>
   );
 };
 

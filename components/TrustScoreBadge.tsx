@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { Shield, ShieldAlert, ShieldCheck, Award, X, History, Info, TrendingUp, TrendingDown, Skull, Frown, Meh, Smile } from 'lucide-react';
@@ -14,7 +13,7 @@ interface Props {
   currency: string;
 }
 
-const TrustScoreBadge: React.FC<Props> = ({ score, friendName, profileId, allTransactions = [], currency }) => {
+const TrustScoreBadge: React.FC<Props> = ({ score, profileId, allTransactions = [], currency }) => {
   const [showModal, setShowModal] = useState(false);
   const [mounted, setMounted] = useState(false);
 
@@ -23,58 +22,72 @@ const TrustScoreBadge: React.FC<Props> = ({ score, friendName, profileId, allTra
     return () => setMounted(false);
   }, []);
 
-  // Safe score handling
   const safeScore = isNaN(score) ? 60 : Math.round(score);
 
-  // 7-TIER LOGIC
   const getInfo = () => {
-    if (safeScore >= 91) return { 
-        label: 'Trustworthy', 
-        color: 'text-cyan-400 border-cyan-500/30 bg-cyan-500/10 shadow-[0_0_15px_rgba(34,211,238,0.2)]', 
-        icon: <Award className="w-3.5 h-3.5" />,
-        desc: "Elite Borrower. Always pays on time."
+    if (safeScore >= 91) return {
+      label: 'Trustworthy',
+      color: '#30D158',
+      bg: 'rgba(48, 209, 88, 0.12)',
+      border: 'rgba(48, 209, 88, 0.25)',
+      icon: <Award className="w-3.5 h-3.5" />,
+      desc: "Elite Borrower. Always pays on time."
     };
-    if (safeScore >= 81) return { 
-        label: 'Very Good', 
-        color: 'text-emerald-400 border-emerald-500/30 bg-emerald-500/10', 
-        icon: <ShieldCheck className="w-3.5 h-3.5" />,
-        desc: "Highly reliable. Rarely misses a date."
+    if (safeScore >= 81) return {
+      label: 'Very Good',
+      color: '#30D158',
+      bg: 'rgba(48, 209, 88, 0.12)',
+      border: 'rgba(48, 209, 88, 0.25)',
+      icon: <ShieldCheck className="w-3.5 h-3.5" />,
+      desc: "Highly reliable. Rarely misses a date."
     };
-    if (safeScore >= 71) return { 
-        label: 'Good', 
-        color: 'text-green-400 border-green-500/30 bg-green-500/10', 
-        icon: <Smile className="w-3.5 h-3.5" />,
-        desc: "Generally safe. Good repayment history."
+    if (safeScore >= 71) return {
+      label: 'Good',
+      color: '#34C759',
+      bg: 'rgba(52, 199, 89, 0.12)',
+      border: 'rgba(52, 199, 89, 0.25)',
+      icon: <Smile className="w-3.5 h-3.5" />,
+      desc: "Generally safe. Good repayment history."
     };
-    if (safeScore >= 61) return { 
-        label: 'Fair', 
-        color: 'text-blue-400 border-blue-500/30 bg-blue-500/10', 
-        icon: <Shield className="w-3.5 h-3.5" />,
-        desc: "Okay to lend. Keep an eye on dates."
+    if (safeScore >= 61) return {
+      label: 'Fair',
+      color: '#0A84FF',
+      bg: 'rgba(10, 132, 255, 0.12)',
+      border: 'rgba(10, 132, 255, 0.25)',
+      icon: <Shield className="w-3.5 h-3.5" />,
+      desc: "Okay to lend. Keep an eye on dates."
     };
-    if (safeScore >= 51) return { 
-        label: 'Okay', 
-        color: 'text-yellow-400 border-yellow-500/30 bg-yellow-500/10', 
-        icon: <Meh className="w-3.5 h-3.5" />,
-        desc: "Borderline. Reminders might be needed."
+    if (safeScore >= 51) return {
+      label: 'Okay',
+      color: '#FFD60A',
+      bg: 'rgba(255, 214, 10, 0.12)',
+      border: 'rgba(255, 214, 10, 0.25)',
+      icon: <Meh className="w-3.5 h-3.5" />,
+      desc: "Borderline. Reminders might be needed."
     };
-    if (safeScore >= 41) return { 
-        label: 'Bad', 
-        color: 'text-orange-400 border-orange-500/30 bg-orange-500/10', 
-        icon: <Frown className="w-3.5 h-3.5" />,
-        desc: "Risky. Often late or difficult."
+    if (safeScore >= 41) return {
+      label: 'Bad',
+      color: '#FF9F0A',
+      bg: 'rgba(255, 159, 10, 0.12)',
+      border: 'rgba(255, 159, 10, 0.25)',
+      icon: <Frown className="w-3.5 h-3.5" />,
+      desc: "Risky. Often late or difficult."
     };
-    if (safeScore >= 21) return { 
-        label: 'Very Bad', 
-        color: 'text-rose-400 border-rose-500/30 bg-rose-500/10', 
-        icon: <ShieldAlert className="w-3.5 h-3.5" />,
-        desc: "High Risk. Expect delays and issues."
+    if (safeScore >= 21) return {
+      label: 'Very Bad',
+      color: '#FF453A',
+      bg: 'rgba(255, 69, 58, 0.12)',
+      border: 'rgba(255, 69, 58, 0.25)',
+      icon: <ShieldAlert className="w-3.5 h-3.5" />,
+      desc: "High Risk. Expect delays and issues."
     };
-    return { 
-        label: 'Worst', 
-        color: 'text-rose-600 border-rose-600/50 bg-rose-950/40 animate-pulse shadow-[0_0_15px_rgba(225,29,72,0.4)]', 
-        icon: <Skull className="w-3.5 h-3.5" />,
-        desc: "Critical Risk. Do not lend."
+    return {
+      label: 'Worst',
+      color: '#FF3B30',
+      bg: 'rgba(255, 59, 48, 0.15)',
+      border: 'rgba(255, 59, 48, 0.3)',
+      icon: <Skull className="w-3.5 h-3.5" />,
+      desc: "Critical Risk. Do not lend."
     };
   };
 
@@ -87,7 +100,7 @@ const TrustScoreBadge: React.FC<Props> = ({ score, friendName, profileId, allTra
 
   const renderModalContent = () => {
     if (!profileId) return null;
-    
+
     let breakdown = null;
     try {
       breakdown = getTrustBreakdown(profileId, allTransactions, currency);
@@ -95,116 +108,287 @@ const TrustScoreBadge: React.FC<Props> = ({ score, friendName, profileId, allTra
       console.error("Truth breakdown calculation failed", e);
       return null;
     }
-    
+
     return (
-      <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 sm:p-6">
-        <motion.div 
-          initial={{ opacity: 0 }} 
-          animate={{ opacity: 1 }} 
+      <div className="fixed inset-0 z-[9999] flex items-end sm:items-center justify-center">
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="absolute inset-0 bg-slate-950/80 backdrop-blur-md"
+          className="absolute inset-0 bg-black/60 backdrop-blur-md"
           onClick={handleClose}
         />
-        
-        <motion.div 
-          initial={{ scale: 0.9, opacity: 0, y: 20 }}
-          animate={{ scale: 1, opacity: 1, y: 0 }}
-          exit={{ scale: 0.9, opacity: 0, y: 20 }}
-          transition={{ type: "spring", stiffness: 350, damping: 25 }}
-          className="glass w-full max-w-sm rounded-[2rem] overflow-hidden shadow-[0_0_80px_rgba(0,0,0,0.9)] border-white/10 relative flex flex-col h-auto max-h-[85vh] z-10"
+
+        <motion.div
+          initial={{ y: '100%' }}
+          animate={{ y: 0 }}
+          exit={{ y: '100%' }}
+          transition={{ type: 'spring', damping: 28, stiffness: 320 }}
+          style={{
+            position: 'relative',
+            width: '100%',
+            maxWidth: 480,
+            background: '#1C1C1E',
+            borderTopLeftRadius: 28,
+            borderTopRightRadius: 28,
+            borderTop: '0.5px solid rgba(255, 255, 255, 0.15)',
+            boxShadow: '0 -10px 40px rgba(0,0,0,0.7)',
+            padding: '12px 20px 24px 20px',
+            paddingBottom: 'calc(env(safe-area-inset-bottom, 16px) + 20px)',
+            maxHeight: '85vh',
+            display: 'flex',
+            flexDirection: 'column',
+            fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Text", Inter, sans-serif',
+          }}
+          className="sm:rounded-b-[28px] sm:border-b sm:border-white/10"
           onClick={(e) => e.stopPropagation()}
         >
+          {/* Grabber */}
+          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 16 }}>
+            <div
+              style={{
+                width: 36,
+                height: 5,
+                borderRadius: 3,
+                background: 'rgba(255, 255, 255, 0.25)',
+              }}
+            />
+          </div>
+
           {/* Header */}
-          <div className="shrink-0 p-5 flex justify-between items-center border-b border-white/5 bg-slate-900/80 backdrop-blur-md">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-slate-800 rounded-lg">
-                <ShieldCheck className="text-slate-200 w-5 h-5" />
-              </div>
-              <div>
-                  <h3 className="text-sm font-black uppercase tracking-widest text-slate-100">Truth Analysis</h3>
-                  <div className="text-[10px] text-slate-500 font-mono">ID: {profileId}</div>
-              </div>
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              marginBottom: 20,
+              flexShrink: 0,
+            }}
+          >
+            <div>
+              <h2
+                style={{
+                  margin: 0,
+                  fontSize: 18,
+                  fontWeight: 600,
+                  color: '#FFFFFF',
+                  letterSpacing: '-0.02em',
+                }}
+              >
+                Trust Score Analysis
+              </h2>
+              <span style={{ fontSize: 12, color: 'rgba(235, 235, 245, 0.45)' }}>
+                Ledger ID: {profileId}
+              </span>
             </div>
-            <button 
+            <button
               type="button"
-              onClick={handleClose} 
-              className="p-2 bg-rose-500/20 hover:bg-rose-500/30 rounded-full text-rose-400 transition-all active:scale-75"
-              aria-label="Close"
+              onClick={handleClose}
+              style={{
+                width: 30,
+                height: 30,
+                borderRadius: 15,
+                background: 'rgba(255, 255, 255, 0.08)',
+                border: 'none',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: 'rgba(235, 235, 245, 0.6)',
+                cursor: 'pointer',
+              }}
             >
-              <X className="w-5 h-5" />
+              <X size={16} />
             </button>
           </div>
 
-          {/* Body */}
-          <div className="flex-1 overflow-y-auto p-5 space-y-6 scrollbar-hide overscroll-contain bg-slate-950/20">
-            <div className="flex flex-col items-center text-center space-y-3 bg-white/5 p-6 rounded-3xl border border-white/5 relative overflow-hidden">
-              <div className={`absolute inset-0 opacity-10 blur-xl ${info.color.split(' ')[0].replace('text-', 'bg-')}`}></div>
-              <div className={`text-6xl font-black font-mono tracking-tighter drop-shadow-lg relative z-10 ${info.color.split(' ')[0]}`}>
+          {/* Scrollable Body */}
+          <div style={{ overflowY: 'auto', flex: 1, paddingRight: 2 }} className="scrollbar-hide">
+            {/* Score Card */}
+            <div
+              style={{
+                background: 'rgba(255, 255, 255, 0.04)',
+                border: '0.5px solid rgba(255, 255, 255, 0.08)',
+                borderRadius: 20,
+                padding: '24px 20px',
+                textAlign: 'center',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                marginBottom: 20,
+              }}
+            >
+              <div
+                style={{
+                  fontSize: 56,
+                  fontWeight: 700,
+                  letterSpacing: '-0.03em',
+                  color: info.color,
+                  lineHeight: 1,
+                  fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", sans-serif',
+                }}
+              >
                 {breakdown.score}
               </div>
-              <div className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest shadow-lg relative z-10 ${info.color}`}>
-                {info.label} Score
+              <div
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  padding: '4px 12px',
+                  borderRadius: 9999,
+                  background: info.bg,
+                  border: `0.5px solid ${info.border}`,
+                  color: info.color,
+                  fontSize: 12,
+                  fontWeight: 600,
+                  marginTop: 10,
+                  marginBottom: 8,
+                }}
+              >
+                {info.icon}
+                <span>{info.label}</span>
               </div>
-              <p className="text-slate-300 font-bold text-sm leading-relaxed max-w-[220px] relative z-10">
+              <p
+                style={{
+                  fontSize: 13,
+                  color: 'rgba(235, 235, 245, 0.65)',
+                  margin: 0,
+                  maxWidth: 260,
+                }}
+              >
                 {info.desc}
               </p>
             </div>
 
             {/* Factors */}
             {breakdown.factors.length > 0 && (
-              <div className="space-y-3">
-                <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 px-1">
-                  <Info className="w-3 h-3" /> Key Factors
-                </div>
-                <div className="grid grid-cols-1 gap-2">
+              <div style={{ marginBottom: 20 }}>
+                <span
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    fontSize: 11,
+                    fontWeight: 600,
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.04em',
+                    color: 'rgba(235, 235, 245, 0.45)',
+                    marginBottom: 8,
+                    paddingLeft: 4,
+                  }}
+                >
+                  <Info size={12} /> Key Factors
+                </span>
+                <div
+                  style={{
+                    background: 'rgba(255, 255, 255, 0.04)',
+                    border: '0.5px solid rgba(255, 255, 255, 0.08)',
+                    borderRadius: 18,
+                    overflow: 'hidden',
+                  }}
+                >
                   {breakdown.factors.map((f, i) => (
-                    <motion.div 
-                      key={i} 
-                      initial={{ opacity: 0, x: -10 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: i * 0.1 }}
-                      className="flex justify-between items-center bg-slate-900/60 p-3.5 rounded-2xl border border-white/5 group transition-colors hover:bg-slate-900"
+                    <div
+                      key={i}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        padding: '12px 16px',
+                        borderBottom: i < breakdown.factors.length - 1 ? '0.5px solid rgba(255, 255, 255, 0.06)' : 'none',
+                      }}
                     >
-                      <span className="text-xs font-semibold text-slate-300">{f.label}</span>
-                      <div className={`flex items-center gap-1.5 text-xs font-black ${f.impact === 'positive' ? 'text-emerald-400' : f.impact === 'negative' ? 'text-rose-400' : 'text-slate-400'}`}>
-                        {f.impact === 'positive' ? <TrendingUp className="w-3 h-3" /> : f.impact === 'negative' ? <TrendingDown className="w-3 h-3" /> : null}
-                        {f.value}
+                      <span style={{ fontSize: 14, color: 'rgba(235, 235, 245, 0.85)', fontWeight: 500 }}>
+                        {f.label}
+                      </span>
+                      <div
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 4,
+                          fontSize: 13,
+                          fontWeight: 600,
+                          color: f.impact === 'positive' ? '#30D158' : f.impact === 'negative' ? '#FF453A' : 'rgba(235, 235, 245, 0.6)',
+                        }}
+                      >
+                        {f.impact === 'positive' && <TrendingUp size={14} />}
+                        {f.impact === 'negative' && <TrendingDown size={14} />}
+                        <span>{f.value}</span>
                       </div>
-                    </motion.div>
+                    </div>
                   ))}
                 </div>
               </div>
             )}
 
             {/* History */}
-            <div className="space-y-3">
-              <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 px-1">
-                <History className="w-3 h-3" /> Recent Activity
-              </div>
-              <div className="space-y-1 pb-4">
+            <div style={{ marginBottom: 12 }}>
+              <span
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  fontSize: 11,
+                  fontWeight: 600,
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.04em',
+                  color: 'rgba(235, 235, 245, 0.45)',
+                  marginBottom: 8,
+                  paddingLeft: 4,
+                }}
+              >
+                <History size={12} /> Recent Activity
+              </span>
+              <div
+                style={{
+                  background: 'rgba(255, 255, 255, 0.04)',
+                  border: '0.5px solid rgba(255, 255, 255, 0.08)',
+                  borderRadius: 18,
+                  overflow: 'hidden',
+                }}
+              >
                 {breakdown.history.slice(0, 5).map((h, i) => (
-                  <motion.div 
-                    key={i} 
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.2 + (i * 0.05) }}
-                    className="flex items-center gap-4 p-3 bg-white/5 rounded-2xl border border-transparent hover:border-white/5 transition-all"
+                  <div
+                    key={i}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      padding: '12px 16px',
+                      borderBottom: i < Math.min(breakdown.history.length, 5) - 1 ? '0.5px solid rgba(255, 255, 255, 0.06)' : 'none',
+                    }}
                   >
-                    <div className={`w-1.5 h-1.5 rounded-full ${h.status === 'On-Time' ? 'bg-emerald-500' : h.status === 'Late' ? 'bg-rose-500' : 'bg-slate-600'}`}></div>
-                    <div className="flex-1 flex justify-between items-center">
-                      <div className="space-y-0.5">
-                        <p className="text-[11px] text-slate-200 font-bold">{h.event}</p>
-                        <p className="text-[9px] text-slate-500 font-mono">{h.date}</p>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <div
+                        style={{
+                          width: 8,
+                          height: 8,
+                          borderRadius: 4,
+                          background: h.status === 'On-Time' ? '#30D158' : h.status === 'Late' ? '#FF453A' : 'rgba(235, 235, 245, 0.4)',
+                        }}
+                      />
+                      <div>
+                        <div style={{ fontSize: 13, fontWeight: 500, color: '#FFFFFF' }}>{h.event}</div>
+                        <div style={{ fontSize: 11, color: 'rgba(235, 235, 245, 0.45)', marginTop: 1 }}>{h.date}</div>
                       </div>
-                      <span className={`text-[9px] font-black uppercase tracking-tighter px-2 py-0.5 rounded ${h.status === 'On-Time' ? 'text-emerald-400 bg-emerald-500/10' : h.status === 'Late' ? 'text-rose-400 bg-rose-500/10' : 'text-slate-500 bg-slate-500/10'}`}>
-                        {h.status}
-                      </span>
                     </div>
-                  </motion.div>
+                    <span
+                      style={{
+                        fontSize: 11,
+                        fontWeight: 600,
+                        padding: '3px 8px',
+                        borderRadius: 6,
+                        background: h.status === 'On-Time' ? 'rgba(48, 209, 88, 0.12)' : h.status === 'Late' ? 'rgba(255, 69, 58, 0.12)' : 'rgba(255, 255, 255, 0.06)',
+                        color: h.status === 'On-Time' ? '#30D158' : h.status === 'Late' ? '#FF453A' : 'rgba(235, 235, 245, 0.6)',
+                      }}
+                    >
+                      {h.status}
+                    </span>
+                  </div>
                 ))}
                 {breakdown.history.length === 0 && (
-                  <div className="p-4 text-center glass rounded-2xl border-dashed border-white/10 text-slate-600 text-[11px] italic">
-                    No history detected.
+                  <div style={{ padding: 20, textAlign: 'center', fontSize: 13, color: 'rgba(235, 235, 245, 0.4)' }}>
+                    No recorded activity yet.
                   </div>
                 )}
               </div>
@@ -217,14 +401,28 @@ const TrustScoreBadge: React.FC<Props> = ({ score, friendName, profileId, allTra
 
   return (
     <>
-      <motion.button 
+      <motion.button
         type="button"
         whileTap={{ scale: 0.95 }}
-        onClick={(e) => { 
-          e.stopPropagation(); 
-          setShowModal(true); 
+        onClick={(e) => {
+          e.stopPropagation();
+          setShowModal(true);
         }}
-        className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-[10px] font-bold uppercase tracking-widest transition-all duration-300 hover:scale-105 active:scale-95 ${info.color}`}
+        style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: 5,
+          padding: '4px 10px',
+          borderRadius: 9999,
+          background: info.bg,
+          border: `0.5px solid ${info.border}`,
+          color: info.color,
+          fontSize: 11,
+          fontWeight: 600,
+          cursor: 'pointer',
+          fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Text", Inter, sans-serif',
+          letterSpacing: '-0.01em',
+        }}
       >
         {info.icon}
         <span>{safeScore} • {info.label}</span>
@@ -233,7 +431,7 @@ const TrustScoreBadge: React.FC<Props> = ({ score, friendName, profileId, allTra
       {mounted && createPortal(
         <AnimatePresence>
           {showModal && renderModalContent()}
-        </AnimatePresence>, 
+        </AnimatePresence>,
         document.body
       )}
     </>

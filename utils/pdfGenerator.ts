@@ -1,8 +1,9 @@
-
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { Transaction, AppSettings } from '../types';
 import { getTrustBreakdown, calculateInterest } from './calculations';
+import { getAppLogoBase64 } from './logoProvider';
+import { formatAppTitle, formatCurrencyForPdf, formatMoney } from './branding';
 
 const formatDate = (date: Date, includeTime = false) => {
   try {
@@ -10,77 +11,70 @@ const formatDate = (date: Date, includeTime = false) => {
       day: '2-digit',
       month: 'short',
       year: 'numeric'
-    }).toUpperCase();
-    
+    });
+
     if (includeTime) {
       str += ' ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     }
     return str;
   } catch (e) {
-    return 'INVALID DATE';
+    return 'Invalid Date';
   }
 };
 
-const createStatementDoc = (profileId: string, friendName: string, allTransactions: Transaction[], settings: AppSettings): jsPDF => {
-  const doc = new jsPDF();
+/**
+ * Dynamic font sizing to prevent text from overflowing its allotted width in PDF
+ */
+const drawFittedText = (
+  doc: jsPDF,
+  text: string,
+  x: number,
+  y: number,
+  maxW: number,
+  baseSize: number,
+  fontStyle: 'bold' | 'normal' = 'bold',
+  align: 'left' | 'center' | 'right' = 'left'
+) => {
+  doc.setFont('helvetica', fontStyle);
+  let size = baseSize;
+  doc.setFontSize(size);
+  while (doc.getTextWidth(text) > maxW && size > 5.5) {
+    size -= 0.5;
+    doc.setFontSize(size);
+  }
+  doc.text(text, x, y, { align });
+};
+
+export const createStatementDoc = async (
+  profileId: string,
+  friendName: string,
+  allTransactions: Transaction[],
+  settings: AppSettings
+): Promise<jsPDF> => {
+  const doc = new jsPDF({
+    orientation: 'portrait',
+    unit: 'mm',
+    format: 'a4'
+  });
+
   const pageWidth = doc.internal.pageSize.width;
   const pageHeight = doc.internal.pageSize.height;
-  
-  // Map symbols to ISO codes
-  const currencyMap: { [key: string]: string } = {
-    '₹': 'INR',
-    '$': 'USD',
-    '€': 'EUR',
-    '£': 'GBP',
-    '¥': 'JPY'
-  };
-  const displayCurrency = currencyMap[settings.currency] || settings.currency;
+  const margin = 14;
 
-  // AGENCY STYLE CONFIG (Man in Black Theme)
-  const colors = {
-    bg: [255, 255, 255] as [number, number, number], // Paper White
-    ink: [20, 20, 20] as [number, number, number],   // Typing Black
-    stamp: [185, 28, 28] as [number, number, number], // Red Stamp
-    highlight: [255, 241, 5] as [number, number, number], // Neon Yellow Highlighter
-    grid: [220, 220, 220] as [number, number, number] // Faint Guide Lines
-  };
+  const displayCurrency = formatCurrencyForPdf(settings.currency);
+  const appTitle = formatAppTitle(settings.userName);
 
-  // 1. BACKGROUND PAPER
-  doc.setFillColor(...colors.bg);
-  doc.rect(0, 0, pageWidth, pageHeight, 'F');
-  
-  // 2. HEADER SCAN LINES (CRT Effect)
-  doc.setDrawColor(...colors.grid);
-  doc.setLineWidth(0.1);
-  for (let y = 0; y < 45; y += 1.5) {
-      doc.line(0, y, pageWidth, y);
-  }
-
-  // 3. STAMP (Formal but styled)
-  doc.setTextColor(...colors.stamp);
-  doc.setDrawColor(...colors.stamp);
-  doc.setLineWidth(0.8);
-  doc.roundedRect(pageWidth - 70, 10, 55, 20, 1, 1, 'S');
-  doc.setFont('courier', 'bold');
-  doc.setFontSize(14);
-  const stampX = pageWidth - 42.5; 
-  doc.text("CONFIDENTIAL", stampX, 21, { align: 'center', angle: -5 });
-  doc.setFontSize(7);
-  doc.text("EYES ONLY // NO COPY", stampX, 26, { align: 'center', angle: -5 });
-
-  // ROBUST FILTERING BY ID
+  // Filter transactions for this profile
   const friendTx = allTransactions.filter(t => t.profileId === profileId);
-  
   const breakdown = getTrustBreakdown(profileId, allTransactions, settings.currency);
 
-  // Financial & Timeline Calculations
   let totalBorrowed = 0;
   let totalInterest = 0;
   let totalPaid = 0;
   let activeLoanEnd: Date | null = null;
   let activeInterestRate = 0;
   let activeInterestType = '';
-  
+
   const events: any[] = [];
 
   friendTx.forEach(t => {
@@ -89,27 +83,28 @@ const createStatementDoc = (profileId: string, friendName: string, allTransactio
     totalInterest += interest;
     totalPaid += t.paidAmount;
 
-    // Check for active loan details
     if (!t.isCompleted) {
       activeLoanEnd = new Date(t.returnDate);
       activeInterestRate = t.interestRate;
       activeInterestType = t.interestType;
     }
 
-    // ENHANCED NOTE LOGIC
     let noteDetails = t.notes || 'Principal Advance';
     if (t.interestType !== 'none' && t.interestRate > 0) {
-       noteDetails += ` (${t.interestRate}% ${t.interestType})`;
-    } else {
-       noteDetails += ` (Flat/Fixed)`;
+      noteDetails += ` (${t.interestRate}% ${t.interestType})`;
+    } else if (t.interestRate > 0) {
+      noteDetails += ` (Flat ${t.interestRate}%)`;
     }
-    
-    // Append Due Date for context
+
     if (t.returnDate) {
-        try {
-            const dueStr = new Date(t.returnDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: '2-digit' });
-            noteDetails += ` [Due: ${dueStr}]`;
-        } catch(e) {}
+      try {
+        const dueStr = new Date(t.returnDate).toLocaleDateString('en-IN', {
+          day: '2-digit',
+          month: 'short',
+          year: 'numeric'
+        });
+        noteDetails += ` • Due: ${dueStr}`;
+      } catch (e) {}
     }
 
     events.push({
@@ -126,17 +121,17 @@ const createStatementDoc = (profileId: string, friendName: string, allTransactio
         date: new Date(),
         type: 'INTEREST',
         amount: interest,
-        note: 'Accrued Interest (Calculated)',
+        note: 'Accrued Interest',
         isCredit: false
       });
     }
 
-    t.repayments.forEach(r => {
+    (t.repayments || []).forEach(r => {
       events.push({
         date: new Date(r.date),
         type: 'REPAYMENT',
         amount: r.amount,
-        note: 'Payment Received',
+        note: 'Repayment Received',
         isCredit: true
       });
     });
@@ -144,231 +139,348 @@ const createStatementDoc = (profileId: string, friendName: string, allTransactio
 
   events.sort((a, b) => a.date.getTime() - b.date.getTime());
 
-  // --- HEADER INFO ---
-  doc.setTextColor(...colors.ink);
-  doc.setFont('courier', 'bold');
-  doc.setFontSize(22);
-  // User Name Header
-  doc.text(`${settings.userName.toUpperCase()} DOSSIER`, 14, 20);
-  
-  doc.setFontSize(10);
-  doc.setFont('courier', 'normal');
-  // Monospace alignment with formal terms
-  doc.text(`CLIENT   : ${friendName.toUpperCase()}`, 14, 30);
-  doc.text(`ID       : ${profileId}`, 14, 35);
-  doc.text(`AGENT    : ${settings.userName.toUpperCase()}`, 14, 40);
-  doc.text(`DATE     : ${formatDate(new Date())}`, 14, 45);
-
-  // --- SUMMARY GRID ---
-  const startY = 60;
-  const boxHeight = 35;
-  
-  // Net Calculation
   const netDue = (totalBorrowed + totalInterest) - totalPaid;
-  
-  // Timeline Logic
-  let timelineText1 = "NO ACTIVE";
-  let timelineText2 = "CONTRACTS";
-  let isOverdue = false;
 
-  if (activeLoanEnd && netDue > 1) {
-      const now = new Date();
-      now.setHours(0,0,0,0);
-      const due = new Date(activeLoanEnd);
-      due.setHours(0,0,0,0);
-      
-      const diffTime = due.getTime() - now.getTime();
+  // Find nearest active due date across all non-completed transactions
+  const activeTxWithDueDate = friendTx
+    .filter(t => !t.isCompleted && t.returnDate)
+    .map(t => new Date(t.returnDate))
+    .filter(d => !isNaN(d.getTime()))
+    .sort((a, b) => a.getTime() - b.getTime());
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  let statusText = "● SETTLED (ALL CLEAR)";
+  let pillBg: [number, number, number] = [236, 253, 245];
+  let pillBorder: [number, number, number] = [16, 185, 129];
+  let pillColor: [number, number, number] = [5, 150, 105];
+
+  if (netDue > 0) {
+    if (activeTxWithDueDate.length > 0) {
+      const nearestDueDate = activeTxWithDueDate[0];
+      const diffTime = nearestDueDate.getTime() - today.getTime();
       const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
       if (diffDays < 0) {
-          isOverdue = true;
-          timelineText1 = `${Math.abs(diffDays)} DAYS`;
-          timelineText2 = "OVERDUE";
+        const daysLate = Math.abs(diffDays);
+        statusText = `● OVERDUE BY ${daysLate} DAY${daysLate === 1 ? '' : 'S'}`;
+        pillBg = [254, 242, 242];
+        pillBorder = [239, 68, 68];
+        pillColor = [220, 38, 38];
+      } else if (diffDays === 0) {
+        statusText = `● DUE TODAY`;
+        pillBg = [255, 251, 235];
+        pillBorder = [245, 158, 11];
+        pillColor = [217, 119, 6];
       } else {
-          timelineText1 = `${diffDays} DAYS`;
-          timelineText2 = "REMAINING";
+        statusText = `● ${diffDays} DAY${diffDays === 1 ? '' : 'S'} REMAINING`;
+        pillBg = [238, 242, 255];
+        pillBorder = [99, 102, 241];
+        pillColor = [79, 70, 229];
       }
-  } else if (netDue <= 1 && friendTx.length > 0) {
-       timelineText1 = "ALL CLEAR";
-       timelineText2 = "SETTLED";
+    } else {
+      statusText = `● ACTIVE DEAL (NO DUE DATE)`;
+      pillBg = [241, 245, 249];
+      pillBorder = [148, 163, 184];
+      pillColor = [71, 85, 105];
+    }
+  } else if (friendTx.length === 0) {
+    statusText = `● NO TRANSACTIONS`;
+    pillBg = [241, 245, 249];
+    pillBorder = [203, 213, 225];
+    pillColor = [100, 116, 139];
   }
 
-  // Draw Grid Lines
-  doc.setDrawColor(0, 0, 0);
-  doc.setLineWidth(0.2);
-  doc.line(14, startY, pageWidth - 14, startY); // Top
-  doc.line(14, startY + boxHeight, pageWidth - 14, startY + boxHeight); // Bottom
-  
-  // Vertical Separators
-  const colWidth = (pageWidth - 28) / 3;
-  doc.line(14 + colWidth, startY, 14 + colWidth, startY + boxHeight);
-  doc.line(14 + (colWidth * 2), startY, 14 + (colWidth * 2), startY + boxHeight);
+  // --- 1. HEADER (Exact "L" Logo + App Title + Status Pill) ---
+  const logoBase64 = await getAppLogoBase64();
+  if (logoBase64) {
+    try {
+      doc.addImage(logoBase64, 'PNG', margin, 12, 16, 16);
+    } catch (e) {
+      console.warn('Could not add logo to PDF:', e);
+    }
+  }
 
-  // COL 1: TRUST METRIC + GAUGE
+  const textStartX = logoBase64 ? margin + 20 : margin;
+
+  // Auto-calculated dynamic Status Badge (Top-Right) so it NEVER overflows
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(7.5);
+  const pillPaddingX = 4;
+  const textWidth = doc.getTextWidth(statusText);
+  const pillW = Math.max(38, textWidth + pillPaddingX * 2);
+  const pillH = 8.5;
+  const pillX = pageWidth - margin - pillW;
+  const pillY = 15;
+
+  doc.setFillColor(...pillBg);
+  doc.setDrawColor(...pillBorder);
+  doc.setLineWidth(0.3);
+  doc.roundedRect(pillX, pillY, pillW, pillH, 2, 2, 'FD');
+  doc.setTextColor(...pillColor);
+  doc.text(statusText, pillX + (pillW / 2), pillY + 5.5, { align: 'center' });
+
+  // Draw Title without colliding with the pill
+  const maxTitleW = pillX - textStartX - 6;
+  doc.setTextColor(15, 23, 42);
+  drawFittedText(doc, appTitle, textStartX, 18, maxTitleW, 15, 'bold');
+
+  doc.setFont('helvetica', 'normal');
   doc.setFontSize(8);
-  doc.setFont('courier', 'normal');
-  doc.text("TRUST SCORE", 18, startY + 8);
-  
-  doc.setFontSize(14);
-  doc.text(`${breakdown.score}`, 18, startY + 18);
-  
-  doc.setFontSize(9);
-  doc.text("/ 100", 18 + doc.getTextWidth(`${breakdown.score}`) + 2, startY + 18);
-  
-  // --- GAUGE (Progress Bar) ---
-  const gaugeY = startY + 22;
-  const gaugeWidth = 35;
-  const gaugeHeight = 2.5;
-  
-  // Background Track
-  doc.setFillColor(220, 220, 220);
-  doc.rect(18, gaugeY, gaugeWidth, gaugeHeight, 'F');
-  
-  // Fill
-  const fillWidth = (breakdown.score / 100) * gaugeWidth;
-  // Color Logic
-  if (breakdown.score >= 75) doc.setFillColor(16, 185, 129); // Emerald
-  else if (breakdown.score >= 50) doc.setFillColor(245, 158, 11); // Amber
-  else doc.setFillColor(220, 38, 38); // Red
-  
-  if (fillWidth > 0) {
-      doc.rect(18, gaugeY, fillWidth, gaugeHeight, 'F');
-  }
+  doc.setTextColor(100, 116, 139);
+  doc.text("OFFICIAL FINANCIAL LEDGER STATEMENT", textStartX, 24);
 
-  doc.setFillColor(...colors.ink); // Reset to ink
+  // Hairline Divider
+  doc.setDrawColor(226, 232, 240);
+  doc.setLineWidth(0.3);
+  doc.line(margin, 32, pageWidth - margin, 32);
+
+  // --- 2. PARTY INFO (Client & Issuer Cards) ---
+  const infoY = 37;
+  const colW = (pageWidth - (margin * 2) - 6) / 2;
+
+  // Client Box (Left)
+  doc.setFillColor(248, 250, 252);
+  doc.setDrawColor(226, 232, 240);
+  doc.roundedRect(margin, infoY, colW, 22, 2, 2, 'FD');
+
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(7.5);
+  doc.setTextColor(100, 116, 139);
+  doc.text("COUNTERPARTY / CLIENT", margin + 4, infoY + 5.5);
+
+  doc.setTextColor(15, 23, 42);
+  drawFittedText(doc, friendName, margin + 4, infoY + 12, colW - 8, 11, 'bold');
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(7.5);
+  doc.setTextColor(100, 116, 139);
+  doc.text(`Account ID: ${profileId}`, margin + 4, infoY + 18);
+
+  // Issuer Box (Right)
+  const col2X = margin + colW + 6;
+  doc.setFillColor(248, 250, 252);
+  doc.roundedRect(col2X, infoY, colW, 22, 2, 2, 'FD');
+
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(7.5);
+  doc.setTextColor(100, 116, 139);
+  doc.text("STATEMENT DETAILS", col2X + 4, infoY + 5.5);
+
+  const issuerDisplay = settings.userName && settings.userName.trim().length > 0 ? settings.userName.trim() : 'Primary Ledger';
+  doc.setTextColor(15, 23, 42);
+  drawFittedText(doc, `Issuer: ${issuerDisplay}`, col2X + 4, infoY + 12, colW - 8, 10, 'bold');
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(7.5);
+  doc.setTextColor(100, 116, 139);
+  const refCode = profileId.replace(/[^a-zA-Z0-9]/g, '').slice(0, 8).toUpperCase();
+  doc.text(`Issued: ${formatDate(new Date())}  •  Ref: #${refCode}`, col2X + 4, infoY + 18);
+
+  // --- 3. EXECUTIVE FINANCIAL SUMMARY CARDS ---
+  const sumY = 63;
+  const cardGap = 4;
+  const numCards = 4;
+  const cardW = (pageWidth - (margin * 2) - (cardGap * (numCards - 1))) / numCards;
+  const cardH = 22;
+
+  // Helper to format currency amount safely
+  const formatAmt = (val: number) => {
+    return `${displayCurrency} ${Math.round(val).toLocaleString('en-IN')}`;
+  };
+
+  // Card 1: Principal Advanced
+  doc.setFillColor(255, 255, 255);
+  doc.setDrawColor(226, 232, 240);
+  doc.roundedRect(margin, sumY, cardW, cardH, 2, 2, 'FD');
+  doc.setFont('helvetica', 'normal');
   doc.setFontSize(7);
-  doc.text("RATING ANALYSIS", 18, startY + 30);
+  doc.setTextColor(100, 116, 139);
+  doc.text("TOTAL ADVANCED", margin + 3.5, sumY + 5.5);
+  doc.setTextColor(15, 23, 42);
+  drawFittedText(doc, formatAmt(totalBorrowed), margin + 3.5, sumY + 14, cardW - 7, 11, 'bold');
 
-  // COL 2: NET LIABILITY (The Highlighter)
-  const col2X = 14 + colWidth + 4;
-  doc.setFontSize(8);
-  doc.text("TOTAL LIABILITY", col2X, startY + 8);
-  
-  if (netDue > 0) {
-      const amountText = `${displayCurrency} ${Math.round(netDue).toLocaleString()}`;
-      doc.setFontSize(16);
-      doc.setFont('courier', 'bold');
-      
-      // HIGHLIGHTER EFFECT (Yellow Rect behind text)
-      const textWidth = doc.getTextWidth(amountText);
-      doc.setFillColor(...colors.highlight);
-      // x, y, w, h, style
-      doc.rect(col2X - 1, startY + 14, textWidth + 2, 8, 'F');
-      
-      doc.text(amountText, col2X, startY + 20);
+  // Card 2: Total Repaid
+  const c2X = margin + cardW + cardGap;
+  doc.roundedRect(c2X, sumY, cardW, cardH, 2, 2, 'FD');
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(7);
+  doc.setTextColor(100, 116, 139);
+  doc.text("TOTAL REPAID", c2X + 3.5, sumY + 5.5);
+  doc.setTextColor(5, 150, 105); // emerald
+  drawFittedText(doc, formatAmt(totalPaid), c2X + 3.5, sumY + 14, cardW - 7, 11, 'bold');
+
+  // Card 3: Net Balance
+  const c3X = c2X + cardW + cardGap;
+  const isNetDuePositive = netDue > 0;
+  if (isNetDuePositive) {
+    if (isOverdue) {
+      doc.setFillColor(254, 242, 242);
+      doc.setDrawColor(239, 68, 68);
+    } else {
+      doc.setFillColor(248, 250, 252);
+      doc.setDrawColor(203, 213, 225);
+    }
   } else {
-      doc.setFontSize(16);
-      doc.setFont('courier', 'bold');
-      doc.setTextColor(150, 150, 150);
-      doc.text("SETTLED", col2X, startY + 20);
-      doc.setTextColor(...colors.ink);
+    doc.setFillColor(240, 253, 244);
+    doc.setDrawColor(16, 185, 129);
   }
-  
-  // Reset Font
-  doc.setFontSize(7);
-  doc.setFont('courier', 'normal');
-  if(activeInterestRate > 0) {
-      doc.text(`RATE: ${activeInterestRate}% ${activeInterestType.toUpperCase()}`, col2X, startY + 28);
-  } else {
-      doc.text("RATE: FIXED PRINCIPAL", col2X, startY + 28);
-  }
+  doc.roundedRect(c3X, sumY, cardW, cardH, 2, 2, 'FD');
 
-  // COL 3: TIMELINE
-  const col3X = 14 + (colWidth * 2) + 4;
-  doc.setFontSize(8);
-  doc.text("DEADLINE STATUS", col3X, startY + 8);
-  
-  doc.setFontSize(14);
-  doc.setFont('courier', 'bold');
-  if (isOverdue) doc.setTextColor(200, 0, 0); // Red if overdue
-  
-  doc.text(timelineText1, col3X, startY + 18);
-  doc.text(timelineText2, col3X, startY + 24);
-  
-  doc.setTextColor(...colors.ink); // Reset color
+  doc.setFont('helvetica', 'bold');
   doc.setFontSize(7);
-  doc.setFont('courier', 'normal');
-  if (activeLoanEnd && netDue > 1) {
-      doc.text(`DUE: ${formatDate(activeLoanEnd)}`, col3X, startY + 31);
-  }
+  doc.setTextColor(isNetDuePositive ? (isOverdue ? 220 : 15) : 5, isNetDuePositive ? (isOverdue ? 38 : 23) : 150, isNetDuePositive ? (isOverdue ? 38 : 42) : 105);
+  doc.text("NET OUTSTANDING", c3X + 3.5, sumY + 5.5);
 
-  // --- AUTO TABLE ---
+  const netDueText = isNetDuePositive ? formatAmt(netDue) : "SETTLED";
+  drawFittedText(doc, netDueText, c3X + 3.5, sumY + 14, cardW - 7, 11.5, 'bold');
+
+  // Card 4: Trust Score & Rating
+  const c4X = c3X + cardW + cardGap;
+  doc.setFillColor(255, 255, 255);
+  doc.setDrawColor(226, 232, 240);
+  doc.roundedRect(c4X, sumY, cardW, cardH, 2, 2, 'FD');
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(7);
+  doc.setTextColor(100, 116, 139);
+  doc.text("TRUST SCORE", c4X + 3.5, sumY + 5.5);
+
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(11);
+  doc.setTextColor(15, 23, 42);
+  doc.text(`${breakdown.score}`, c4X + 3.5, sumY + 13);
+  doc.setFontSize(7.5);
+  doc.setTextColor(100, 116, 139);
+  doc.text("/ 100", c4X + 3.5 + doc.getTextWidth(`${breakdown.score}`) + 1.5, sumY + 13);
+
+  // Trust progress bar
+  const barW = cardW - 7;
+  const barH = 2;
+  const barY = sumY + 16.5;
+  doc.setFillColor(226, 232, 240);
+  doc.rect(c4X + 3.5, barY, barW, barH, 'F');
+  const fillW = Math.max(0, Math.min(barW, (breakdown.score / 100) * barW));
+  if (breakdown.score >= 75) doc.setFillColor(16, 185, 129);
+  else if (breakdown.score >= 50) doc.setFillColor(245, 158, 11);
+  else doc.setFillColor(239, 68, 68);
+  if (fillW > 0) doc.rect(c4X + 3.5, barY, fillW, barH, 'F');
+
+  // --- 4. TRANSACTION & SETTLEMENT TABLE ---
   let applyAutoTable = autoTable;
   if (typeof applyAutoTable !== 'function') {
-    // @ts-ignore
     applyAutoTable = (applyAutoTable as any).default;
   }
 
   if (typeof applyAutoTable === 'function') {
     applyAutoTable(doc, {
-      startY: startY + 45,
-      head: [['DATE', 'OPERATION', 'DETAILS', 'AMOUNT']],
-      body: events.map(e => [
-        formatDate(e.date, e.hasTime),
-        e.type,
-        e.note,
-        `${e.isCredit ? '-' : '+'} ${Math.abs(e.amount).toLocaleString()}`
-      ]),
-      theme: 'plain', // Minimalist layout for typewriter look
+      startY: sumY + cardH + 7,
+      head: [['DATE & TIME', 'TRANSACTION TYPE', 'DETAILS & REFERENCE', 'AMOUNT']],
+      body: events.map(e => {
+        let typeBadge =
+          e.type === 'REPAYMENT'
+            ? 'Repayment Received'
+            : e.type === 'INTEREST'
+            ? 'Accrued Interest'
+            : 'Loan Advance';
+        let amountText = `${e.isCredit ? '+' : '-'} ${displayCurrency} ${Math.abs(e.amount).toLocaleString('en-IN')}`;
+        return [
+          formatDate(e.date, e.hasTime),
+          typeBadge,
+          e.note,
+          amountText
+        ];
+      }),
+      theme: 'grid',
       styles: {
-        font: 'courier',
-        fontSize: 9,
-        textColor: colors.ink,
-        cellPadding: 3,
+        font: 'helvetica',
+        fontSize: 8.5,
+        textColor: [51, 65, 85],
+        cellPadding: { top: 3.5, bottom: 3.5, left: 3, right: 3 },
         lineWidth: 0.1,
-        lineColor: colors.ink,
+        lineColor: [226, 232, 240],
         overflow: 'linebreak'
       },
       headStyles: {
-        fillColor: [230, 230, 230], // Light Gray Header
-        textColor: colors.ink,
+        fillColor: [15, 23, 42],
+        textColor: [255, 255, 255],
+        font: 'helvetica',
         fontStyle: 'bold',
-        lineWidth: 0.1,
-        lineColor: colors.ink
+        fontSize: 8,
+        lineWidth: 0
+      },
+      alternateRowStyles: {
+        fillColor: [248, 250, 252]
       },
       columnStyles: {
-        3: { halign: 'right', fontStyle: 'bold' }
+        0: { cellWidth: 36 },
+        1: { cellWidth: 40, fontStyle: 'bold' },
+        2: { cellWidth: 'auto' },
+        3: { cellWidth: 42, halign: 'right', fontStyle: 'bold' }
+      },
+      didParseCell: (data) => {
+        if (data.section === 'body' && data.column.index === 3) {
+          const raw = String(data.cell.raw || '');
+          if (raw.startsWith('+')) {
+            data.cell.styles.textColor = [5, 150, 105]; // emerald
+          } else {
+            data.cell.styles.textColor = [15, 23, 42]; // slate-900
+          }
+        }
       },
       didDrawPage: (data: any) => {
-          const footerY = pageHeight - 15;
-          doc.setLineWidth(0.1);
-          doc.line(14, footerY - 5, pageWidth - 14, footerY - 5);
-          doc.setFontSize(8);
-          doc.setFont('courier', 'normal');
-          doc.setTextColor(...colors.ink);
+        const footerY = pageHeight - 12;
+        doc.setDrawColor(226, 232, 240);
+        doc.setLineWidth(0.2);
+        doc.line(margin, footerY - 4, pageWidth - margin, footerY - 4);
 
-          // Redacted Info Blocks helper
-          const drawRedacted = (x: number, y: number, w: number) => {
-              doc.setFillColor(20, 20, 20);
-              doc.rect(x, y, w, 3.5, 'F');
-          };
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(7.5);
+        doc.setTextColor(148, 163, 184);
+        doc.text(`Digitally generated via ${appTitle} • Confidential Financial Document`, margin, footerY);
 
-          doc.text("CLEARANCE:", 14, footerY);
-          drawRedacted(35, footerY - 3, 25); 
-          
-          doc.text("ORIGIN:", 70, footerY);
-          drawRedacted(85, footerY - 3, 30); 
-          
-          doc.text(`PG ${doc.internal.getNumberOfPages()}`, pageWidth - 25, footerY);
+        const pageStr = `Page ${doc.getNumberOfPages()}`;
+        doc.text(pageStr, pageWidth - margin, footerY, { align: 'right' });
       }
     });
   }
-  
+
   return doc;
 };
 
-export const generateStatementPDF = (profileId: string, friendName: string, allTransactions: Transaction[], settings: AppSettings) => {
+export const generateStatementPDF = async (
+  profileId: string,
+  friendName: string,
+  allTransactions: Transaction[],
+  settings: AppSettings
+) => {
   try {
-    const doc = createStatementDoc(profileId, friendName, allTransactions, settings);
-    doc.save(`DOSSIER_${friendName.replace(/\s+/g, '_').toUpperCase()}_${profileId}.pdf`);
+    const doc = await createStatementDoc(profileId, friendName, allTransactions, settings);
+
+    const { saveToDocuments, downloadOrShare, isNative } = await import('./androidFileHandler');
+    const blob = doc.output('blob');
+    const filename = `Statement_${friendName.replace(/\s+/g, '_')}_${profileId.slice(0, 6)}.pdf`;
+
+    if (isNative) {
+      await saveToDocuments(filename, blob, 'Statement PDF');
+    } else {
+      await downloadOrShare(filename, blob, 'application/pdf', 'Statement PDF');
+    }
   } catch (error) {
     console.error("PDF Generation Failed:", error);
-    alert("Could not generate PDF. Please check console for details.");
+    window.dispatchEvent(new CustomEvent('abhi-ledger-toast', {
+      detail: { message: "Could not generate PDF. Please try again.", type: 'error' }
+    }));
   }
 };
 
-export const generateStatementFile = (profileId: string, friendName: string, allTransactions: Transaction[], settings: AppSettings): File => {
-  const doc = createStatementDoc(profileId, friendName, allTransactions, settings);
+export const generateStatementFile = async (
+  profileId: string,
+  friendName: string,
+  allTransactions: Transaction[],
+  settings: AppSettings
+): Promise<File> => {
+  const doc = await createStatementDoc(profileId, friendName, allTransactions, settings);
   const blob = doc.output('blob');
   return new File([blob], `Statement_${friendName}.pdf`, { type: 'application/pdf' });
 };

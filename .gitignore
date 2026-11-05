@@ -7,10 +7,27 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
+# Dependencies & Build Outputs
 node_modules
 dist
 dist-ssr
 *.local
+.env
+.env.*
+!.env.example
+
+# Android & Gradle Build Artifacts
+android/.gradle/
+android/app/build/
+android/build/
+android/capacitor-cordova-android-plugins/build/
+android/.idea/
+android/.kotlin/
+android/local.properties
+*.apk
+*.aab
+*.keystore
+*.jks
 
 # Editor directories and files
 .vscode/*

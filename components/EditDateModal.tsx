@@ -1,6 +1,5 @@
-
 import React, { useState, useEffect } from 'react';
-import { X, Save, Calendar, Hash } from 'lucide-react';
+import { X, Calendar, Hash, Clock } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useVirtualKeyboard } from '../hooks/useVirtualKeyboard';
 
@@ -13,7 +12,14 @@ interface Props {
   title?: string;
 }
 
-const EditDateModal: React.FC<Props> = ({ isOpen, onClose, onSave, initialDate, initialAmount, title = "Edit Transaction" }) => {
+const EditDateModal: React.FC<Props> = ({
+  isOpen,
+  onClose,
+  onSave,
+  initialDate,
+  initialAmount,
+  title = "Edit Transaction"
+}) => {
   const [newDueDate, setNewDueDate] = useState('');
   const [newDueTime, setNewDueTime] = useState('');
   const [newAmount, setNewAmount] = useState('');
@@ -22,31 +28,30 @@ const EditDateModal: React.FC<Props> = ({ isOpen, onClose, onSave, initialDate, 
 
   useEffect(() => {
     if (isOpen) {
-        setNewAmount(initialAmount ? initialAmount.toString() : '');
-        try {
-             const d = new Date(initialDate);
-             const pad = (n: number) => n.toString().padStart(2, '0');
-             const localDate = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-             const localTime = `${pad(d.getHours())}:${pad(d.getMinutes())}`;
-             
-             setNewDueDate(localDate);
-             setNewDueTime(localTime);
+      setNewAmount(initialAmount ? initialAmount.toString() : '');
+      try {
+        const d = new Date(initialDate);
+        const pad = (n: number) => n.toString().padStart(2, '0');
+        const localDate = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+        const localTime = `${pad(d.getHours())}:${pad(d.getMinutes())}`;
 
-        } catch(e) {
-            setNewDueDate('');
-            setNewDueTime('');
-        }
+        setNewDueDate(localDate);
+        setNewDueTime(localTime);
+      } catch (e) {
+        setNewDueDate('');
+        setNewDueTime('');
+      }
     }
   }, [initialDate, initialAmount, isOpen]);
 
   const handleSubmit = () => {
     if (!newDueDate || !newAmount) return;
-    
+
     let finalDate = newDueDate;
     if (newDueTime) {
       finalDate = `${newDueDate}T${newDueTime}`;
     }
-    
+
     onSave(parseFloat(newAmount), finalDate);
     setNewDueDate('');
     setNewDueTime('');
@@ -57,52 +62,241 @@ const EditDateModal: React.FC<Props> = ({ isOpen, onClose, onSave, initialDate, 
   return (
     <AnimatePresence>
       {isOpen && (
-        <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">
-          <motion.div 
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.95 }}
-            className="glass w-full max-w-sm rounded-[2.5rem] p-8"
+        <div className="fixed inset-0 z-[2000] flex items-end sm:items-center justify-center">
+          {/* Backdrop */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={onClose}
+            className="absolute inset-0 bg-black/60 backdrop-blur-md"
+          />
+
+          {/* Bottom Sheet */}
+          <motion.div
+            initial={{ y: '100%' }}
+            animate={{ y: 0 }}
+            exit={{ y: '100%' }}
+            transition={{ type: 'spring', damping: 28, stiffness: 320 }}
+            style={{
+              position: 'relative',
+              width: '100%',
+              maxWidth: 480,
+              background: '#1C1C1E',
+              borderTopLeftRadius: 28,
+              borderTopRightRadius: 28,
+              borderTop: '0.5px solid rgba(255, 255, 255, 0.15)',
+              boxShadow: '0 -10px 40px rgba(0,0,0,0.7)',
+              padding: '12px 20px 24px 20px',
+              paddingBottom: 'calc(env(safe-area-inset-bottom, 16px) + 20px)',
+              fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Text", Inter, sans-serif',
+            }}
+            className="sm:rounded-b-[28px] sm:border-b sm:border-white/10"
           >
-            <div className="flex justify-between items-center mb-6">
-                <h2 className="text-xl font-black text-slate-100">{title}</h2>
-                <button onClick={onClose} className="text-slate-400 hover:text-white transition-colors"><X /></button>
+            {/* Grabber handle */}
+            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 16 }}>
+              <div
+                style={{
+                  width: 36,
+                  height: 5,
+                  borderRadius: 3,
+                  background: 'rgba(255, 255, 255, 0.25)',
+                }}
+              />
             </div>
-            
-            <div className="space-y-6" onKeyDown={(e) => e.key === 'Enter' && handleSubmit()}>
-              <div className="space-y-2">
-                 <div className="flex items-center gap-2 text-[10px] font-black text-slate-500 uppercase ml-1">
-                    <Hash className="w-3 h-3" /> Amount
-                 </div>
-                 <input 
-                   {...kbAmount}
-                   value={newAmount} 
-                   onChange={e => setNewAmount(e.target.value)} 
-                   className="w-full bg-slate-900 border border-slate-800 rounded-2xl px-5 py-4 text-2xl font-mono font-bold text-slate-100 placeholder-slate-700 focus:outline-none focus:border-blue-500 transition-colors"
-                 />
+
+            {/* Header */}
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                marginBottom: 20,
+              }}
+            >
+              <h2
+                style={{
+                  margin: 0,
+                  fontSize: 18,
+                  fontWeight: 600,
+                  color: '#FFFFFF',
+                  letterSpacing: '-0.02em',
+                }}
+              >
+                {title}
+              </h2>
+              <button
+                type="button"
+                onClick={onClose}
+                style={{
+                  width: 30,
+                  height: 30,
+                  borderRadius: 15,
+                  background: 'rgba(255, 255, 255, 0.08)',
+                  border: 'none',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: 'rgba(235, 235, 245, 0.6)',
+                  cursor: 'pointer',
+                }}
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              {/* Amount input */}
+              <div
+                style={{
+                  background: 'rgba(255, 255, 255, 0.04)',
+                  border: '0.5px solid rgba(255, 255, 255, 0.08)',
+                  borderRadius: 16,
+                  padding: '12px 16px',
+                }}
+              >
+                <span
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    fontSize: 11,
+                    fontWeight: 600,
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.04em',
+                    color: 'rgba(235, 235, 245, 0.5)',
+                    marginBottom: 6,
+                  }}
+                >
+                  <Hash size={12} /> Amount
+                </span>
+                <input
+                  {...kbAmount}
+                  type="number"
+                  inputMode="decimal"
+                  value={newAmount}
+                  onChange={(e) => setNewAmount(e.target.value)}
+                  placeholder="0"
+                  style={{
+                    width: '100%',
+                    background: 'transparent',
+                    border: 'none',
+                    outline: 'none',
+                    fontSize: 28,
+                    fontWeight: 700,
+                    letterSpacing: '-0.03em',
+                    color: '#FFFFFF',
+                    fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", sans-serif',
+                  }}
+                />
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                 <div className="space-y-2">
-                   <div className="flex items-center gap-2 text-[10px] font-black text-slate-500 uppercase ml-1">
-                      <Calendar className="w-3 h-3" /> Date
-                   </div>
-                   <input type="date" value={newDueDate} onChange={e => setNewDueDate(e.target.value)} className="w-full bg-slate-900 border border-slate-800 rounded-xl px-2 py-4 text-sm font-mono font-bold text-slate-300 text-center focus:outline-none focus:border-blue-500" />
-                 </div>
-                 <div className="space-y-2">
-                   <div className="flex items-center gap-2 text-[10px] font-black text-slate-500 uppercase ml-1">
-                      Time
-                   </div>
-                   <input type="time" value={newDueTime} onChange={e => setNewDueTime(e.target.value)} className="w-full bg-slate-900 border border-slate-800 rounded-xl px-2 py-4 text-sm font-mono font-bold text-slate-300 text-center focus:outline-none focus:border-blue-500" />
-                 </div>
+              {/* Date and Time row */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                <div
+                  style={{
+                    background: 'rgba(255, 255, 255, 0.04)',
+                    border: '0.5px solid rgba(255, 255, 255, 0.08)',
+                    borderRadius: 16,
+                    padding: '10px 14px',
+                  }}
+                >
+                  <span
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 6,
+                      fontSize: 11,
+                      fontWeight: 600,
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.04em',
+                      color: 'rgba(235, 235, 245, 0.5)',
+                      marginBottom: 6,
+                    }}
+                  >
+                    <Calendar size={12} /> Date
+                  </span>
+                  <input
+                    type="date"
+                    value={newDueDate}
+                    onChange={(e) => setNewDueDate(e.target.value)}
+                    style={{
+                      width: '100%',
+                      background: 'transparent',
+                      border: 'none',
+                      outline: 'none',
+                      fontSize: 14,
+                      fontWeight: 500,
+                      color: '#FFFFFF',
+                      fontFamily: 'inherit',
+                    }}
+                  />
+                </div>
+
+                <div
+                  style={{
+                    background: 'rgba(255, 255, 255, 0.04)',
+                    border: '0.5px solid rgba(255, 255, 255, 0.08)',
+                    borderRadius: 16,
+                    padding: '10px 14px',
+                  }}
+                >
+                  <span
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 6,
+                      fontSize: 11,
+                      fontWeight: 600,
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.04em',
+                      color: 'rgba(235, 235, 245, 0.5)',
+                      marginBottom: 6,
+                    }}
+                  >
+                    <Clock size={12} /> Time
+                  </span>
+                  <input
+                    type="time"
+                    value={newDueTime}
+                    onChange={(e) => setNewDueTime(e.target.value)}
+                    style={{
+                      width: '100%',
+                      background: 'transparent',
+                      border: 'none',
+                      outline: 'none',
+                      fontSize: 14,
+                      fontWeight: 500,
+                      color: '#FFFFFF',
+                      fontFamily: 'inherit',
+                    }}
+                  />
+                </div>
               </div>
-              
-              <motion.button 
+
+              {/* Save Button */}
+              <motion.button
                 whileTap={{ scale: 0.98 }}
                 onClick={handleSubmit}
-                className="w-full py-5 bg-blue-600 text-white rounded-2xl font-black hover:bg-blue-500 transition-all shadow-lg shadow-blue-900/20 flex items-center justify-center gap-2"
+                style={{
+                  marginTop: 6,
+                  height: 52,
+                  borderRadius: 16,
+                  background: '#FFFFFF',
+                  color: '#000000',
+                  border: 'none',
+                  fontSize: 16,
+                  fontWeight: 600,
+                  letterSpacing: '-0.01em',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 8,
+                  boxShadow: '0 4px 14px rgba(255, 255, 255, 0.15)',
+                }}
               >
-                <Save className="w-4 h-4" /> Save Changes
+                Save Changes
               </motion.button>
             </div>
           </motion.div>

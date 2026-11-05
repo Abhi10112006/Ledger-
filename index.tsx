@@ -1,27 +1,22 @@
-
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
+import './index.css';
 
-const rootElement = document.getElementById('root');
-if (!rootElement) {
-  throw new Error("Could not find root element to mount to");
-}
+// Offline Fonts
+import '@fontsource/inter/300.css';
+import '@fontsource/inter/400.css';
+import '@fontsource/inter/500.css';
+import '@fontsource/inter/600.css';
+import '@fontsource/inter/700.css';
+import '@fontsource/jetbrains-mono/400.css';
+import '@fontsource/jetbrains-mono/700.css';
+import '@fontsource/comic-neue/400.css';
+import '@fontsource/comic-neue/700.css';
+import '@fontsource/special-elite';
 
-const root = ReactDOM.createRoot(rootElement);
-root.render(
+ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <App />
   </React.StrictMode>
 );
-
-// 2. Request Persistent Storage
-if (navigator.storage && navigator.storage.persist) {
-  navigator.storage.persist().then((granted) => {
-    if (granted) {
-      console.log("Storage will not be cleared except by explicit user action");
-    } else {
-      console.log("Storage may be cleared by the UA under storage pressure.");
-    }
-  });
-}

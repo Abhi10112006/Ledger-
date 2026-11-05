@@ -39,14 +39,14 @@ export interface SummaryStats {
   overdueCount: number;
 }
 
-export type ThemeColor = 'emerald' | 'violet' | 'blue' | 'rose' | 'amber';
+export type ThemeColor = 'emerald' | 'violet' | 'blue' | 'rose' | 'amber' | 'platinum' | 'tokyo' | 'crimson' | 'aurora' | 'carbon';
 export type BackgroundType = 'solid' | 'nebula' | 'grid';
 
 // Visual Engine Types
 export type BaseColor = 'slate' | 'oled';
 export type Density = 'comfortable' | 'compact';
 export type CornerRadius = 'sharp' | 'round' | 'pill';
-export type FontStyle = 'mono' | 'sans' | 'system' | 'serif' | 'comic';
+export type FontStyle = 'system' | 'sans' | 'mono' | 'outfit' | 'jakarta' | 'playfair' | 'serif' | 'comic';
 
 export interface AppSettings {
   userName: string;
@@ -75,7 +75,16 @@ export interface AppSettings {
   useVirtualKeyboard: boolean;
   keyboardScale: number; // 0.5 to 1.5
   keyboardTheme: 'dark' | 'grey' | 'light';
+  
+  // Security
+  useBiometricLock?: boolean;
+  securityPinHash?: string;
+  preferredUnlockMode?: 'biometric' | 'pin' | 'any';
+  securityLockTimeout?: number; // In seconds (0 = Immediately, 60 = 1 min, 300 = 5 min)
 }
+
+export type PreferredUnlockMode = 'biometric' | 'pin' | 'any';
+export type SecurityLockTimeout = 0 | 60 | 300;
 
 // Error Boundary Types
 export interface ErrorBoundaryProps {

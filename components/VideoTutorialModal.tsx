@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { X } from 'lucide-react';
 
@@ -10,60 +9,108 @@ interface Props {
 const VideoTutorialModal: React.FC<Props> = ({ isOpen, onClose }) => {
   if (!isOpen) return null;
 
-  // --- MOCK UP VIDEO CONFIGURATION ---
   const MOCK_VIDEO_URL = "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4";
 
-  // --- YOUTUBE CONFIGURATION (HIDDEN / FUTURE USE) ---
-  // const VIDEO_ID = "g_hZm2b8ZO0"; 
-
   return (
-    <div className="fixed inset-0 z-[3000] flex items-center justify-center p-4 bg-black/90 backdrop-blur-md">
-       <div className="w-full max-w-4xl relative animate-in zoom-in-95 duration-300 flex flex-col items-center">
-          <button 
-            onClick={onClose} 
-            className="absolute -top-12 right-0 text-slate-400 hover:text-white flex items-center gap-2 text-xs font-bold uppercase tracking-widest transition-colors p-2"
-          >
-             Close Feed <X className="w-5 h-5" />
-          </button>
-          
-          <div className="aspect-video w-full bg-slate-900 rounded-3xl overflow-hidden border border-slate-800 shadow-[0_0_50px_rgba(0,0,0,0.5)] relative">
-             
-             {/* --- ACTIVE MOCK UP VIDEO --- */}
-             <video 
-               src={MOCK_VIDEO_URL}
-               controls
-               autoPlay 
-               muted 
-               loop 
-               playsInline 
-               className="w-full h-full object-cover"
-             />
+    <div
+      style={{
+        position: 'fixed',
+        inset: 0,
+        zIndex: 3000,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: 20,
+        background: 'rgba(0, 0, 0, 0.85)',
+        backdropFilter: 'blur(20px)',
+        WebkitBackdropFilter: 'blur(20px)',
+        fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Text", Inter, sans-serif',
+      }}
+    >
+      <div
+        style={{
+          width: '100%',
+          maxWidth: 720,
+          position: 'relative',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+        }}
+      >
+        <button
+          onClick={onClose}
+          style={{
+            alignSelf: 'flex-end',
+            marginBottom: 12,
+            background: 'rgba(255, 255, 255, 0.1)',
+            border: 'none',
+            borderRadius: 9999,
+            padding: '8px 14px',
+            color: '#FFFFFF',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 6,
+            fontSize: 13,
+            fontWeight: 600,
+            cursor: 'pointer',
+          }}
+        >
+          <span>Done</span>
+          <X size={15} />
+        </button>
 
-             {/* --- YOUTUBE EMBED (HIDDEN / FUTURE USE) --- */}
-             {/* 
-             <iframe 
-               width="100%" 
-               height="100%" 
-               src={`https://www.youtube.com/embed/${VIDEO_ID}?autoplay=1&rel=0&controls=1`} 
-               title="System Tutorial" 
-               frameBorder="0" 
-               allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" 
-               allowFullScreen
-               className="w-full h-full object-cover"
-             ></iframe>
-             */}
-             
-             {/* Simulation Badge */}
-             <div className="absolute top-4 left-4 px-2 py-1 bg-cyan-500/20 border border-cyan-500/50 text-cyan-400 text-[9px] font-black uppercase tracking-widest rounded backdrop-blur-sm pointer-events-none">
-                System Calibration
-             </div>
+        <div
+          style={{
+            width: '100%',
+            aspectRatio: '16/9',
+            background: '#1C1C1E',
+            borderRadius: 24,
+            overflow: 'hidden',
+            border: '0.5px solid rgba(255, 255, 255, 0.15)',
+            boxShadow: '0 20px 60px rgba(0, 0, 0, 0.8)',
+            position: 'relative',
+          }}
+        >
+          <video
+            src={MOCK_VIDEO_URL}
+            controls
+            autoPlay
+            muted
+            loop
+            playsInline
+            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+          />
+
+          <div
+            style={{
+              position: 'absolute',
+              top: 14,
+              left: 14,
+              padding: '4px 10px',
+              background: 'rgba(0, 0, 0, 0.65)',
+              backdropFilter: 'blur(10px)',
+              WebkitBackdropFilter: 'blur(10px)',
+              borderRadius: 9999,
+              border: '0.5px solid rgba(255, 255, 255, 0.15)',
+              color: '#FFFFFF',
+              fontSize: 11,
+              fontWeight: 600,
+              pointerEvents: 'none',
+            }}
+          >
+            Video Walkthrough
           </div>
-          
-          <div className="mt-6 text-center">
-             <h3 className="text-2xl font-black text-white tracking-tight">System Capabilities Overview</h3>
-             <p className="text-slate-500 mt-2 text-sm font-medium">Visual calibration data for new operators.</p>
-          </div>
-       </div>
+        </div>
+
+        <div style={{ marginTop: 16, textAlign: 'center' }}>
+          <h3 style={{ margin: 0, fontSize: 18, fontWeight: 600, color: '#FFFFFF', letterSpacing: '-0.01em' }}>
+            Ledger Walkthrough
+          </h3>
+          <p style={{ margin: '4px 0 0 0', fontSize: 13, color: 'rgba(235, 235, 245, 0.55)' }}>
+            Learn how to record loans, track repayments, and manage contacts.
+          </p>
+        </div>
+      </div>
     </div>
   );
 };

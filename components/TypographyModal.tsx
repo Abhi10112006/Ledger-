@@ -1,8 +1,14 @@
-
-import React from 'react';
-import { X, Type, CheckCircle2 } from 'lucide-react';
+import React, { useState } from 'react';
+import { X, Check, Type, Sparkles } from 'lucide-react';
 import { FontStyle } from '../types';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useHaptics } from '../hooks/useHaptics';
+import { registerPlugin, Capacitor } from '@capacitor/core';
+
+interface NativeTypographyInterface {
+  applyTextRenderingOptimizations(): Promise<{ optimized: boolean }>;
+}
+const NativeTypography = registerPlugin<NativeTypographyInterface>('NativeTypography');
 
 interface Props {
   isOpen: boolean;
@@ -12,86 +18,398 @@ interface Props {
   activeTheme: any;
 }
 
-const TypographyModal: React.FC<Props> = ({ isOpen, onClose, currentFont, onSelect, activeTheme }) => {
+interface FontOption {
+  id: FontStyle;
+  label: string;
+  sublabel: string;
+  category: 'SANS' | 'SERIF' | 'MONO' | 'DISPLAY';
+  familyClass: string;
+  specimen: string;
+}
+
+const FONTS: FontOption[] = [
+  {
+    id: 'system',
+    label: 'San Francisco (System)',
+    sublabel: 'Default typeface',
+    category: 'SANS',
+    familyClass: 'font-system-app',
+    specimen: '1234567890 • Ledger System',
+  },
+  {
+    id: 'sans',
+    label: 'Inter Sans',
+    sublabel: 'Modern clean sans-serif',
+    category: 'SANS',
+    familyClass: 'font-sans-app',
+    specimen: '1234567890 • Ultra-legible financial text',
+  },
+  {
+    id: 'outfit',
+    label: 'Outfit Display',
+    sublabel: 'Contemporary geometric sans',
+    category: 'DISPLAY',
+    familyClass: 'font-outfit-app',
+    specimen: '1234567890 • Sleek geometric curves',
+  },
+  {
+    id: 'jakarta',
+    label: 'Plus Jakarta Sans',
+    sublabel: 'Modern neo-grotesque display',
+    category: 'DISPLAY',
+    familyClass: 'font-jakarta-app',
+    specimen: '1234567890 • Premium fintech aesthetic',
+  },
+  {
+    id: 'mono',
+    label: 'JetBrains Mono',
+    sublabel: 'Technical monospace',
+    category: 'MONO',
+    familyClass: 'font-mono-app',
+    specimen: '1234567890 • Code & data alignment',
+  },
+  {
+    id: 'playfair',
+    label: 'Playfair Display',
+    sublabel: 'Luxury high-fashion serif',
+    category: 'SERIF',
+    familyClass: 'font-playfair-app',
+    specimen: '1234567890 • Editorial elegance',
+  },
+  {
+    id: 'serif',
+    label: 'Typewriter Elite',
+    sublabel: 'Classic serif editorial',
+    category: 'SERIF',
+    familyClass: 'font-serif-app',
+    specimen: '1234567890 • Vintage ledger records',
+  },
+  {
+    id: 'comic',
+    label: 'Casual Sans',
+    sublabel: 'Playful and rounded',
+    category: 'DISPLAY',
+    familyClass: 'font-comic-app',
+    specimen: '1234567890 • Friendly hand-drawn feel',
+  },
+];
+
+export const TypographyModal: React.FC<Props> = ({
+  isOpen,
+  onClose,
+  currentFont,
+  onSelect,
+  activeTheme,
+}) => {
+  const [previewFont, setPreviewFont] = useState<FontStyle>(currentFont);
+  const haptic = useHaptics();
+
   if (!isOpen) return null;
 
-  const fonts: { id: FontStyle; label: string; familyClass: string }[] = [
-    { id: 'mono', label: 'Tech Mono (JetBrains)', familyClass: 'font-mono' },
-    { id: 'sans', label: 'Modern Sans (Inter)', familyClass: 'font-sans' },
-    { id: 'system', label: 'System Native', familyClass: 'font-sans' },
-    { id: 'serif', label: 'Typewriter (Elite)', familyClass: 'font-serif-app' },
-    { id: 'comic', label: 'Comic Sans (Casual)', familyClass: 'font-comic-app' },
-  ];
-
-  const containerVariants = {
-    hidden: { opacity: 0 },
-    show: {
-      opacity: 1,
-      transition: {
-        staggerChildren: 0.08
+  const handleSelectFont = async (fontId: FontStyle) => {
+    haptic('success');
+    onSelect(fontId);
+    if (Capacitor.isNativePlatform()) {
+      try {
+        await NativeTypography.applyTextRenderingOptimizations();
+      } catch (e) {
+        // Safe ignore
       }
     }
+    setTimeout(() => {
+      onClose();
+    }, 180);
   };
 
-  const itemVariants = {
-    hidden: { opacity: 0, x: -20, scale: 0.95 },
-    show: { opacity: 1, x: 0, scale: 1, transition: { type: "spring", stiffness: 300, damping: 24 } }
-  };
+  const activeFontObj = FONTS.find((f) => f.id === previewFont) || FONTS[0];
 
   return (
-    <div className="fixed inset-0 z-[3000] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">
-      <motion.div 
-        initial={{ scale: 0.95, opacity: 0, y: 20 }}
-        animate={{ scale: 1, opacity: 1, y: 0 }}
-        exit={{ scale: 0.95, opacity: 0, y: 20 }}
-        transition={{ type: "spring", stiffness: 350, damping: 30 }}
-        className="glass w-full max-w-lg rounded-[2.5rem] p-6 border border-slate-800 shadow-2xl flex flex-col max-h-[85vh]"
+    <AnimatePresence>
+      <div
+        style={{
+          position: 'fixed',
+          inset: 0,
+          zIndex: 3600,
+          display: 'flex',
+          alignItems: 'flex-end',
+          justifyContent: 'center',
+        }}
       >
-        <div className="flex justify-between items-center mb-6 shrink-0">
-          <div className="flex items-center gap-3">
-             <div className={`p-2 rounded-xl bg-slate-800 ${activeTheme.text}`}>
-                <Type className="w-5 h-5" />
-             </div>
-             <h2 className="text-xl font-black text-white">Typography</h2>
-          </div>
-          <button onClick={onClose} className="p-2 hover:bg-slate-800 rounded-full text-slate-400 transition-colors">
-            <X className="w-5 h-5" />
-          </button>
-        </div>
-        
-        <motion.div 
-          variants={containerVariants}
-          initial="hidden"
-          animate="show"
-          className="overflow-y-auto grid grid-cols-1 gap-3 pr-2 scrollbar-hide"
+        {/* Backdrop */}
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          onClick={onClose}
+          style={{
+            position: 'absolute',
+            inset: 0,
+            background: 'rgba(0, 0, 0, 0.72)',
+            backdropFilter: 'blur(10px)',
+            WebkitBackdropFilter: 'blur(10px)',
+          }}
+        />
+
+        {/* Bottom Sheet */}
+        <motion.div
+          initial={{ y: '100%' }}
+          animate={{ y: 0 }}
+          exit={{ y: '100%' }}
+          transition={{ type: 'spring', damping: 28, stiffness: 320 }}
+          style={{
+            position: 'relative',
+            width: '100%',
+            maxWidth: 520,
+            maxHeight: '90vh',
+            background: '#141416',
+            borderTopLeftRadius: 28,
+            borderTopRightRadius: 28,
+            border: '0.5px solid rgba(255, 255, 255, 0.12)',
+            boxShadow: '0 -16px 48px rgba(0,0,0,0.85)',
+            display: 'flex',
+            flexDirection: 'column',
+            overflowY: 'auto',
+            paddingBottom: 'calc(env(safe-area-inset-bottom, 16px) + 20px)',
+            fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Text", Inter, sans-serif',
+          }}
+          className="scrollbar-hide"
         >
-          {fonts.map((font) => (
-            <motion.button
-              key={font.id}
-              variants={itemVariants}
-              onClick={() => {
-                onSelect(font.id);
-                onClose();
-              }}
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-              className={`p-4 rounded-xl border flex justify-between items-center transition-all ${
-                currentFont === font.id
-                  ? `${activeTheme.bg} text-slate-950 border-transparent shadow-lg`
-                  : 'bg-slate-900/50 border-slate-800 text-slate-400 hover:bg-slate-800 hover:text-slate-200'
-              }`}
-            >
-              <div className="flex items-center gap-3">
-                 <span className={`text-sm ${font.id === 'system' ? '' : font.familyClass}`} style={font.id === 'system' ? { fontFamily: 'system-ui' } : {}}>
-                    {font.label}
-                 </span>
+          {/* Top ambient theme glow */}
+          <div
+            style={{
+              position: 'absolute',
+              top: 0,
+              left: '50%',
+              transform: 'translateX(-50%)',
+              width: '80%',
+              height: 140,
+              background: `radial-gradient(ellipse at top center, ${activeTheme.hex}20 0%, transparent 75%)`,
+              pointerEvents: 'none',
+              zIndex: 0,
+            }}
+          />
+
+          {/* Grab handle */}
+          <div style={{ display: 'flex', justifyContent: 'center', paddingTop: 12, paddingBottom: 6, position: 'relative', zIndex: 1 }}>
+            <div style={{ width: 38, height: 4, borderRadius: 2, background: 'rgba(255, 255, 255, 0.22)' }} />
+          </div>
+
+          {/* Header */}
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              padding: '10px 22px 14px',
+              position: 'relative',
+              zIndex: 1,
+            }}
+          >
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <h2
+                  style={{
+                    margin: 0,
+                    fontSize: 20,
+                    fontWeight: 700,
+                    color: '#FFFFFF',
+                    letterSpacing: '-0.02em',
+                    fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", Inter, sans-serif',
+                  }}
+                >
+                  Typography Engine
+                </h2>
+                <span
+                  style={{
+                    fontSize: 10,
+                    fontWeight: 700,
+                    padding: '2px 7px',
+                    borderRadius: 6,
+                    background: `${activeTheme.hex}22`,
+                    color: activeTheme.hex,
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.04em',
+                  }}
+                >
+                  Native Text
+                </span>
               </div>
-              {currentFont === font.id && <CheckCircle2 className="w-5 h-5" />}
-            </motion.button>
-          ))}
+              <p style={{ margin: '3px 0 0', fontSize: 12.5, color: 'rgba(235, 235, 245, 0.5)' }}>
+                Select a high-performance typeface for your ledger
+              </p>
+            </div>
+
+            <button
+              onClick={onClose}
+              style={{
+                width: 32,
+                height: 32,
+                borderRadius: 16,
+                background: 'rgba(255, 255, 255, 0.08)',
+                border: 'none',
+                color: 'rgba(235, 235, 245, 0.65)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer',
+              }}
+            >
+              <X size={16} />
+            </button>
+          </div>
+
+          {/* ─── LIVE FINANCIAL PREVIEW CARD ─── */}
+          <div style={{ padding: '0 20px 16px', position: 'relative', zIndex: 1 }}>
+            <div
+              style={{
+                background: 'rgba(255, 255, 255, 0.05)',
+                border: '0.5px solid rgba(255, 255, 255, 0.08)',
+                borderRadius: 18,
+                padding: '14px 16px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 8,
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <span style={{ fontSize: 11, fontWeight: 600, color: 'rgba(235, 235, 245, 0.45)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  Live Specimen Preview
+                </span>
+                <span style={{ fontSize: 11, fontWeight: 600, color: activeTheme.hex }}>
+                  {activeFontObj.label}
+                </span>
+              </div>
+
+              {/* Sample Financial Content */}
+              <div className={activeFontObj.familyClass} style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginTop: 2 }}>
+                <div>
+                  <div style={{ fontSize: 24, fontWeight: 700, color: '#FFFFFF', letterSpacing: '-0.02em' }}>
+                    $14,250.00
+                  </div>
+                  <div style={{ fontSize: 13, color: 'rgba(235, 235, 245, 0.6)', marginTop: 2 }}>
+                    Principal Lent to Alex Carter
+                  </div>
+                </div>
+
+                <div
+                  style={{
+                    padding: '4px 10px',
+                    borderRadius: 8,
+                    background: `${activeTheme.hex}22`,
+                    border: `0.5px solid ${activeTheme.hex}40`,
+                    color: activeTheme.hex,
+                    fontSize: 11,
+                    fontWeight: 700,
+                  }}
+                >
+                  ● 12 DAYS LEFT
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* ─── FONT SELECTION LIST ─── */}
+          <div style={{ padding: '0 20px', display: 'flex', flexDirection: 'column', gap: 8, position: 'relative', zIndex: 1 }}>
+            {FONTS.map((font) => {
+              const isSelected = currentFont === font.id;
+              const isHovered = previewFont === font.id;
+
+              return (
+                <motion.div
+                  key={font.id}
+                  whileTap={{ scale: 0.985 }}
+                  onClick={() => {
+                    setPreviewFont(font.id);
+                    handleSelectFont(font.id);
+                  }}
+                  onMouseEnter={() => setPreviewFont(font.id)}
+                  style={{
+                    background: isSelected
+                      ? `${activeTheme.hex}18`
+                      : 'rgba(255, 255, 255, 0.04)',
+                    border: isSelected
+                      ? `1.5px solid ${activeTheme.hex}80`
+                      : '0.5px solid rgba(255, 255, 255, 0.07)',
+                    borderRadius: 16,
+                    padding: '12px 16px',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: 12,
+                    boxShadow: isSelected ? `0 4px 18px ${activeTheme.hex}20` : 'none',
+                    transition: 'border 0.15s, background 0.15s',
+                  }}
+                >
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <span
+                        className={font.familyClass}
+                        style={{
+                          fontSize: 15,
+                          fontWeight: isSelected ? 700 : 600,
+                          color: '#FFFFFF',
+                          letterSpacing: '-0.01em',
+                        }}
+                      >
+                        {font.label}
+                      </span>
+                      <span
+                        style={{
+                          fontSize: 9,
+                          fontWeight: 700,
+                          padding: '2px 6px',
+                          borderRadius: 5,
+                          background: 'rgba(255, 255, 255, 0.08)',
+                          color: 'rgba(235, 235, 245, 0.6)',
+                          letterSpacing: '0.04em',
+                        }}
+                      >
+                        {font.category}
+                      </span>
+                    </div>
+
+                    <div style={{ fontSize: 12, color: 'rgba(235, 235, 245, 0.45)', marginTop: 2 }}>
+                      {font.sublabel}
+                    </div>
+
+                    <div
+                      className={font.familyClass}
+                      style={{
+                        fontSize: 11,
+                        color: isSelected ? activeTheme.hex : 'rgba(235, 235, 245, 0.3)',
+                        marginTop: 4,
+                        letterSpacing: '0.02em',
+                      }}
+                    >
+                      {font.specimen}
+                    </div>
+                  </div>
+
+                  <div
+                    style={{
+                      width: 24,
+                      height: 24,
+                      borderRadius: 12,
+                      background: isSelected ? activeTheme.hex : 'rgba(255, 255, 255, 0.08)',
+                      border: isSelected ? 'none' : '1px solid rgba(255, 255, 255, 0.2)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      color: '#000000',
+                      flexShrink: 0,
+                      transition: 'all 0.15s ease',
+                    }}
+                  >
+                    {isSelected && <Check size={14} strokeWidth={3} />}
+                  </div>
+                </motion.div>
+              );
+            })}
+          </div>
         </motion.div>
-      </motion.div>
-    </div>
+      </div>
+    </AnimatePresence>
   );
 };
 

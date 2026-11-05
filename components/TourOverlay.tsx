@@ -1,6 +1,5 @@
-
-import React, { useEffect, useState, useRef } from 'react';
-import { Sparkles, TrendingUp, PlusCircle, CreditCard, UserCheck, CalendarDays, FileText, Download, ArrowRight, Target, Settings, Eye, Search, Type, Keyboard, QrCode } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { Sparkles, TrendingUp, PlusCircle, UserCheck, Settings, Eye, Search, Type, Keyboard, QrCode, ArrowRight, Download } from 'lucide-react';
 
 interface Props {
   tourStep: number;
@@ -9,111 +8,109 @@ interface Props {
   activeTheme: any;
 }
 
-const TourOverlay: React.FC<Props> = ({ tourStep, setTourStep, completeTour, activeTheme }) => {
+const TourOverlay: React.FC<Props> = ({ tourStep, setTourStep, completeTour }) => {
   const [spotlightStyle, setSpotlightStyle] = useState<React.CSSProperties>({
     opacity: 0,
     top: '50%',
     left: '50%',
     width: 0,
-    height: 0
+    height: 0,
   });
-  
-  // Track if we found the target for current step
+
   const [hasTarget, setHasTarget] = useState(false);
 
-  // Configuration for each step
   const steps = [
-    { 
+    {
       id: 'tour-intro',
-      title: "Welcome!", 
-      desc: "This app helps you keep track of money you lend to friends. Let's take a quick look around.", 
-      icon: <Sparkles className="text-cyan-400" />,
-      targetId: null 
+      title: 'Welcome to Ledger',
+      desc: 'Ledger makes it effortless to record, track, and settle money lent to friends and family.',
+      icon: <Sparkles size={24} color="#0A84FF" />,
+      targetId: null,
     },
-    { 
+    {
       id: 'tour-stats',
-      title: "1. Money Tracker", 
-      desc: "'To Collect' means money your friends still owe you. 'Collected' means money you already got back.", 
-      icon: <TrendingUp className={activeTheme.text} />,
-      targetId: 'tour-stats'
+      title: 'Balance & Exposure',
+      desc: 'View total money to collect, recovery progress, and active overdue amounts at a glance.',
+      icon: <TrendingUp size={24} color="#30D158" />,
+      targetId: 'tour-stats',
     },
-    { 
+    {
       id: 'tour-search',
-      title: "2. Search Friends", 
-      desc: "Type a name here to quickly find a friend's profile.", 
-      icon: <Search className="text-violet-400" />,
-      targetId: 'tour-search' 
+      title: 'Quick Search',
+      desc: 'Quickly find any contact by typing their name or phone number.',
+      icon: <Search size={24} color="#BF5AF2" />,
+      targetId: 'tour-search',
     },
-    { 
+    {
       id: 'tour-add-profile',
-      title: "3. Give Money", 
-      desc: "Click this Plus button to add a new friend or record a new loan.", 
-      icon: <PlusCircle className="text-blue-400" />,
-      targetId: 'tour-add-profile'
+      title: 'New Loan',
+      desc: 'Tap the Plus button to add a new contact or record an active loan deal.',
+      icon: <PlusCircle size={24} color="#0A84FF" />,
+      targetId: 'tour-add-profile',
     },
-    { 
+    {
       id: 'tour-settings',
-      title: "4. Settings", 
-      desc: "Change your name, currency symbol, and other options here.", 
-      icon: <Settings className="text-slate-400" />,
-      targetId: 'tour-settings' 
+      title: 'Settings & Security',
+      desc: 'Configure biometric security, currency format, backup, and appearance preferences.',
+      icon: <Settings size={24} color="#8E8E93" />,
+      targetId: 'tour-settings',
     },
-    { 
+    {
       id: 'tour-typography',
-      title: "5. Fonts", 
-      desc: "Don't like this text? You can change the font style here.", 
-      icon: <Type className="text-indigo-400" />,
-      targetId: 'tour-typography' 
+      title: 'Typography',
+      desc: 'Choose your preferred font style for the application interface.',
+      icon: <Type size={24} color="#5E5CE6" />,
+      targetId: 'tour-typography',
     },
-    { 
+    {
       id: 'tour-visual-tab',
-      title: "6. Look & Feel", 
-      desc: "Inside Settings, use this tab to change colors and cool effects.", 
-      icon: <Eye className="text-teal-400" />,
-      targetId: 'tour-visual-tab' 
+      title: 'Appearance',
+      desc: 'Customize accent themes and display options in Settings.',
+      icon: <Eye size={24} color="#64D2FF" />,
+      targetId: 'tour-visual-tab',
     },
-    { 
+    {
       id: 'tour-visual-base',
-      title: "7. Colors", 
-      desc: "Switch between Dark Grey or Pitch Black backgrounds.", 
-      icon: <Sparkles className="text-purple-400" />,
-      targetId: 'tour-visual-base' 
+      title: 'OLED Black',
+      desc: 'Toggle true OLED pitch-black mode for battery savings and high contrast.',
+      icon: <Sparkles size={24} color="#FF9F0A" />,
+      targetId: 'tour-visual-base',
     },
-    { 
+    {
       id: 'tour-visual-glass',
-      title: "8. Cool Effects", 
-      desc: "Make the boxes see-through or add a grainy film effect.", 
-      icon: <Settings className="text-indigo-400" />,
-      targetId: 'tour-visual-glass' 
+      title: 'Glass & Motion',
+      desc: 'Tune subtle frosted glass blurring and spring animation effects.',
+      icon: <Settings size={24} color="#FF375F" />,
+      targetId: 'tour-visual-glass',
     },
-    { 
+    {
       id: 'tour-keyboard-toggle',
-      title: "9. Input Method", 
-      desc: "Prefer a number pad? Or the system keyboard? You can toggle the custom keyboard here.", 
-      icon: <Keyboard className="text-emerald-400" />,
-      targetId: 'tour-keyboard-toggle' 
+      title: 'Keyboards',
+      desc: 'Toggle between the native Android virtual keyboard and custom numeric pad.',
+      icon: <Keyboard size={24} color="#30D158" />,
+      targetId: 'tour-keyboard-toggle',
     },
-    { 
+    {
       id: 'tour-account-row',
-      title: "10. Smart Profiles", 
-      desc: "Tap on a friend's card to see their full history, trust score, and repayment timeline.", 
-      icon: <UserCheck className="text-cyan-400" />,
-      targetId: 'tour-account-row' 
+      title: 'Contact Profiles',
+      desc: 'Tap on any contact to view their ledger statement, payment timeline, and trust score.',
+      icon: <UserCheck size={24} color="#0A84FF" />,
+      targetId: 'tour-account-row',
     },
-    { 
+    {
       id: 'tour-upi-button',
-      title: "11. UPI Payments", 
-      desc: "Inside the profile, click this QR icon to generate a payment request instantly.", 
-      icon: <QrCode className="text-rose-400" />,
-      targetId: 'tour-upi-button' 
+      title: 'Instant UPI QR',
+      desc: 'Generate customized UPI QR codes on the fly to receive repayments quickly.',
+      icon: <QrCode size={24} color="#FF453A" />,
+      targetId: 'tour-upi-button',
     },
-    { 
+    {
       id: 'tour-backup',
-      title: "12. Save Data", 
-      desc: "Your data is only on this phone. Click here to download a backup file so you don't lose it.", 
-      icon: <Download className="text-amber-400" />,
-      targetId: 'tour-backup'
-    }
+      title: 'Private & Secure',
+      desc: 'Your data lives on your device. Export encrypted JSON backups anytime.',
+      icon: <Download size={24} color="#FFD60A" />,
+      targetId: 'tour-backup',
+    },
   ];
 
   const currentStep = tourStep >= 0 && tourStep < steps.length ? steps[tourStep] : null;
@@ -123,156 +120,288 @@ const TourOverlay: React.FC<Props> = ({ tourStep, setTourStep, completeTour, act
 
     if (currentStep.targetId) {
       let attempts = 0;
-      
+
       const findTarget = () => {
         const targetEl = document.getElementById(currentStep.targetId!);
-        
+
         if (targetEl) {
-          // Scroll target into view smoothly
-          targetEl.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' });
-          
+          const computedStyle = window.getComputedStyle(targetEl);
+          if (computedStyle.position !== 'fixed' && computedStyle.position !== 'absolute') {
+            targetEl.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' });
+          }
+
           const rect = targetEl.getBoundingClientRect();
           const padding = 8;
           setSpotlightStyle({
             top: rect.top - padding,
             left: rect.left - padding,
-            width: rect.width + (padding * 2),
-            height: rect.height + (padding * 2),
+            width: rect.width + padding * 2,
+            height: rect.height + padding * 2,
             opacity: 1,
-            borderRadius: window.getComputedStyle(targetEl).borderRadius || '1rem'
+            borderRadius: window.getComputedStyle(targetEl).borderRadius || '18px',
           });
           setHasTarget(true);
         } else {
-          // Retry mechanism for modals that animate in or complex DOM updates
           if (attempts < 20) {
             attempts++;
             setTimeout(findTarget, 50);
           } else {
-            setSpotlightStyle(prev => ({ ...prev, opacity: 0 }));
+            setSpotlightStyle((prev) => ({ ...prev, opacity: 0 }));
             setHasTarget(false);
           }
         }
       };
 
       findTarget();
-
     } else {
-      // Center modal for intro
       setHasTarget(false);
       setSpotlightStyle({
         top: '50%',
         left: '50%',
         width: 0,
         height: 0,
-        opacity: 0
+        opacity: 0,
       });
     }
   }, [tourStep, currentStep]);
 
   if (!currentStep) return null;
 
-  const isTopHalf = (typeof spotlightStyle.top === 'number') && spotlightStyle.top < window.innerHeight / 2;
-  
+  const isTopHalf = typeof spotlightStyle.top === 'number' && spotlightStyle.top < window.innerHeight / 2;
+
   return (
-    // pointer-events-none on ROOT ensures clicks pass through the empty spaces
-    <div className="fixed inset-0 z-[9999] overflow-hidden pointer-events-none">
-      
-      {/* 
-        THE SPOTLIGHT 
-        The shadow creates the dark overlay. The div itself is the "hole".
-      */}
-      <div 
-        className="absolute transition-all duration-500 ease-in-out pointer-events-none border-2 border-white/20 shadow-[0_0_0_9999px_rgba(2,6,23,0.85)]"
+    <div
+      style={{
+        position: 'fixed',
+        inset: 0,
+        zIndex: 9999,
+        overflow: 'hidden',
+        pointerEvents: 'none',
+        fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Text", Inter, sans-serif',
+      }}
+    >
+      {/* SPOTLIGHT HOLE */}
+      <div
         style={{
           ...spotlightStyle,
-          display: hasTarget ? 'block' : 'none'
+          position: 'absolute',
+          transition: 'all 0.4s cubic-bezier(0.16, 1, 0.3, 1)',
+          pointerEvents: 'none',
+          border: '1.5px solid rgba(255, 255, 255, 0.4)',
+          boxShadow: '0 0 0 9999px rgba(0, 0, 0, 0.75)',
+          display: hasTarget ? 'block' : 'none',
         }}
-      >
-        {/* Animated Corner Brackets */}
-        <div className={`absolute -top-1 -left-1 w-4 h-4 border-t-2 border-l-2 ${activeTheme.border.replace('border-', 'border-')}`}></div>
-        <div className={`absolute -top-1 -right-1 w-4 h-4 border-t-2 border-r-2 ${activeTheme.border.replace('border-', 'border-')}`}></div>
-        <div className={`absolute -bottom-1 -left-1 w-4 h-4 border-b-2 border-l-2 ${activeTheme.border.replace('border-', 'border-')}`}></div>
-        <div className={`absolute -bottom-1 -right-1 w-4 h-4 border-b-2 border-r-2 ${activeTheme.border.replace('border-', 'border-')}`}></div>
-      </div>
+      />
 
-      {/* 
-        INTRO / NO TARGET MODAL (Centered) 
-        Pointer-events-auto re-enables clicking on this specific modal
-      */}
+      {/* INTRO MODAL */}
       {!hasTarget && (
-        <div className="absolute inset-0 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-6 pointer-events-auto" onClick={completeTour}>
-           <div className={`glass max-w-sm w-full p-8 rounded-[2.5rem] border ${activeTheme.border} shadow-2xl relative overflow-hidden`} onClick={e => e.stopPropagation()}>
-             <div className={`absolute -top-20 -right-20 w-40 h-40 ${activeTheme.bg} blur-[80px] opacity-20`}></div>
-             
-             <div className="relative z-10 space-y-6">
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 bg-slate-950 rounded-2xl flex items-center justify-center border border-white/10 shadow-inner">
-                    {currentStep.icon}
-                  </div>
-                  <div>
-                     <div className={`text-[10px] font-black uppercase tracking-[0.2em] ${activeTheme.text} mb-1`}>Start Here</div>
-                     <h3 className="text-2xl font-black text-white">{currentStep.title}</h3>
-                  </div>
-                </div>
-                <p className="text-slate-300 font-medium leading-relaxed">{currentStep.desc}</p>
-                <div className="pt-4 flex justify-between items-center">
-                    <button onClick={completeTour} className="text-xs font-bold text-slate-500 hover:text-white transition-colors">SKIP</button>
-                    <button 
-                      onClick={() => setTourStep(tourStep + 1)}
-                      className={`px-6 py-3 ${activeTheme.bg} text-slate-950 rounded-xl font-black uppercase tracking-widest shadow-lg active:scale-95 transition-all`}
-                    >
-                      Start Tour
-                    </button>
-                </div>
-             </div>
-           </div>
-        </div>
-      )}
-
-      {/* 
-        TOOLTIP CARD
-        Pointer-events-auto re-enables clicking on buttons
-      */}
-      {hasTarget && (
-        <div 
-           className="absolute left-0 w-full flex justify-center transition-all duration-500 ease-in-out px-6 pointer-events-none"
-           style={{
-             top: isTopHalf 
-               ? (typeof spotlightStyle.top === 'number' ? spotlightStyle.top + (typeof spotlightStyle.height === 'number' ? spotlightStyle.height : 0) + 24 : 0)
-               : (typeof spotlightStyle.top === 'number' ? spotlightStyle.top - 200 : 0)
-           }}
+        <div
+          style={{
+            position: 'absolute',
+            inset: 0,
+            background: 'rgba(0, 0, 0, 0.75)',
+            backdropFilter: 'blur(20px)',
+            WebkitBackdropFilter: 'blur(20px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: 24,
+            pointerEvents: 'auto',
+          }}
+          onClick={completeTour}
         >
-          <div className={`glass max-w-sm w-full p-6 rounded-3xl border ${activeTheme.border} bg-slate-900/90 shadow-[0_20px_50px_rgba(0,0,0,0.5)] backdrop-blur-md animate-in fade-in slide-in-from-bottom-4 duration-500 pointer-events-auto`}>
-            <div className="flex items-start gap-4">
-               <div className="shrink-0 mt-1">
-                 {currentStep.icon}
-               </div>
-               <div className="space-y-2">
-                 <h3 className="font-black text-lg text-white">{currentStep.title}</h3>
-                 <p className="text-sm text-slate-300 font-medium leading-relaxed">{currentStep.desc}</p>
-               </div>
+          <div
+            style={{
+              width: '100%',
+              maxWidth: 360,
+              background: '#1C1C1E',
+              border: '0.5px solid rgba(255, 255, 255, 0.15)',
+              borderRadius: 28,
+              boxShadow: '0 20px 60px rgba(0, 0, 0, 0.8)',
+              padding: 24,
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 16 }}>
+              <div
+                style={{
+                  width: 48,
+                  height: 48,
+                  borderRadius: 16,
+                  background: 'rgba(255, 255, 255, 0.08)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                {currentStep.icon}
+              </div>
+              <div>
+                <span style={{ fontSize: 11, fontWeight: 600, color: '#0A84FF', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                  Tour
+                </span>
+                <h3 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: '#FFFFFF', letterSpacing: '-0.02em' }}>
+                  {currentStep.title}
+                </h3>
+              </div>
             </div>
-            
-            <div className="mt-6 flex justify-between items-center border-t border-white/5 pt-4">
-                <div className="flex gap-1">
-                  {steps.map((_, idx) => (
-                    <div key={idx} className={`w-1.5 h-1.5 rounded-full transition-colors ${idx === tourStep ? activeTheme.bg : 'bg-slate-700'}`}></div>
-                  ))}
-                </div>
-                <div className="flex gap-4 items-center">
-                  <button onClick={completeTour} className="text-[10px] font-bold text-slate-500 hover:text-rose-400">END</button>
-                  <button 
-                    onClick={() => tourStep < steps.length - 1 ? setTourStep(tourStep + 1) : completeTour()}
-                    className={`flex items-center gap-2 px-4 py-2 ${activeTheme.bg} text-slate-950 rounded-lg text-[10px] font-black uppercase tracking-widest hover:brightness-110 transition-all`}
-                  >
-                    {tourStep < steps.length - 1 ? 'Next' : 'Finish'} <ArrowRight className="w-3 h-3" />
-                  </button>
-                </div>
+
+            <p style={{ margin: '0 0 24px 0', fontSize: 14, color: 'rgba(235, 235, 245, 0.65)', lineHeight: 1.45 }}>
+              {currentStep.desc}
+            </p>
+
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <button
+                type="button"
+                onClick={completeTour}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: 'rgba(235, 235, 245, 0.5)',
+                  fontSize: 14,
+                  fontWeight: 500,
+                  cursor: 'pointer',
+                  padding: 8,
+                }}
+              >
+                Skip
+              </button>
+              <button
+                type="button"
+                onClick={() => setTourStep(tourStep + 1)}
+                style={{
+                  height: 44,
+                  padding: '0 20px',
+                  borderRadius: 14,
+                  background: '#FFFFFF',
+                  color: '#000000',
+                  border: 'none',
+                  fontSize: 14,
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  boxShadow: '0 4px 14px rgba(255, 255, 255, 0.15)',
+                }}
+              >
+                Start Tour
+              </button>
             </div>
           </div>
         </div>
       )}
 
+      {/* TOOLTIP POPUP */}
+      {hasTarget && (
+        <div
+          style={{
+            position: 'absolute',
+            left: 0,
+            width: '100%',
+            display: 'flex',
+            justifyContent: 'center',
+            padding: '0 20px',
+            pointerEvents: 'none',
+            top: isTopHalf
+              ? typeof spotlightStyle.top === 'number'
+                ? spotlightStyle.top + (typeof spotlightStyle.height === 'number' ? spotlightStyle.height : 0) + 16
+                : 0
+              : typeof spotlightStyle.top === 'number'
+              ? spotlightStyle.top - 180
+              : 0,
+            transition: 'top 0.4s ease',
+          }}
+        >
+          <div
+            style={{
+              width: '100%',
+              maxWidth: 360,
+              background: 'rgba(28, 28, 30, 0.96)',
+              backdropFilter: 'blur(30px)',
+              WebkitBackdropFilter: 'blur(30px)',
+              border: '0.5px solid rgba(255, 255, 255, 0.15)',
+              borderRadius: 24,
+              boxShadow: '0 16px 48px rgba(0, 0, 0, 0.7)',
+              padding: 20,
+              pointerEvents: 'auto',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+              <div style={{ marginTop: 2, flexShrink: 0 }}>{currentStep.icon}</div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <h4 style={{ margin: 0, fontSize: 16, fontWeight: 600, color: '#FFFFFF', letterSpacing: '-0.01em' }}>
+                  {currentStep.title}
+                </h4>
+                <p style={{ margin: '4px 0 0 0', fontSize: 13, color: 'rgba(235, 235, 245, 0.65)', lineHeight: 1.4 }}>
+                  {currentStep.desc}
+                </p>
+              </div>
+            </div>
+
+            <div
+              style={{
+                marginTop: 16,
+                paddingTop: 12,
+                borderTop: '0.5px solid rgba(255, 255, 255, 0.08)',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+              }}
+            >
+              {/* Step indicator dots */}
+              <div style={{ display: 'flex', gap: 4 }}>
+                {steps.map((_, idx) => (
+                  <div
+                    key={idx}
+                    style={{
+                      width: 5,
+                      height: 5,
+                      borderRadius: 2.5,
+                      background: idx === tourStep ? '#FFFFFF' : 'rgba(255, 255, 255, 0.18)',
+                    }}
+                  />
+                ))}
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <button
+                  type="button"
+                  onClick={completeTour}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    color: 'rgba(235, 235, 245, 0.45)',
+                    fontSize: 12,
+                    fontWeight: 500,
+                    cursor: 'pointer',
+                  }}
+                >
+                  End
+                </button>
+                <button
+                  type="button"
+                  onClick={() => (tourStep < steps.length - 1 ? setTourStep(tourStep + 1) : completeTour())}
+                  style={{
+                    height: 34,
+                    padding: '0 14px',
+                    borderRadius: 10,
+                    background: '#FFFFFF',
+                    color: '#000000',
+                    border: 'none',
+                    fontSize: 13,
+                    fontWeight: 600,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 4,
+                    cursor: 'pointer',
+                  }}
+                >
+                  <span>{tourStep < steps.length - 1 ? 'Next' : 'Done'}</span>
+                  <ArrowRight size={13} />
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

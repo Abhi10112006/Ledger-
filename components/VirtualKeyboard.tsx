@@ -487,14 +487,14 @@ const VirtualKeyboard = React.memo<Props>(({ activeTheme, settings, updateSettin
             --kb-shadow: rgba(0,0,0,0.3);
           `;
     }
-    // Dark Default
+    // Dark Default (iOS style)
     return `
-        --kb-bg: #020617;
-        --kb-key-std-bg: rgba(15, 23, 42, 0.9);
-        --kb-key-special-bg: rgba(30, 41, 59, 0.9);
-        --kb-text-std: #f1f5f9;
-        --kb-text-special: #cbd5e1;
-        --kb-border: rgba(51, 65, 85, 0.5);
+        --kb-bg: #151516;
+        --kb-key-std-bg: rgba(255, 255, 255, 0.16);
+        --kb-key-special-bg: rgba(255, 255, 255, 0.08);
+        --kb-text-std: #ffffff;
+        --kb-text-special: rgba(235, 235, 245, 0.7);
+        --kb-border: rgba(255, 255, 255, 0.08);
         --kb-shadow: rgba(0,0,0,0.4);
       `;
   };
