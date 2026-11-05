@@ -19,7 +19,7 @@ const STORAGE_KEY_LEGACY = 'abhi_ledger_session';
 const SETTINGS_KEY_LEGACY = 'abhi_ledger_settings_v2';
 
 const DEFAULT_SETTINGS: AppSettings = {
-  userName: "Ledger",
+  userName: "",
   themeColor: 'emerald',
   background: 'solid',
   currency: '₹',
@@ -127,17 +127,20 @@ export const useLedger = (tourStep: number, searchQuery: string = '') => {
           }
         }
 
-        // 2. Load Transactions from IndexedDB
+        // 2. Load Transactions from Native Database (or IndexedDB fallback)
         const dbTxs = await getAllTransactions();
         const isLoggedOut = typeof window !== 'undefined' && sessionStorage.getItem('abhi_ledger_is_logged_out') === 'true';
+        const wasLoggedIn = typeof window !== 'undefined' && (
+          localStorage.getItem('abhi_ledger_logged_in') === 'true' ||
+          Boolean(dbSettings?.hasOnboarded) ||
+          dbTxs.length > 0
+        );
 
-        if (dbTxs.length > 0) {
-          setTransactions(dbTxs);
-          if (!isLoggedOut) {
-            setIsLoggedIn(true);
-          }
-        } else {
-          // One-time Migration for Transactions
+        setTransactions(dbTxs);
+        if (wasLoggedIn && !isLoggedOut) {
+          setIsLoggedIn(true);
+        } else if (dbTxs.length === 0) {
+          // One-time Migration for legacy transactions if any
           const legacyTx = localStorage.getItem(STORAGE_KEY_LEGACY);
           if (legacyTx) {
             try {
@@ -148,6 +151,7 @@ export const useLedger = (tourStep: number, searchQuery: string = '') => {
                 setTransactions(cleanData);
                 if (!isLoggedOut) {
                   setIsLoggedIn(true);
+                  localStorage.setItem('abhi_ledger_logged_in', 'true');
                 }
                 localStorage.removeItem(STORAGE_KEY_LEGACY);
               }
@@ -463,6 +467,7 @@ export const useLedger = (tourStep: number, searchQuery: string = '') => {
       setTransactions(sanitized);
       if (typeof window !== 'undefined') {
         sessionStorage.removeItem('abhi_ledger_is_logged_out');
+        localStorage.setItem('abhi_ledger_logged_in', 'true');
       }
       setIsLoggedIn(true);
       await bulkSaveTransactions(sanitized);

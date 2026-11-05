@@ -2,7 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { motion, useMotionValue, useSpring, useTransform, AnimatePresence } from 'framer-motion';
 import { useHaptics } from '../hooks/useHaptics';
 
-export type MascotMood = 'asking' | 'typing' | 'welcome' | 'idle' | 'happy';
+export type MascotMood = 'asking' | 'typing' | 'welcome' | 'idle' | 'happy' | 'celebrate';
+export type MascotTrick = 'idle' | 'flip' | 'hearts' | 'dizzy' | 'tickle' | 'highfive' | 'party';
 
 interface Mascot3DProps {
   mood?: MascotMood;
@@ -11,6 +12,16 @@ interface Mascot3DProps {
   isFocused?: boolean;
   onTap?: () => void;
   className?: string;
+  celebrateTrigger?: number;
+}
+
+interface FloatingParticle {
+  id: number;
+  x: number;
+  y: number;
+  color: string;
+  size: number;
+  type: 'star' | 'heart' | 'sparkle' | 'circle';
 }
 
 export const Mascot3D: React.FC<Mascot3DProps> = ({
@@ -20,47 +31,124 @@ export const Mascot3D: React.FC<Mascot3DProps> = ({
   isFocused = false,
   onTap,
   className = '',
+  celebrateTrigger = 0,
 }) => {
   const haptic = useHaptics();
   const [isBlinking, setIsBlinking] = useState(false);
-  const [isWinking, setIsWinking] = useState(false);
-  const [isTickled, setIsTickled] = useState(false);
+  const [currentTrick, setCurrentTrick] = useState<MascotTrick>('idle');
+  const [trickSpeech, setTrickSpeech] = useState<string | null>(null);
+  const [particles, setParticles] = useState<FloatingParticle[]>([]);
+  const [tapCount, setTapCount] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);
+  const trickTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Mouse / Touch 3D tilt coordinates
   const mouseX = useMotionValue(0);
   const mouseY = useMotionValue(0);
 
   // Smooth springs for fluid, organic 3D rotation
-  const springConfig = { damping: 20, stiffness: 180, mass: 0.6 };
+  const springConfig = { damping: 18, stiffness: 190, mass: 0.5 };
   const smoothX = useSpring(mouseX, springConfig);
   const smoothY = useSpring(mouseY, springConfig);
 
   // Derive 3D transforms
-  const rotateY = useTransform(smoothX, [-100, 100], [-18, 18]);
-  const rotateX = useTransform(smoothY, [-100, 100], [14, -14]);
-  const headTranslateX = useTransform(smoothX, [-100, 100], [-6, 6]);
-  const headTranslateY = useTransform(smoothY, [-100, 100], [-5, 5]);
+  const rotateY = useTransform(smoothX, [-100, 100], [-20, 20]);
+  const rotateX = useTransform(smoothY, [-100, 100], [16, -16]);
+  const headTranslateX = useTransform(smoothX, [-100, 100], [-8, 8]);
+  const headTranslateY = useTransform(smoothY, [-100, 100], [-6, 6]);
 
-  // Visor parallax (moves more than head for deep 3D effect)
-  const visorX = useTransform(smoothX, [-100, 100], [-10, 10]);
-  const visorY = useTransform(smoothY, [-100, 100], [-8, 8]);
+  // Visor parallax (moves faster than head for physical 3D interior depth)
+  const visorX = useTransform(smoothX, [-100, 100], [-12, 12]);
+  const visorY = useTransform(smoothY, [-100, 100], [-9, 9]);
 
   // Eye gaze translation
-  const eyeBaseY = isFocused || mood === 'typing' ? 5 : 0;
-  const eyeX = useTransform(smoothX, [-100, 100], [-7, 7]);
-  const eyeY = useTransform(smoothY, [-100, 100], [-5, 5]);
+  const eyeBaseY = isFocused || mood === 'typing' ? 6 : 0;
+  const eyeX = useTransform(smoothX, [-100, 100], [-8, 8]);
+  const eyeY = useTransform(smoothY, [-100, 100], [-6, 6]);
 
-  // Periodic natural blinking
+  // Spawn fun particles
+  const spawnParticles = (type: 'heart' | 'star' | 'party') => {
+    const newItems: FloatingParticle[] = [];
+    const colors = [accentColor, '#ffffff', '#38bdf8', '#f43f5e', '#fbbf24', '#a855f7'];
+
+    for (let i = 0; i < (type === 'party' ? 18 : 8); i++) {
+      newItems.push({
+        id: Date.now() + i,
+        x: (Math.random() - 0.5) * 160,
+        y: (Math.random() - 0.5) * 100 - 30,
+        color: colors[Math.floor(Math.random() * colors.length)],
+        size: Math.random() * 8 + 4,
+        type: type === 'heart' ? 'heart' : type === 'star' ? 'star' : 'circle',
+      });
+    }
+    setParticles(newItems);
+    setTimeout(() => setParticles([]), 1800);
+  };
+
+  // Perform a specific trick with speech and haptic
+  const triggerTrick = (trick: MascotTrick) => {
+    if (trickTimeoutRef.current) clearTimeout(trickTimeoutRef.current);
+    setCurrentTrick(trick);
+
+    switch (trick) {
+      case 'flip':
+        haptic('medium');
+        setTrickSpeech('Woohoo! Zero-gravity 360° flip! 🚀');
+        spawnParticles('star');
+        break;
+      case 'hearts':
+        haptic('double');
+        setTrickSpeech("Aww, you're awesome! 🥰");
+        spawnParticles('heart');
+        break;
+      case 'dizzy':
+        haptic('light');
+        setTrickSpeech('Whoa, dizzy spin! 😵💫');
+        break;
+      case 'tickle':
+        haptic('selection');
+        setTrickSpeech('Hehe, that tickles! 🤖✨');
+        break;
+      case 'highfive':
+        haptic('heavy');
+        setTrickSpeech('High-five! 🖐️⚡ Your ledger is safe with me!');
+        spawnParticles('star');
+        break;
+      case 'party':
+        haptic('success');
+        setTrickSpeech('Party mode! 🎉✨ 100% private & offline!');
+        spawnParticles('party');
+        break;
+      default:
+        break;
+    }
+
+    trickTimeoutRef.current = setTimeout(() => {
+      setCurrentTrick('idle');
+      setTrickSpeech(null);
+    }, 2800);
+  };
+
+  // External celebration trigger (e.g. when user saves name)
+  useEffect(() => {
+    if (celebrateTrigger > 0) {
+      triggerTrick('party');
+      if (userName && userName.trim()) {
+        setTrickSpeech(`Nice to meet you, ${userName.trim()}! Name saved! ⭐`);
+      }
+    }
+  }, [celebrateTrigger]);
+
+  // Periodic natural blinking and curious head tilts
   useEffect(() => {
     let blinkTimeout: NodeJS.Timeout;
     const triggerBlink = () => {
       setIsBlinking(true);
-      setTimeout(() => setIsBlinking(false), 140);
-      const nextInterval = 2800 + Math.random() * 2500;
+      setTimeout(() => setIsBlinking(false), 130);
+      const nextInterval = 2500 + Math.random() * 2600;
       blinkTimeout = setTimeout(triggerBlink, nextInterval);
     };
-    blinkTimeout = setTimeout(triggerBlink, 2000);
+    blinkTimeout = setTimeout(triggerBlink, 1800);
     return () => clearTimeout(blinkTimeout);
   }, []);
 
@@ -79,30 +167,202 @@ export const Mascot3D: React.FC<Mascot3DProps> = ({
     mouseY.set(0);
   };
 
-  // Tap interaction
+  // Tap interaction: cycles through exciting tricks
   const handleMascotTap = () => {
-    haptic('selection');
-    setIsWinking(true);
-    setIsTickled(true);
-    setTimeout(() => setIsWinking(false), 900);
-    setTimeout(() => setIsTickled(false), 2400);
+    const tricks: MascotTrick[] = ['tickle', 'flip', 'hearts', 'party', 'dizzy', 'highfive'];
+    const nextTrick = tricks[tapCount % tricks.length];
+    setTapCount((prev) => prev + 1);
+    triggerTrick(nextTrick);
     if (onTap) onTap();
   };
 
   // Determine speech text
   const getSpeechText = () => {
-    if (isTickled) return 'Hehe, that tickles! 🤖✨';
-    if (mood === 'welcome') {
+    if (trickSpeech) return trickSpeech;
+    if (mood === 'celebrate') {
       const cleanName = userName ? userName.split(' ')[0] : 'friend';
-      return `Welcome back, ${cleanName}! Everything is secure.`;
+      return `Awesome, ${cleanName}! Your name is saved! 🎉`;
+    }
+    if (mood === 'welcome') {
+      const cleanName = userName && userName.trim() ? userName.split(' ')[0] : 'friend';
+      return `Welcome back, ${cleanName}! Your private vault is ready. 🚀`;
     }
     if (userName && userName.trim().length > 0) {
-      return `Nice to meet you, ${userName.trim()}! Looking sharp.`;
+      return `Looking great, ${userName.trim()}! Press Enter or Save when ready. ✨`;
     }
     if (isFocused) {
-      return 'Type your name so I know what to call you! ✨';
+      return "Type your name or jump straight into the vault! 💫";
     }
-    return "Hi! I'm Ledgie, your private ledger guard. What's your name?";
+    return "Hi! I'm Ledgie, your private vault companion. Tap me for tricks! 👋";
+  };
+
+  // Determine Eye Display Style
+  const renderEyes = () => {
+    // 1. Blinking
+    if (isBlinking && currentTrick !== 'dizzy' && currentTrick !== 'hearts') {
+      return (
+        <div className="flex items-center gap-4">
+          <div style={{ width: 16, height: 2, background: accentColor, borderRadius: 2 }} />
+          <div style={{ width: 16, height: 2, background: accentColor, borderRadius: 2 }} />
+        </div>
+      );
+    }
+
+    // 2. Heart Eyes Trick
+    if (currentTrick === 'hearts') {
+      return (
+        <div className="flex items-center gap-4">
+          <motion.span
+            animate={{ scale: [1, 1.25, 1] }}
+            transition={{ duration: 0.6, repeat: Infinity }}
+            style={{ fontSize: 18, filter: 'drop-shadow(0 0 6px #f43f5e)' }}
+          >
+            ❤️
+          </motion.span>
+          <motion.span
+            animate={{ scale: [1, 1.25, 1] }}
+            transition={{ duration: 0.6, repeat: Infinity, delay: 0.15 }}
+            style={{ fontSize: 18, filter: 'drop-shadow(0 0 6px #f43f5e)' }}
+          >
+            ❤️
+          </motion.span>
+        </div>
+      );
+    }
+
+    // 3. Dizzy Spiral Eyes Trick
+    if (currentTrick === 'dizzy') {
+      return (
+        <div className="flex items-center gap-4">
+          <motion.div
+            animate={{ rotate: 360 }}
+            transition={{ duration: 0.8, repeat: Infinity, ease: 'linear' }}
+            style={{
+              width: 18,
+              height: 18,
+              borderRadius: '50%',
+              border: `2px dashed ${accentColor}`,
+              borderTopColor: '#fff',
+            }}
+          />
+          <motion.div
+            animate={{ rotate: -360 }}
+            transition={{ duration: 0.8, repeat: Infinity, ease: 'linear' }}
+            style={{
+              width: 18,
+              height: 18,
+              borderRadius: '50%',
+              border: `2px dashed ${accentColor}`,
+              borderTopColor: '#fff',
+            }}
+          />
+        </div>
+      );
+    }
+
+    // 4. Star Eyes on Flip / Celebrate
+    if (currentTrick === 'flip' || currentTrick === 'party' || mood === 'celebrate') {
+      return (
+        <div className="flex items-center gap-4">
+          <motion.span
+            animate={{ rotate: [0, 15, -15, 0], scale: [1, 1.2, 1] }}
+            transition={{ duration: 0.8, repeat: Infinity }}
+            style={{ fontSize: 17, filter: `drop-shadow(0 0 8px ${accentColor})` }}
+          >
+            ⭐
+          </motion.span>
+          <motion.span
+            animate={{ rotate: [0, -15, 15, 0], scale: [1, 1.2, 1] }}
+            transition={{ duration: 0.8, repeat: Infinity, delay: 0.1 }}
+            style={{ fontSize: 17, filter: `drop-shadow(0 0 8px ${accentColor})` }}
+          >
+            ⭐
+          </motion.span>
+        </div>
+      );
+    }
+
+    // 5. Joyful Arched Eyes on Welcome or Tickle (^)
+    if (mood === 'welcome' || currentTrick === 'tickle') {
+      return (
+        <div className="flex items-center gap-4">
+          <div
+            style={{
+              width: 18,
+              height: 13,
+              borderRadius: '14px 14px 0 0',
+              borderTop: `3.5px solid ${accentColor}`,
+              borderLeft: `2.5px solid ${accentColor}`,
+              borderRight: `2.5px solid ${accentColor}`,
+              filter: `drop-shadow(0 0 8px ${accentColor})`,
+            }}
+          />
+          <div
+            style={{
+              width: 18,
+              height: 13,
+              borderRadius: '14px 14px 0 0',
+              borderTop: `3.5px solid ${accentColor}`,
+              borderLeft: `2.5px solid ${accentColor}`,
+              borderRight: `2.5px solid ${accentColor}`,
+              filter: `drop-shadow(0 0 8px ${accentColor})`,
+            }}
+          />
+        </div>
+      );
+    }
+
+    // 6. Default Sleek Glowing Visor Eyes (with tracking pupils)
+    return (
+      <div className="flex items-center gap-4">
+        <div
+          style={{
+            width: 16,
+            height: 22,
+            borderRadius: 10,
+            background: `linear-gradient(180deg, #ffffff 0%, ${accentColor} 100%)`,
+            boxShadow: `0 0 12px ${accentColor}, 0 0 20px ${accentColor}99`,
+            position: 'relative',
+            overflow: 'hidden',
+          }}
+        >
+          <div
+            style={{
+              position: 'absolute',
+              top: 3,
+              left: 3,
+              width: 4,
+              height: 4,
+              borderRadius: '50%',
+              background: '#fff',
+            }}
+          />
+        </div>
+        <div
+          style={{
+            width: 16,
+            height: 22,
+            borderRadius: 10,
+            background: `linear-gradient(180deg, #ffffff 0%, ${accentColor} 100%)`,
+            boxShadow: `0 0 12px ${accentColor}, 0 0 20px ${accentColor}99`,
+            position: 'relative',
+            overflow: 'hidden',
+          }}
+        >
+          <div
+            style={{
+              position: 'absolute',
+              top: 3,
+              left: 3,
+              width: 4,
+              height: 4,
+              borderRadius: '50%',
+              background: '#fff',
+            }}
+          />
+        </div>
+      </div>
+    );
   };
 
   return (
@@ -113,28 +373,56 @@ export const Mascot3D: React.FC<Mascot3DProps> = ({
       className={`relative flex flex-col items-center justify-center select-none ${className}`}
       style={{ perspective: 1000 }}
     >
-      {/* --- SPEECH BUBBLE --- */}
+      {/* --- FLOATING BURST PARTICLES --- */}
+      <AnimatePresence>
+        {particles.map((p) => (
+          <motion.div
+            key={p.id}
+            initial={{ opacity: 1, scale: 0, x: 0, y: 0 }}
+            animate={{
+              opacity: [1, 1, 0],
+              scale: [0, 1.4, 0.8],
+              x: p.x,
+              y: p.y,
+              rotate: [0, 180],
+            }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 1.2, ease: 'easeOut' }}
+            style={{
+              position: 'absolute',
+              pointerEvents: 'none',
+              zIndex: 40,
+              color: p.color,
+              fontSize: p.size * 2,
+            }}
+          >
+            {p.type === 'heart' ? '❤️' : p.type === 'star' ? '✨' : '●'}
+          </motion.div>
+        ))}
+      </AnimatePresence>
+
+      {/* --- SPEECH BUBBLE WITH DYNAMIC REACTIONS --- */}
       <motion.div
         initial={{ opacity: 0, y: 10, scale: 0.9 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
-        transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
-        className="relative z-30 mb-4 max-w-[280px]"
+        transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
+        className="relative z-30 mb-3 max-w-[290px]"
       >
         <div
           style={{
-            background: 'rgba(18, 18, 24, 0.75)',
-            backdropFilter: 'blur(20px)',
-            WebkitBackdropFilter: 'blur(20px)',
-            border: '0.5px solid rgba(255, 255, 255, 0.12)',
+            background: 'rgba(18, 19, 26, 0.85)',
+            backdropFilter: 'blur(22px)',
+            WebkitBackdropFilter: 'blur(22px)',
+            border: '0.5px solid rgba(255, 255, 255, 0.15)',
             borderRadius: 16,
             padding: '10px 16px',
-            boxShadow: `0 12px 32px rgba(0,0,0,0.45), 0 0 20px ${accentColor}18`,
+            boxShadow: `0 14px 34px rgba(0,0,0,0.5), 0 0 24px ${accentColor}20`,
             display: 'flex',
             alignItems: 'center',
             gap: 10,
           }}
         >
-          {/* Pulsing status dot */}
+          {/* Pulsing online status indicator */}
           <span className="relative flex h-2 w-2 flex-shrink-0">
             <span
               className="animate-ping absolute inline-flex h-full w-full rounded-full opacity-75"
@@ -152,12 +440,12 @@ export const Mascot3D: React.FC<Mascot3DProps> = ({
               initial={{ opacity: 0, y: 4 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -4 }}
-              transition={{ duration: 0.25 }}
+              transition={{ duration: 0.22 }}
               style={{
                 margin: 0,
                 fontSize: 13,
                 fontWeight: 500,
-                color: 'rgba(255, 255, 255, 0.92)',
+                color: 'rgba(255, 255, 255, 0.94)',
                 lineHeight: 1.35,
                 letterSpacing: '-0.01em',
               }}
@@ -176,76 +464,111 @@ export const Mascot3D: React.FC<Mascot3DProps> = ({
             transform: 'translateX(-50%) rotate(45deg)',
             width: 12,
             height: 12,
-            background: 'rgba(18, 18, 24, 0.75)',
-            borderRight: '0.5px solid rgba(255, 255, 255, 0.12)',
-            borderBottom: '0.5px solid rgba(255, 255, 255, 0.12)',
+            background: 'rgba(18, 19, 26, 0.85)',
+            borderRight: '0.5px solid rgba(255, 255, 255, 0.15)',
+            borderBottom: '0.5px solid rgba(255, 255, 255, 0.15)',
             zIndex: 1,
           }}
         />
       </motion.div>
 
-      {/* --- 3D MASCOT CONTAINER WITH SPRING ROTATION --- */}
+      {/* --- 3D MASCOT CHASSIS WITH ADVANCED TOUCH INTERACTIONS --- */}
       <motion.div
+        drag
+        dragConstraints={{ left: -30, right: 30, top: -20, bottom: 20 }}
+        dragElastic={0.4}
+        whileDrag={{ scale: 1.08, cursor: 'grabbing' }}
         style={{
           rotateX,
           rotateY,
           transformStyle: 'preserve-3d',
-          cursor: 'pointer',
+          cursor: 'grab',
         }}
-        whileTap={{ scale: 0.94 }}
+        whileHover={{ scale: 1.03 }}
+        whileTap={{ scale: 0.93 }}
         onClick={handleMascotTap}
         className="relative flex items-center justify-center"
       >
-        {/* Continuous organic float */}
+        {/* Animated trick movements (Flips, Spins, Somersaults, Wiggles) */}
         <motion.div
-          animate={{
-            y: mood === 'welcome' ? [0, -12, 0] : [0, -8, 0],
-            rotateZ: mood === 'welcome' ? [0, 2, -2, 0] : [-1, 1, -1],
-          }}
-          transition={{
-            duration: mood === 'welcome' ? 2.2 : 3.5,
-            repeat: Infinity,
-            ease: 'easeInOut',
-          }}
+          animate={
+            currentTrick === 'flip'
+              ? {
+                  rotateX: [0, 360],
+                  y: [0, -42, 0],
+                  scale: [1, 1.15, 1],
+                }
+              : currentTrick === 'dizzy'
+              ? {
+                  rotateY: [0, 720],
+                  rotateZ: [-5, 5, -3, 3, 0],
+                }
+              : currentTrick === 'tickle'
+              ? {
+                  x: [-8, 8, -6, 6, -3, 3, 0],
+                  scaleY: [1, 0.94, 1.04, 1],
+                }
+              : currentTrick === 'party'
+              ? {
+                  y: [0, -16, 0, -10, 0],
+                  rotateZ: [-3, 3, -2, 2, 0],
+                }
+              : {
+                  y: mood === 'welcome' || mood === 'celebrate' ? [0, -12, 0] : [0, -8, 0],
+                  rotateZ: mood === 'welcome' ? [0, 2, -2, 0] : [-1, 1, -1],
+                  scale: [1, 1.025, 1], // Gentle breathing
+                }
+          }
+          transition={
+            currentTrick === 'flip'
+              ? { duration: 1.1, ease: 'easeInOut' }
+              : currentTrick === 'dizzy'
+              ? { duration: 1.2, ease: 'easeOut' }
+              : currentTrick === 'tickle'
+              ? { duration: 0.6, repeat: 3, ease: 'easeInOut' }
+              : currentTrick === 'party'
+              ? { duration: 0.9, repeat: 2, ease: 'easeInOut' }
+              : {
+                  duration: 3.4,
+                  repeat: Infinity,
+                  ease: 'easeInOut',
+                }
+          }
           className="relative flex items-center justify-center"
           style={{ transformStyle: 'preserve-3d' }}
         >
-          {/* Ambient Glow behind mascot */}
+          {/* Ambient Glow Aura */}
+          <div
+            style={{
+              position: 'absolute',
+              width: 190,
+              height: 190,
+              borderRadius: '50%',
+              background: `radial-gradient(circle, ${accentColor}35 0%, ${accentColor}08 50%, transparent 75%)`,
+              filter: 'blur(22px)',
+              pointerEvents: 'none',
+              transform: 'translateZ(-45px)',
+            }}
+          />
+
+          {/* --- ORBITING 3D HOLOGRAPHIC RING WITH DUAL SPARKS --- */}
           <div
             style={{
               position: 'absolute',
               width: 180,
-              height: 180,
-              borderRadius: '50%',
-              background: `radial-gradient(circle, ${accentColor}30 0%, ${accentColor}08 45%, transparent 70%)`,
-              filter: 'blur(20px)',
-              pointerEvents: 'none',
-              transform: 'translateZ(-40px)',
-            }}
-          />
-
-          {/* --- ORBITING 3D ENERGY RING --- */}
-          <div
-            style={{
-              position: 'absolute',
-              width: 175,
-              height: 75,
+              height: 80,
               borderRadius: '50%',
               border: `1.5px solid ${accentColor}44`,
-              boxShadow: `0 0 16px ${accentColor}33, inset 0 0 12px ${accentColor}22`,
-              transform: 'rotateX(72deg) rotateY(12deg) translateZ(-10px)',
+              boxShadow: `0 0 18px ${accentColor}33, inset 0 0 14px ${accentColor}22`,
+              transform: 'rotateX(72deg) rotateY(14deg) translateZ(-10px)',
               pointerEvents: 'none',
             }}
           >
-            {/* Orbiting energy spark */}
+            {/* Spark 1 */}
             <motion.div
               animate={{ rotate: 360 }}
-              transition={{ duration: 4.5, repeat: Infinity, ease: 'linear' }}
-              style={{
-                width: '100%',
-                height: '100%',
-                position: 'absolute',
-              }}
+              transition={{ duration: 4.2, repeat: Infinity, ease: 'linear' }}
+              style={{ width: '100%', height: '100%', position: 'absolute' }}
             >
               <div
                 style={{
@@ -255,8 +578,28 @@ export const Mascot3D: React.FC<Mascot3DProps> = ({
                   width: 8,
                   height: 8,
                   borderRadius: '50%',
-                  background: '#fff',
-                  boxShadow: `0 0 10px #fff, 0 0 16px ${accentColor}`,
+                  background: '#ffffff',
+                  boxShadow: `0 0 10px #fff, 0 0 18px ${accentColor}`,
+                }}
+              />
+            </motion.div>
+
+            {/* Spark 2 (opposite orbit) */}
+            <motion.div
+              animate={{ rotate: -360 }}
+              transition={{ duration: 6.5, repeat: Infinity, ease: 'linear' }}
+              style={{ width: '100%', height: '100%', position: 'absolute' }}
+            >
+              <div
+                style={{
+                  position: 'absolute',
+                  bottom: -4,
+                  left: '50%',
+                  width: 6,
+                  height: 6,
+                  borderRadius: '50%',
+                  background: accentColor,
+                  boxShadow: `0 0 8px ${accentColor}`,
                 }}
               />
             </motion.div>
@@ -265,10 +608,10 @@ export const Mascot3D: React.FC<Mascot3DProps> = ({
           {/* --- LEFT FLOATING THRUSTER HAND --- */}
           <motion.div
             animate={{
-              y: [0, 4, 0],
-              rotateZ: [-2, 4, -2],
+              y: currentTrick === 'party' ? [-6, 6, -6] : [0, 4, 0],
+              rotateZ: [-2, 5, -2],
             }}
-            transition={{ duration: 2.8, repeat: Infinity, ease: 'easeInOut' }}
+            transition={{ duration: 2.6, repeat: Infinity, ease: 'easeInOut' }}
             style={{
               position: 'absolute',
               left: -32,
@@ -276,13 +619,13 @@ export const Mascot3D: React.FC<Mascot3DProps> = ({
               width: 22,
               height: 38,
               borderRadius: 14,
-              background: 'linear-gradient(135deg, #2a2d39 0%, #171821 100%)',
+              background: 'linear-gradient(135deg, #2b2e3a 0%, #171822 100%)',
               border: '0.5px solid rgba(255, 255, 255, 0.16)',
               boxShadow: `0 8px 16px rgba(0,0,0,0.5), inset 0 1px 3px rgba(255,255,255,0.3)`,
               transform: 'translateZ(-10px)',
             }}
           >
-            {/* Small glow emitter on hand */}
+            {/* Hand glow emitter */}
             <div
               style={{
                 position: 'absolute',
@@ -298,21 +641,27 @@ export const Mascot3D: React.FC<Mascot3DProps> = ({
             />
           </motion.div>
 
-          {/* --- RIGHT FLOATING HAND (WAVING) --- */}
+          {/* --- RIGHT FLOATING HAND (WAVING / HIGH-FIVES) --- */}
           <motion.div
             animate={
-              mood === 'welcome' || mood === 'asking'
+              currentTrick === 'highfive'
                 ? {
-                    y: [-4, -14, -4],
-                    rotateZ: [15, 38, 10, 38, 15],
+                    y: [-15, -22, -15],
+                    rotateZ: [20, 45, 20],
+                    scale: [1, 1.25, 1],
+                  }
+                : mood === 'welcome' || mood === 'celebrate' || currentTrick === 'party'
+                ? {
+                    y: [-4, -16, -4],
+                    rotateZ: [15, 42, 8, 42, 15],
                   }
                 : {
                     y: [0, -3, 0],
-                    rotateZ: [6, 14, 6],
+                    rotateZ: [8, 16, 8],
                   }
             }
             transition={{
-              duration: mood === 'welcome' || mood === 'asking' ? 1.6 : 3,
+              duration: currentTrick === 'highfive' ? 0.6 : 1.5,
               repeat: Infinity,
               ease: 'easeInOut',
             }}
@@ -323,14 +672,14 @@ export const Mascot3D: React.FC<Mascot3DProps> = ({
               width: 22,
               height: 38,
               borderRadius: 14,
-              background: 'linear-gradient(135deg, #2a2d39 0%, #171821 100%)',
+              background: 'linear-gradient(135deg, #2b2e3a 0%, #171822 100%)',
               border: '0.5px solid rgba(255, 255, 255, 0.16)',
               boxShadow: `0 8px 16px rgba(0,0,0,0.5), inset 0 1px 3px rgba(255,255,255,0.3)`,
               transformOrigin: 'bottom center',
               transform: 'translateZ(15px)',
             }}
           >
-            {/* Small glow emitter on hand */}
+            {/* Hand glow emitter */}
             <div
               style={{
                 position: 'absolute',
@@ -341,7 +690,7 @@ export const Mascot3D: React.FC<Mascot3DProps> = ({
                 height: 6,
                 borderRadius: '50%',
                 background: accentColor,
-                boxShadow: `0 0 8px ${accentColor}`,
+                boxShadow: `0 0 10px ${accentColor}`,
               }}
             />
           </motion.div>
@@ -356,21 +705,21 @@ export const Mascot3D: React.FC<Mascot3DProps> = ({
               borderRadius: '50%',
               position: 'relative',
               background:
-                'radial-gradient(circle at 35% 28%, #3e4252 0%, #20232e 45%, #10121a 80%, #08090e 100%)',
+                'radial-gradient(circle at 35% 28%, #3f4454 0%, #212430 45%, #10121b 80%, #08090e 100%)',
               boxShadow: `
-                0 20px 48px rgba(0,0,0,0.7),
-                0 0 35px ${accentColor}26,
-                inset 0 2px 4px rgba(255,255,255,0.4),
+                0 22px 50px rgba(0,0,0,0.75),
+                0 0 35px ${accentColor}28,
+                inset 0 2px 4px rgba(255,255,255,0.45),
                 inset -6px -8px 20px rgba(0,0,0,0.85)
               `,
-              border: '0.5px solid rgba(255, 255, 255, 0.18)',
+              border: '0.5px solid rgba(255, 255, 255, 0.2)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               transformStyle: 'preserve-3d',
             }}
           >
-            {/* Top Antenna / Holographic Crown */}
+            {/* Top Antenna / Holographic Radar */}
             <div
               style={{
                 position: 'absolute',
@@ -382,22 +731,22 @@ export const Mascot3D: React.FC<Mascot3DProps> = ({
                 alignItems: 'center',
               }}
             >
-              {/* Antenna gem */}
+              {/* Antenna gem with energetic breathing pulse */}
               <motion.div
                 animate={{
-                  scale: [1, 1.25, 1],
+                  scale: currentTrick === 'party' ? [1, 1.4, 1] : [1, 1.25, 1],
                   boxShadow: [
                     `0 0 10px ${accentColor}`,
-                    `0 0 22px ${accentColor}, 0 0 30px ${accentColor}88`,
+                    `0 0 24px ${accentColor}, 0 0 32px ${accentColor}88`,
                     `0 0 10px ${accentColor}`,
                   ],
                 }}
-                transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
+                transition={{ duration: 1.8, repeat: Infinity, ease: 'easeInOut' }}
                 style={{
                   width: 12,
                   height: 12,
                   borderRadius: '50%',
-                  background: '#fff',
+                  background: '#ffffff',
                   border: `2px solid ${accentColor}`,
                 }}
               />
@@ -406,7 +755,7 @@ export const Mascot3D: React.FC<Mascot3DProps> = ({
                 style={{
                   width: 4,
                   height: 10,
-                  background: 'linear-gradient(to bottom, #4a4d5e, #1c1e28)',
+                  background: 'linear-gradient(to bottom, #4b4f62, #1b1d28)',
                   borderRadius: 2,
                 }}
               />
@@ -421,7 +770,7 @@ export const Mascot3D: React.FC<Mascot3DProps> = ({
                 width: 46,
                 height: 24,
                 borderRadius: '50%',
-                background: 'radial-gradient(ellipse, rgba(255,255,255,0.4) 0%, transparent 80%)',
+                background: 'radial-gradient(ellipse, rgba(255,255,255,0.45) 0%, transparent 80%)',
                 transform: 'rotate(-25deg)',
                 pointerEvents: 'none',
               }}
@@ -435,12 +784,12 @@ export const Mascot3D: React.FC<Mascot3DProps> = ({
                 width: 96,
                 height: 60,
                 borderRadius: 28,
-                background: 'linear-gradient(145deg, #07080c 0%, #12141d 100%)',
-                border: '0.5px solid rgba(255, 255, 255, 0.14)',
+                background: 'linear-gradient(145deg, #06070a 0%, #12141e 100%)',
+                border: '0.5px solid rgba(255, 255, 255, 0.16)',
                 boxShadow: `
-                  inset 0 2px 6px rgba(0,0,0,0.9),
-                  inset 0 -1px 3px rgba(255,255,255,0.1),
-                  0 4px 16px rgba(0,0,0,0.6)
+                  inset 0 2px 6px rgba(0,0,0,0.92),
+                  inset 0 -1px 3px rgba(255,255,255,0.12),
+                  0 4px 18px rgba(0,0,0,0.65)
                 `,
                 position: 'relative',
                 overflow: 'hidden',
@@ -458,13 +807,13 @@ export const Mascot3D: React.FC<Mascot3DProps> = ({
                   left: 0,
                   right: 0,
                   height: '48%',
-                  background: 'linear-gradient(180deg, rgba(255,255,255,0.12) 0%, transparent 100%)',
+                  background: 'linear-gradient(180deg, rgba(255,255,255,0.14) 0%, transparent 100%)',
                   borderRadius: '28px 28px 0 0',
                   pointerEvents: 'none',
                 }}
               />
 
-              {/* Visor scanlines / cyber grid */}
+              {/* Visor cyber scanlines */}
               <div
                 style={{
                   position: 'absolute',
@@ -487,113 +836,47 @@ export const Mascot3D: React.FC<Mascot3DProps> = ({
                   zIndex: 2,
                 }}
               >
-                {/* LEFT EYE */}
-                <motion.div
-                  animate={{
-                    scaleY: isBlinking ? 0.08 : 1,
-                  }}
-                  transition={{ duration: 0.12 }}
-                  style={{
-                    position: 'relative',
-                  }}
-                >
-                  {mood === 'welcome' || isTickled ? (
-                    // Happy Joyful Arched Eye (^)
-                    <div
-                      style={{
-                        width: 18,
-                        height: 12,
-                        borderRadius: '12px 12px 0 0',
-                        borderTop: `3.5px solid ${accentColor}`,
-                        borderLeft: `2.5px solid ${accentColor}`,
-                        borderRight: `2.5px solid ${accentColor}`,
-                        filter: `drop-shadow(0 0 6px ${accentColor})`,
-                      }}
-                    />
-                  ) : (
-                    // Oval Luminous Eye
-                    <div
-                      style={{
-                        width: 16,
-                        height: 22,
-                        borderRadius: 10,
-                        background: `linear-gradient(180deg, #ffffff 0%, ${accentColor} 100%)`,
-                        boxShadow: `0 0 12px ${accentColor}, 0 0 20px ${accentColor}99`,
-                        position: 'relative',
-                        overflow: 'hidden',
-                      }}
-                    >
-                      {/* Pupil reflection shine */}
-                      <div
-                        style={{
-                          position: 'absolute',
-                          top: 3,
-                          left: 3,
-                          width: 4,
-                          height: 4,
-                          borderRadius: '50%',
-                          background: '#fff',
-                        }}
-                      />
-                    </div>
-                  )}
-                </motion.div>
-
-                {/* RIGHT EYE */}
-                <motion.div
-                  animate={{
-                    scaleY: isBlinking || isWinking ? 0.08 : 1,
-                  }}
-                  transition={{ duration: 0.12 }}
-                  style={{
-                    position: 'relative',
-                  }}
-                >
-                  {mood === 'welcome' || isTickled ? (
-                    // Happy Joyful Arched Eye (^)
-                    <div
-                      style={{
-                        width: 18,
-                        height: 12,
-                        borderRadius: '12px 12px 0 0',
-                        borderTop: `3.5px solid ${accentColor}`,
-                        borderLeft: `2.5px solid ${accentColor}`,
-                        borderRight: `2.5px solid ${accentColor}`,
-                        filter: `drop-shadow(0 0 6px ${accentColor})`,
-                      }}
-                    />
-                  ) : (
-                    // Oval Luminous Eye (or wink)
-                    <div
-                      style={{
-                        width: 16,
-                        height: 22,
-                        borderRadius: 10,
-                        background: `linear-gradient(180deg, #ffffff 0%, ${accentColor} 100%)`,
-                        boxShadow: `0 0 12px ${accentColor}, 0 0 20px ${accentColor}99`,
-                        position: 'relative',
-                        overflow: 'hidden',
-                      }}
-                    >
-                      {/* Pupil reflection shine */}
-                      <div
-                        style={{
-                          position: 'absolute',
-                          top: 3,
-                          left: 3,
-                          width: 4,
-                          height: 4,
-                          borderRadius: '50%',
-                          background: '#fff',
-                        }}
-                      />
-                    </div>
-                  )}
-                </motion.div>
+                {renderEyes()}
               </motion.div>
 
+              {/* Cute Blushing Cheeks on Hearts / Giggles */}
+              {(currentTrick === 'hearts' || currentTrick === 'tickle') && (
+                <>
+                  <div
+                    style={{
+                      position: 'absolute',
+                      left: 14,
+                      bottom: 12,
+                      width: 10,
+                      height: 5,
+                      borderRadius: '50%',
+                      background: '#f43f5e',
+                      boxShadow: '0 0 8px #f43f5e',
+                      opacity: 0.85,
+                    }}
+                  />
+                  <div
+                    style={{
+                      position: 'absolute',
+                      right: 14,
+                      bottom: 12,
+                      width: 10,
+                      height: 5,
+                      borderRadius: '50%',
+                      background: '#f43f5e',
+                      boxShadow: '0 0 8px #f43f5e',
+                      opacity: 0.85,
+                    }}
+                  />
+                </>
+              )}
+
               {/* Gentle smile mouth */}
-              {(mood === 'welcome' || isTickled || (userName && userName.length > 0)) && (
+              {(mood === 'welcome' ||
+                mood === 'celebrate' ||
+                currentTrick === 'hearts' ||
+                currentTrick === 'party' ||
+                (userName && userName.length > 0)) && (
                 <motion.div
                   initial={{ opacity: 0, scale: 0.5 }}
                   animate={{ opacity: 1, scale: 1 }}
@@ -618,11 +901,11 @@ export const Mascot3D: React.FC<Mascot3DProps> = ({
       {/* --- DYNAMIC 3D FLOOR SHADOW --- */}
       <motion.div
         animate={{
-          scale: mood === 'welcome' ? [0.85, 1.2, 0.85] : [0.9, 1.12, 0.9],
-          opacity: mood === 'welcome' ? [0.65, 0.25, 0.65] : [0.55, 0.25, 0.55],
+          scale: currentTrick === 'flip' ? [0.6, 1.4, 0.6] : [0.9, 1.14, 0.9],
+          opacity: currentTrick === 'flip' ? [0.2, 0.6, 0.2] : [0.55, 0.25, 0.55],
         }}
         transition={{
-          duration: mood === 'welcome' ? 2.2 : 3.5,
+          duration: currentTrick === 'flip' ? 1.1 : 3.4,
           repeat: Infinity,
           ease: 'easeInOut',
         }}
@@ -635,6 +918,66 @@ export const Mascot3D: React.FC<Mascot3DProps> = ({
           marginTop: 18,
         }}
       />
+
+      {/* --- FUN INTERACTIVE TRICK CONTROLS --- */}
+      <div className="flex items-center gap-1.5 mt-2 z-20">
+        <motion.button
+          whileHover={{ scale: 1.08 }}
+          whileTap={{ scale: 0.9 }}
+          type="button"
+          onClick={() => triggerTrick('flip')}
+          className="text-[11px] px-2.5 py-1 rounded-full text-white/60 hover:text-white"
+          style={{
+            background: 'rgba(255, 255, 255, 0.05)',
+            border: '0.5px solid rgba(255, 255, 255, 0.1)',
+          }}
+          title="Make Ledgie do a flip!"
+        >
+          🚀 Flip
+        </motion.button>
+        <motion.button
+          whileHover={{ scale: 1.08 }}
+          whileTap={{ scale: 0.9 }}
+          type="button"
+          onClick={() => triggerTrick('hearts')}
+          className="text-[11px] px-2.5 py-1 rounded-full text-white/60 hover:text-white"
+          style={{
+            background: 'rgba(255, 255, 255, 0.05)',
+            border: '0.5px solid rgba(255, 255, 255, 0.1)',
+          }}
+          title="Send Ledgie love!"
+        >
+          💖 Love
+        </motion.button>
+        <motion.button
+          whileHover={{ scale: 1.08 }}
+          whileTap={{ scale: 0.9 }}
+          type="button"
+          onClick={() => triggerTrick('dizzy')}
+          className="text-[11px] px-2.5 py-1 rounded-full text-white/60 hover:text-white"
+          style={{
+            background: 'rgba(255, 255, 255, 0.05)',
+            border: '0.5px solid rgba(255, 255, 255, 0.1)',
+          }}
+          title="Spin Ledgie round!"
+        >
+          🌀 Spin
+        </motion.button>
+        <motion.button
+          whileHover={{ scale: 1.08 }}
+          whileTap={{ scale: 0.9 }}
+          type="button"
+          onClick={() => triggerTrick('party')}
+          className="text-[11px] px-2.5 py-1 rounded-full text-white/60 hover:text-white"
+          style={{
+            background: 'rgba(255, 255, 255, 0.05)',
+            border: '0.5px solid rgba(255, 255, 255, 0.1)',
+          }}
+          title="Party mode!"
+        >
+          🎉 Party
+        </motion.button>
+      </div>
     </div>
   );
 };

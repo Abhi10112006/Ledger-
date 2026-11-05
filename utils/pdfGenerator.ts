@@ -103,7 +103,7 @@ export const createStatementDoc = async (
           month: 'short',
           year: 'numeric'
         });
-        noteDetails += ` • Due: ${dueStr}`;
+        noteDetails += ` | Due: ${dueStr}`;
       } catch (e) {}
     }
 
@@ -152,7 +152,7 @@ export const createStatementDoc = async (
   today.setHours(0, 0, 0, 0);
 
   let isOverdue = false;
-  let statusText = "● SETTLED (ALL CLEAR)";
+  let statusText = "SETTLED (ALL CLEAR)";
   let pillBg: [number, number, number] = [236, 253, 245];
   let pillBorder: [number, number, number] = [16, 185, 129];
   let pillColor: [number, number, number] = [5, 150, 105];
@@ -166,29 +166,29 @@ export const createStatementDoc = async (
       if (diffDays < 0) {
         const daysLate = Math.abs(diffDays);
         isOverdue = true;
-        statusText = `● OVERDUE BY ${daysLate} DAY${daysLate === 1 ? '' : 'S'}`;
+        statusText = `OVERDUE BY ${daysLate} DAY${daysLate === 1 ? '' : 'S'}`;
         pillBg = [254, 242, 242];
         pillBorder = [239, 68, 68];
         pillColor = [220, 38, 38];
       } else if (diffDays === 0) {
-        statusText = `● DUE TODAY`;
+        statusText = `DUE TODAY`;
         pillBg = [255, 251, 235];
         pillBorder = [245, 158, 11];
         pillColor = [217, 119, 6];
       } else {
-        statusText = `● ${diffDays} DAY${diffDays === 1 ? '' : 'S'} REMAINING`;
+        statusText = `${diffDays} DAY${diffDays === 1 ? '' : 'S'} REMAINING`;
         pillBg = [238, 242, 255];
         pillBorder = [99, 102, 241];
         pillColor = [79, 70, 229];
       }
     } else {
-      statusText = `● ACTIVE DEAL (NO DUE DATE)`;
+      statusText = `ACTIVE DEAL (NO DUE DATE)`;
       pillBg = [241, 245, 249];
       pillBorder = [148, 163, 184];
       pillColor = [71, 85, 105];
     }
   } else if (friendTx.length === 0) {
-    statusText = `● NO TRANSACTIONS`;
+    statusText = `NO TRANSACTIONS`;
     pillBg = [241, 245, 249];
     pillBorder = [203, 213, 225];
     pillColor = [100, 116, 139];
@@ -206,22 +206,36 @@ export const createStatementDoc = async (
 
   const textStartX = logoBase64 ? margin + 20 : margin;
 
-  // Auto-calculated dynamic Status Badge (Top-Right) so it NEVER overflows
+  // Auto-calculated dynamic Status Badge (Top-Right) with crisp vector status dot (never corrupts as text)
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(7.5);
-  const pillPaddingX = 4;
   const textWidth = doc.getTextWidth(statusText);
-  const pillW = Math.max(38, textWidth + pillPaddingX * 2);
-  const pillH = 8.5;
+  const dotRadius = 1.0;
+  const dotToTextGap = 2.0;
+  const paddingX = 4.5;
+  const contentW = (dotRadius * 2) + dotToTextGap + textWidth;
+  const pillW = Math.max(38, contentW + (paddingX * 2));
+  const pillH = 8.0;
   const pillX = pageWidth - margin - pillW;
-  const pillY = 15;
+  const pillY = 14.5;
 
+  // Draw pill background and border
   doc.setFillColor(...pillBg);
   doc.setDrawColor(...pillBorder);
   doc.setLineWidth(0.3);
   doc.roundedRect(pillX, pillY, pillW, pillH, 2, 2, 'FD');
+
+  // Draw crisp vector circle dot (centered horizontally with text inside pill)
+  const startContentX = pillX + ((pillW - contentW) / 2);
+  const dotCenterX = startContentX + dotRadius;
+  const dotCenterY = pillY + (pillH / 2);
+  doc.setFillColor(...pillColor);
+  doc.circle(dotCenterX, dotCenterY, dotRadius, 'F');
+
+  // Draw clean ASCII status text
+  const textX = startContentX + (dotRadius * 2) + dotToTextGap;
   doc.setTextColor(...pillColor);
-  doc.text(statusText, pillX + (pillW / 2), pillY + 5.5, { align: 'center' });
+  doc.text(statusText, textX, pillY + 5.2, { align: 'left' });
 
   // Draw Title without colliding with the pill
   const maxTitleW = pillX - textStartX - 6;
@@ -278,7 +292,7 @@ export const createStatementDoc = async (
   doc.setFontSize(7.5);
   doc.setTextColor(100, 116, 139);
   const refCode = profileId.replace(/[^a-zA-Z0-9]/g, '').slice(0, 8).toUpperCase();
-  doc.text(`Issued: ${formatDate(new Date())}  •  Ref: #${refCode}`, col2X + 4, infoY + 18);
+  doc.text(`Issued: ${formatDate(new Date())}  |  Ref: #${refCode}`, col2X + 4, infoY + 18);
 
   // --- 3. EXECUTIVE FINANCIAL SUMMARY CARDS ---
   const sumY = 63;
@@ -439,7 +453,7 @@ export const createStatementDoc = async (
         doc.setFont('helvetica', 'normal');
         doc.setFontSize(7.5);
         doc.setTextColor(148, 163, 184);
-        doc.text(`Digitally generated via ${appTitle} • Confidential Financial Document`, margin, footerY);
+        doc.text(`Digitally generated via ${appTitle}  |  Confidential Financial Document`, margin, footerY);
 
         const pageStr = `Page ${doc.getNumberOfPages()}`;
         doc.text(pageStr, pageWidth - margin, footerY, { align: 'right' });

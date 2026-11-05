@@ -167,6 +167,7 @@ const AppContent: React.FC = () => {
     closeKeyboard();
     if (typeof window !== 'undefined') {
       sessionStorage.setItem('abhi_ledger_is_logged_out', 'true');
+      localStorage.removeItem('abhi_ledger_logged_in');
     }
     setIsLoggedIn(false);
   }, [closeAd, setIsLoggedIn, closeKeyboard, haptic]);
@@ -661,6 +662,7 @@ const AppContent: React.FC = () => {
           onLogin={() => {
             if (typeof window !== 'undefined') {
               sessionStorage.removeItem('abhi_ledger_is_logged_out');
+              localStorage.setItem('abhi_ledger_logged_in', 'true');
             }
             haptic('medium');
             setIsLoggedIn(true);

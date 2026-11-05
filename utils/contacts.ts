@@ -32,12 +32,47 @@ export const fetchDeviceContactsList = async (forceRefresh = false): Promise<Dev
     return cachedContactsList;
   }
 
+  const sanitizeAndSort = (rawContacts: any[]): DeviceContact[] => {
+    const mapped: DeviceContact[] = [];
+    const seen = new Set<string>();
+
+    for (let i = 0; i < rawContacts.length; i++) {
+      const c = rawContacts[i];
+      if (!c) continue;
+      const rawName = typeof c.name === 'string' ? c.name : (c.name?.display || c.displayName || '');
+      const name = (rawName || '').trim();
+      if (!name) continue;
+
+      let phone = '';
+      if (typeof c.phone === 'string') {
+        phone = c.phone.trim();
+      } else if (Array.isArray(c.phones) && c.phones.length > 0) {
+        phone = (c.phones[0]?.number || '').trim();
+      }
+
+      const key = `${name.toLowerCase()}_${phone.replace(/[^\d+]/g, '')}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        mapped.push({
+          id: c.id ? String(c.id) : `contact_${i}`,
+          name,
+          phone
+        });
+      }
+    }
+
+    // Default alphabetical sorting A-Z
+    mapped.sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }));
+    return mapped;
+  };
+
   if (Capacitor.isNativePlatform()) {
     try {
       const res = await NativeContacts.getDeviceContacts();
-      if (res && Array.isArray(res.contacts)) {
-        cachedContactsList = res.contacts;
-        return res.contacts;
+      if (res && Array.isArray(res.contacts) && res.contacts.length > 0) {
+        const sorted = sanitizeAndSort(res.contacts);
+        cachedContactsList = sorted;
+        return sorted;
       }
     } catch (e: any) {
       console.warn('Native getDeviceContacts failed, attempting community fallback:', e);
@@ -55,36 +90,9 @@ export const fetchDeviceContactsList = async (forceRefresh = false): Promise<Dev
     });
 
     if (result && Array.isArray(result.contacts)) {
-      const mapped: DeviceContact[] = [];
-      const seen = new Set<string>();
-
-      for (const c of result.contacts) {
-        let name = c.name?.display;
-        if (!name) {
-          const given = c.name?.given || '';
-          const family = c.name?.family || '';
-          name = `${given} ${family}`.trim();
-        }
-        if (!name) continue;
-
-        let phone = '';
-        if (c.phones && c.phones.length > 0) {
-          phone = (c.phones[0].number || '').replace(/[^\d+]/g, '');
-        }
-
-        const key = `${name.toLowerCase()}_${phone}`;
-        if (!seen.has(key)) {
-          seen.add(key);
-          mapped.push({
-            id: c.contactId || String(mapped.length),
-            name,
-            phone
-          });
-        }
-      }
-
-      cachedContactsList = mapped;
-      return mapped;
+      const sorted = sanitizeAndSort(result.contacts);
+      cachedContactsList = sorted;
+      return sorted;
     }
   } catch (e) {
     console.warn('Failed fetching contacts from community plugin:', e);
