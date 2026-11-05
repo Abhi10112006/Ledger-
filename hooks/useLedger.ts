@@ -24,6 +24,7 @@ const DEFAULT_SETTINGS: AppSettings = {
   background: 'solid',
   currency: '₹',
   language: 'en',
+  hasOnboarded: false,
   upiId: '',
   upiName: '',
   baseColor: 'slate',
@@ -128,10 +129,13 @@ export const useLedger = (tourStep: number, searchQuery: string = '') => {
 
         // 2. Load Transactions from IndexedDB
         const dbTxs = await getAllTransactions();
+        const isLoggedOut = typeof window !== 'undefined' && sessionStorage.getItem('abhi_ledger_is_logged_out') === 'true';
 
         if (dbTxs.length > 0) {
           setTransactions(dbTxs);
-          setIsLoggedIn(true);
+          if (!isLoggedOut) {
+            setIsLoggedIn(true);
+          }
         } else {
           // One-time Migration for Transactions
           const legacyTx = localStorage.getItem(STORAGE_KEY_LEGACY);
@@ -142,7 +146,9 @@ export const useLedger = (tourStep: number, searchQuery: string = '') => {
               if (cleanData.length > 0) {
                 await migrateLegacyData(cleanData);
                 setTransactions(cleanData);
-                setIsLoggedIn(true);
+                if (!isLoggedOut) {
+                  setIsLoggedIn(true);
+                }
                 localStorage.removeItem(STORAGE_KEY_LEGACY);
               }
             } catch (e) {
@@ -455,6 +461,9 @@ export const useLedger = (tourStep: number, searchQuery: string = '') => {
     if (Array.isArray(newTxs)) {
       const sanitized = sanitizeTransactions(newTxs);
       setTransactions(sanitized);
+      if (typeof window !== 'undefined') {
+        sessionStorage.removeItem('abhi_ledger_is_logged_out');
+      }
       setIsLoggedIn(true);
       await bulkSaveTransactions(sanitized);
       if (newSettings) {

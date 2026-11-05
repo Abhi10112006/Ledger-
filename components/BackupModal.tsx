@@ -1,8 +1,7 @@
 import React, { useState, useRef } from 'react';
 import {
   X, ShieldCheck, HardDriveDownload, FileSpreadsheet, Lock,
-  CheckCircle2, AlertCircle, Loader2, ChevronRight, FileCheck,
-  FolderUp, Sparkles, Printer
+  CheckCircle2, AlertCircle, Loader2, ChevronRight, FolderUp, Printer, Sparkles
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Transaction, AppSettings } from '../types';
@@ -41,7 +40,7 @@ export const BackupModal: React.FC<Props> = ({
   const cardBg = isOled ? 'rgba(255, 255, 255, 0.05)' : '#1C1C1E';
   const cardBorder = isOled
     ? '0.5px solid rgba(255, 255, 255, 0.1)'
-    : '0.5px solid rgba(255, 255, 255, 0.07)';
+    : '0.5px solid rgba(255, 255, 255, 0.08)';
 
   const showToast = (message: string, type: 'success' | 'error' = 'success') => {
     window.dispatchEvent(
@@ -51,7 +50,7 @@ export const BackupModal: React.FC<Props> = ({
     setTimeout(() => setFeedback(null), 4000);
   };
 
-  // ─── OPTION A: SAVE ENCRYPTED BACKUP ───
+  // ─── OPTION A: SAVE SECURE BACKUP ───
   const handleSaveEncryptedBackup = async () => {
     haptic('medium');
     setIsExportingBak(true);
@@ -59,10 +58,10 @@ export const BackupModal: React.FC<Props> = ({
       const result = await exportEncryptedBackup(transactions, settings);
       if (result.success) {
         haptic('success');
-        showToast(`Encrypted backup saved: ${result.fileName}`);
+        showToast(`Backup saved to Documents/Ledger/Backups/`);
       } else {
         haptic('error');
-        showToast(result.error || 'Failed to create encrypted backup.', 'error');
+        showToast(result.error || 'Failed to create backup.', 'error');
       }
     } catch (err: any) {
       haptic('error');
@@ -90,14 +89,14 @@ export const BackupModal: React.FC<Props> = ({
     try {
       const { transactions: restoredTx, settings: restoredSettings } = await importBackupFile(file);
       haptic('success');
-      showToast(`Restored ${restoredTx.length} transaction records successfully!`);
+      showToast(`Restored ${restoredTx.length} records successfully!`);
       onRestoreSuccess(restoredTx, restoredSettings);
       setTimeout(() => {
         onClose();
       }, 1200);
     } catch (err: any) {
       haptic('error');
-      showToast(err?.message || 'Failed to decrypt or restore backup file.', 'error');
+      showToast(err?.message || 'Could not read backup file. Please try another file.', 'error');
     } finally {
       setIsRestoring(false);
       if (fileInputRef.current) fileInputRef.current.value = '';
@@ -112,10 +111,10 @@ export const BackupModal: React.FC<Props> = ({
       const result = await exportExcelDossier(transactions, settings);
       if (result.success) {
         haptic('success');
-        showToast(`Print-ready Excel dossier exported!`);
+        showToast(`Excel file saved to Documents/Ledger/Excel Reports/`);
       } else {
         haptic('error');
-        showToast(result.error || 'Failed to export Excel dossier.', 'error');
+        showToast(result.error || 'Failed to export Excel file.', 'error');
       }
     } catch (err: any) {
       haptic('error');
@@ -169,8 +168,8 @@ export const BackupModal: React.FC<Props> = ({
             width: '100%',
             maxWidth: 520,
             maxHeight: '94vh',
-            borderTopLeftRadius: 30,
-            borderTopRightRadius: 30,
+            borderTopLeftRadius: 28,
+            borderTopRightRadius: 28,
             background: sheetBg,
             border: '0.5px solid rgba(255, 255, 255, 0.12)',
             boxShadow: '0 -20px 60px rgba(0, 0, 0, 0.85)',
@@ -231,7 +230,7 @@ export const BackupModal: React.FC<Props> = ({
                     fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", Inter, sans-serif',
                   }}
                 >
-                  Backup & Export Vault
+                  Backup & Export
                 </h2>
                 <div
                   style={{
@@ -250,7 +249,7 @@ export const BackupModal: React.FC<Props> = ({
                   }}
                 >
                   <Lock size={10} />
-                  Native Safe
+                  Safe & Private
                 </div>
               </div>
               <p
@@ -261,7 +260,7 @@ export const BackupModal: React.FC<Props> = ({
                   letterSpacing: '-0.01em',
                 }}
               >
-                Secure your ledger data with native encryption or audit reports
+                Keep your accounts safe or export ready-to-print spreadsheets
               </p>
             </div>
 
@@ -314,12 +313,12 @@ export const BackupModal: React.FC<Props> = ({
             </motion.div>
           )}
 
-          {/* Hidden File Input for Restore */}
+          {/* Hidden File Input for Restore - Supports all standard and legacy backup types */}
           <input
             type="file"
             ref={fileInputRef}
             onChange={handleFileChange}
-            accept=".ledgerbak,.json"
+            accept="*/*,.ledgerbak,.json,.bak,.abhibak,application/json,application/octet-stream"
             style={{ display: 'none' }}
           />
 
@@ -334,7 +333,7 @@ export const BackupModal: React.FC<Props> = ({
               zIndex: 1,
             }}
           >
-            {/* ─── CARD A: SAVE ENCRYPTED BACKUP ─── */}
+            {/* ─── CARD A: SAVE SECURE BACKUP ─── */}
             <motion.div
               whileHover={{ y: -1 }}
               whileTap={{ scale: 0.985 }}
@@ -382,7 +381,7 @@ export const BackupModal: React.FC<Props> = ({
                           letterSpacing: '-0.01em',
                         }}
                       >
-                        Save Encrypted Backup
+                        Save Secure Backup
                       </span>
                       <span
                         style={{
@@ -395,7 +394,7 @@ export const BackupModal: React.FC<Props> = ({
                           color: '#34D399',
                         }}
                       >
-                        .LEDGERBAK
+                        PROTECTED
                       </span>
                     </div>
                     <span
@@ -406,7 +405,7 @@ export const BackupModal: React.FC<Props> = ({
                         display: 'block',
                       }}
                     >
-                      AES-256-GCM Native Encryption
+                      Saved to Documents/Ledger/Backups
                     </span>
                   </div>
                 </div>
@@ -440,8 +439,8 @@ export const BackupModal: React.FC<Props> = ({
                   color: 'rgba(235, 235, 245, 0.65)',
                 }}
               >
-                Encrypts all {transactions.length} active counterparties, loans, installments, and settings.
-                The encrypted payload is sealed with native Android hardware algorithms so only this Ledger app can decipher it.
+                Creates a protected backup file of all your {transactions.length} transactions, contacts, and app preferences.
+                Your data is encrypted natively on this phone and stored safely in your phone's storage.
               </p>
 
               {/* Action Pill */}
@@ -461,7 +460,7 @@ export const BackupModal: React.FC<Props> = ({
                   }}
                 >
                   <Lock size={12} />
-                  <span>Generate Encrypted Vault File</span>
+                  <span>Save Backup (.ledgerbak)</span>
                 </div>
               </div>
             </motion.div>
@@ -527,7 +526,7 @@ export const BackupModal: React.FC<Props> = ({
                           color: '#C4B5FD',
                         }}
                       >
-                        IMPORT & DECRYPT
+                        RESTORE
                       </span>
                     </div>
                     <span
@@ -538,7 +537,7 @@ export const BackupModal: React.FC<Props> = ({
                         display: 'block',
                       }}
                     >
-                      Supports .ledgerbak & Legacy JSON
+                      Supports .ledgerbak, .json & old files
                     </span>
                   </div>
                 </div>
@@ -572,8 +571,8 @@ export const BackupModal: React.FC<Props> = ({
                   color: 'rgba(235, 235, 245, 0.65)',
                 }}
               >
-                Seamlessly restore your ledger database on this device or when switching phones.
-                The app automatically identifies, authenticates, and decrypts the backup in memory.
+                Seamlessly restore your ledger records on this phone or when moving to a new device.
+                Works with any previous backup file, automatically detects the format, and restores your accounts instantly.
               </p>
 
               {/* Action Pill */}
@@ -593,12 +592,12 @@ export const BackupModal: React.FC<Props> = ({
                   }}
                 >
                   <HardDriveDownload size={12} />
-                  <span>Select Backup File to Restore</span>
+                  <span>Choose Backup File to Restore</span>
                 </div>
               </div>
             </motion.div>
 
-            {/* ─── CARD C: DOWNLOAD PRINT-READY EXCEL DOSSIER ─── */}
+            {/* ─── CARD C: DOWNLOAD PRINT-READY EXCEL ─── */}
             <motion.div
               whileHover={{ y: -1 }}
               whileTap={{ scale: 0.985 }}
@@ -646,7 +645,7 @@ export const BackupModal: React.FC<Props> = ({
                           letterSpacing: '-0.01em',
                         }}
                       >
-                        Print-Ready Excel Dossier
+                        Export to Excel
                       </span>
                       <span
                         style={{
@@ -659,7 +658,7 @@ export const BackupModal: React.FC<Props> = ({
                           color: '#FBBF24',
                         }}
                       >
-                        .XLSX WORKBOOK
+                        PRINT READY
                       </span>
                     </div>
                     <span
@@ -670,7 +669,7 @@ export const BackupModal: React.FC<Props> = ({
                         display: 'block',
                       }}
                     >
-                      Executive KPI Summary & Full Ledger
+                      Saved to Documents/Ledger/Excel Reports
                     </span>
                   </div>
                 </div>
@@ -704,8 +703,8 @@ export const BackupModal: React.FC<Props> = ({
                   color: 'rgba(235, 235, 245, 0.65)',
                 }}
               >
-                Comprehensive financial workbook containing the official app logo, executive KPI cards,
-                counterparty totals, and an audit-level detailed ledger. Pre-formatted with A4 landscape page setup for crisp physical printouts.
+                Generates a clean spreadsheet featuring your app logo, executive totals, client balances,
+                and complete transaction history. Pre-formatted for A4 paper and ready to print or share.
               </p>
 
               {/* Action Pill */}
@@ -725,7 +724,7 @@ export const BackupModal: React.FC<Props> = ({
                   }}
                 >
                   <Printer size={12} />
-                  <span>Download Print-Ready .XLSX</span>
+                  <span>Download Excel (.xlsx)</span>
                 </div>
               </div>
             </motion.div>
@@ -734,14 +733,14 @@ export const BackupModal: React.FC<Props> = ({
           {/* Footer note */}
           <div
             style={{
-              padding: '4px 24px 8px',
+              padding: '6px 24px 12px',
               textAlign: 'center',
               fontSize: 11.5,
               color: 'rgba(235, 235, 245, 0.4)',
               letterSpacing: '-0.01em',
             }}
           >
-            All operations run 100% offline on your device with zero cloud tracking.
+            All records are stored directly on your phone and stay 100% private to you.
           </div>
         </motion.div>
       </div>

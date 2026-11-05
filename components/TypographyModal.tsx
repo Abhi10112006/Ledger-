@@ -16,6 +16,7 @@ interface Props {
   currentFont: FontStyle;
   onSelect: (font: FontStyle) => void;
   activeTheme: any;
+  currency?: string;
 }
 
 interface FontOption {
@@ -100,14 +101,21 @@ export const TypographyModal: React.FC<Props> = ({
   currentFont,
   onSelect,
   activeTheme,
+  currency = '₹',
 }) => {
   const [previewFont, setPreviewFont] = useState<FontStyle>(currentFont);
   const haptic = useHaptics();
 
+  // Keep previewFont in sync if currentFont changes from outside
+  React.useEffect(() => {
+    setPreviewFont(currentFont);
+  }, [currentFont]);
+
   if (!isOpen) return null;
 
   const handleSelectFont = async (fontId: FontStyle) => {
-    haptic('success');
+    haptic('selection');
+    setPreviewFont(fontId);
     onSelect(fontId);
     if (Capacitor.isNativePlatform()) {
       try {
@@ -116,9 +124,6 @@ export const TypographyModal: React.FC<Props> = ({
         // Safe ignore
       }
     }
-    setTimeout(() => {
-      onClose();
-    }, 180);
   };
 
   const activeFontObj = FONTS.find((f) => f.id === previewFont) || FONTS[0];
@@ -258,52 +263,129 @@ export const TypographyModal: React.FC<Props> = ({
             </button>
           </div>
 
-          {/* ─── LIVE FINANCIAL PREVIEW CARD ─── */}
-          <div style={{ padding: '0 20px 16px', position: 'relative', zIndex: 1 }}>
+          {/* ─── LIVE FINANCIAL SPECIMEN STAGE ─── */}
+          <div style={{ padding: '0 20px 18px', position: 'relative', zIndex: 1 }}>
             <div
               style={{
-                background: 'rgba(255, 255, 255, 0.05)',
-                border: '0.5px solid rgba(255, 255, 255, 0.08)',
-                borderRadius: 18,
-                padding: '14px 16px',
+                position: 'relative',
+                overflow: 'hidden',
+                background: 'linear-gradient(145deg, rgba(28, 28, 34, 0.95) 0%, rgba(16, 16, 20, 0.98) 100%)',
+                border: `1px solid ${activeTheme.hex}35`,
+                borderRadius: 22,
+                padding: '16px 18px',
+                boxShadow: `0 8px 30px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.1), 0 0 24px ${activeTheme.hex}15`,
                 display: 'flex',
                 flexDirection: 'column',
-                gap: 8,
+                gap: 12,
               }}
             >
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <span style={{ fontSize: 11, fontWeight: 600, color: 'rgba(235, 235, 245, 0.45)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                  Live Specimen Preview
-                </span>
-                <span style={{ fontSize: 11, fontWeight: 600, color: activeTheme.hex }}>
-                  {activeFontObj.label}
-                </span>
-              </div>
+              {/* Background ambient mesh */}
+              <div
+                style={{
+                  position: 'absolute',
+                  top: -30,
+                  right: -30,
+                  width: 140,
+                  height: 140,
+                  borderRadius: '50%',
+                  background: `radial-gradient(circle, ${activeTheme.hex}25 0%, transparent 70%)`,
+                  pointerEvents: 'none',
+                }}
+              />
 
-              {/* Sample Financial Content */}
-              <div className={activeFontObj.familyClass} style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginTop: 2 }}>
-                <div>
-                  <div style={{ fontSize: 24, fontWeight: 700, color: '#FFFFFF', letterSpacing: '-0.02em' }}>
-                    $14,250.00
-                  </div>
-                  <div style={{ fontSize: 13, color: 'rgba(235, 235, 245, 0.6)', marginTop: 2 }}>
-                    Principal Lent to Alex Carter
-                  </div>
+              {/* Stage Top Bar */}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '0.5px solid rgba(255, 255, 255, 0.08)', paddingBottom: 10 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <div
+                    style={{
+                      width: 7,
+                      height: 7,
+                      borderRadius: '50%',
+                      background: activeTheme.hex,
+                      boxShadow: `0 0 8px ${activeTheme.hex}`,
+                    }}
+                  />
+                  <span
+                    style={{
+                      fontSize: 10,
+                      fontWeight: 700,
+                      letterSpacing: '0.08em',
+                      textTransform: 'uppercase',
+                      color: 'rgba(235, 235, 245, 0.65)',
+                    }}
+                  >
+                    Active Specimen Stage
+                  </span>
                 </div>
 
                 <div
                   style={{
-                    padding: '4px 10px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    padding: '3px 8px',
                     borderRadius: 8,
-                    background: `${activeTheme.hex}22`,
+                    background: `${activeTheme.hex}18`,
                     border: `0.5px solid ${activeTheme.hex}40`,
-                    color: activeTheme.hex,
-                    fontSize: 11,
-                    fontWeight: 700,
                   }}
                 >
-                  ● 12 DAYS LEFT
+                  <Sparkles size={11} style={{ color: activeTheme.hex }} />
+                  <span style={{ fontSize: 11, fontWeight: 700, color: activeTheme.hex }}>
+                    {activeFontObj.label}
+                  </span>
                 </div>
+              </div>
+
+              {/* Primary Financial Specimen Display */}
+              <div className={activeFontObj.familyClass} style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between' }}>
+                  <div style={{ fontSize: 28, fontWeight: 800, color: '#FFFFFF', letterSpacing: '-0.03em', lineHeight: 1.1 }}>
+                    {currency}14,250.00
+                  </div>
+                  <div
+                    style={{
+                      padding: '3px 8px',
+                      borderRadius: 6,
+                      background: 'rgba(16, 185, 129, 0.15)',
+                      border: '0.5px solid rgba(16, 185, 129, 0.35)',
+                      color: '#34d399',
+                      fontSize: 10.5,
+                      fontWeight: 700,
+                      letterSpacing: '0.02em',
+                    }}
+                  >
+                    ● DUE IN 12 DAYS
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 2 }}>
+                  <span style={{ fontSize: 13, color: 'rgba(235, 235, 245, 0.75)', fontWeight: 500 }}>
+                    Principal Lent to Alex Carter
+                  </span>
+                  <span style={{ fontSize: 11.5, color: activeTheme.hex, fontWeight: 600 }}>
+                    + {currency}1,250 interest (8.5%)
+                  </span>
+                </div>
+              </div>
+
+              {/* Character & Numeral Specimen Strip */}
+              <div
+                className={activeFontObj.familyClass}
+                style={{
+                  background: 'rgba(0, 0, 0, 0.35)',
+                  border: '0.5px solid rgba(255, 255, 255, 0.05)',
+                  borderRadius: 10,
+                  padding: '7px 10px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  fontSize: 11,
+                  color: 'rgba(235, 235, 245, 0.5)',
+                  letterSpacing: '0.04em',
+                }}
+              >
+                <span>ABCDEFGHIJK • abcdefghijk</span>
+                <span style={{ color: 'rgba(255, 255, 255, 0.8)', fontWeight: 600 }}>0123456789</span>
               </div>
             </div>
           </div>
@@ -319,7 +401,6 @@ export const TypographyModal: React.FC<Props> = ({
                   key={font.id}
                   whileTap={{ scale: 0.985 }}
                   onClick={() => {
-                    setPreviewFont(font.id);
                     handleSelectFont(font.id);
                   }}
                   onMouseEnter={() => setPreviewFont(font.id)}

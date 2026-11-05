@@ -4,12 +4,13 @@ import { formatAppTitle } from './branding';
 import { downloadOrShare } from './androidFileHandler';
 
 interface NativeBackupPluginInterface {
-  encrypt(options: { data: string }): Promise<{ encryptedData: string }>;
+  encrypt(options: { data: string }): Promise<{ encryptedData: string; version?: number }>;
   decrypt(options: { encryptedData: string }): Promise<{ data: string }>;
 }
 
 const NativeBackup = registerPlugin<NativeBackupPluginInterface>('NativeBackup');
 
+const HEADER_V3 = "ABHI_LEDGER_ENCRYPTED_V3:";
 const HEADER_V2 = "ABHI_LEDGER_ENCRYPTED_V2:";
 const MASTER_SECRET = "AbhiLedgerMasterEncryptedV2_#9871!";
 const FIXED_SALT = "AbhiLedgerAppSalt_2026_Secure";
@@ -70,16 +71,19 @@ async function webCryptoEncrypt(plainText: string): Promise<string> {
     binary += String.fromCharCode(combined[i]);
   }
   const base64 = btoa(binary);
-  return HEADER_V2 + base64;
+  return HEADER_V3 + base64;
 }
 
 async function webCryptoDecrypt(encryptedPayload: string): Promise<string> {
   const payload = encryptedPayload.trim();
-  if (!payload.startsWith(HEADER_V2)) {
+  let base64Content = '';
+  if (payload.startsWith(HEADER_V3)) {
+    base64Content = payload.substring(HEADER_V3.length);
+  } else if (payload.startsWith(HEADER_V2)) {
+    base64Content = payload.substring(HEADER_V2.length);
+  } else {
     throw new Error('Invalid file format. Not an encrypted Ledger backup file.');
   }
-
-  const base64Content = payload.substring(HEADER_V2.length);
   const binary = atob(base64Content);
   const combined = new Uint8Array(binary.length);
   for (let i = 0; i < binary.length; i++) {
@@ -192,7 +196,7 @@ export async function exportEncryptedBackup(
 }
 
 /**
- * Reads and decrypts a user-selected backup file (.ledgerbak or legacy .json).
+ * Reads and decrypts a user-selected backup file (.ledgerbak, new format, or legacy .json).
  */
 export async function importBackupFile(
   file: File
@@ -202,48 +206,111 @@ export async function importBackupFile(
     reader.onerror = () => reject(new Error('Failed to read the backup file.'));
     reader.onload = async (e) => {
       try {
-        const content = (e.target?.result as string) || '';
-        const trimmed = content.trim();
+        const rawContent = (e.target?.result as string) || '';
+        // Strip BOM and surrounding whitespace
+        let content = rawContent.replace(/^\uFEFF/, '').trim();
 
-        // 1. If it's an encrypted .ledgerbak file
-        if (trimmed.startsWith(HEADER_V2)) {
-          const decryptedJson = await decryptData(trimmed);
-          const parsed = JSON.parse(decryptedJson);
+        let jsonPayload = '';
 
-          if (parsed && Array.isArray(parsed.transactions)) {
-            resolve({
-              transactions: parsed.transactions,
-              settings: parsed.settings,
-            });
-            return;
+        // 1. If it's an encrypted backup file (V3 or V2)
+        if (content.startsWith(HEADER_V3) || content.startsWith(HEADER_V2)) {
+          jsonPayload = await decryptData(content);
+        } else {
+          // 2. Check if it's base64 encoded text
+          try {
+            if (/^[A-Za-z0-9+/=]+$/.test(content) && content.length > 30) {
+              const decoded = atob(content).trim();
+              if (decoded.startsWith(HEADER_V3) || decoded.startsWith(HEADER_V2)) {
+                jsonPayload = await decryptData(decoded);
+              } else if (decoded.startsWith('{') || decoded.startsWith('[')) {
+                jsonPayload = decoded;
+              }
+            }
+          } catch (_) {
+            // Not base64, continue
           }
-          if (Array.isArray(parsed)) {
-            resolve({ transactions: parsed });
-            return;
+
+          // 3. If still not set, check if it's plaintext JSON
+          if (!jsonPayload) {
+            if (content.startsWith('{') || content.startsWith('[')) {
+              jsonPayload = content;
+            }
           }
-          reject(new Error('Decrypted backup content is missing transaction records.'));
+        }
+
+        if (!jsonPayload) {
+          reject(new Error('Unrecognized backup format. Please select a valid .ledgerbak, .json, or .bak file.'));
           return;
         }
 
-        // 2. Legacy fallback: Plain JSON backup file
-        if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
-          const parsed = JSON.parse(trimmed);
-          if (Array.isArray(parsed)) {
-            resolve({ transactions: parsed });
+        const parsed = JSON.parse(jsonPayload);
+        let rawTransactions: any[] = [];
+        let restoredSettings: AppSettings | undefined = undefined;
+
+        if (Array.isArray(parsed)) {
+          rawTransactions = parsed;
+        } else if (parsed && typeof parsed === 'object') {
+          if (Array.isArray(parsed.transactions)) {
+            rawTransactions = parsed.transactions;
+          } else if (parsed.data && Array.isArray(parsed.data.transactions)) {
+            rawTransactions = parsed.data.transactions;
+          } else if (parsed.state && Array.isArray(parsed.state.transactions)) {
+            rawTransactions = parsed.state.transactions;
+          }
+          if (parsed.settings && typeof parsed.settings === 'object') {
+            restoredSettings = parsed.settings;
+          }
+        }
+
+        if (!Array.isArray(rawTransactions) || rawTransactions.length === 0) {
+          // If transactions array was empty, still allow if it was valid JSON backup with 0 records
+          if (parsed && (Array.isArray(parsed) || Array.isArray(parsed.transactions))) {
+            resolve({ transactions: [], settings: restoredSettings });
             return;
           }
-          if (parsed && Array.isArray(parsed.transactions)) {
-            resolve({
-              transactions: parsed.transactions,
-              settings: parsed.settings,
-            });
-            return;
-          }
-          reject(new Error('File content does not contain valid transaction records.'));
+          reject(new Error('File does not contain valid transaction records.'));
           return;
         }
 
-        reject(new Error('Unrecognized backup format. Please select a valid .ledgerbak or .json file.'));
+        // Clean & normalize transaction schema
+        const nowIso = new Date().toISOString();
+        const cleanTransactions: Transaction[] = rawTransactions.map((tx: any, idx: number) => {
+          const friendName = (tx.friendName || tx.name || 'Unknown').trim();
+          const cleanPid = tx.profileId || `PRF-${friendName.slice(0, 3).toUpperCase()}-${idx + 100}`;
+          const pAmount = Number(tx.principalAmount ?? tx.amount ?? 0) || 0;
+          const pPaid = Number(tx.paidAmount ?? tx.repaidAmount ?? 0) || 0;
+
+          const reps = Array.isArray(tx.repayments)
+            ? tx.repayments.map((r: any, rIdx: number) => ({
+                id: r.id || `rep-${idx}-${rIdx}`,
+                amount: Number(r.amount) || 0,
+                date: r.date ? new Date(r.date).toISOString() : nowIso,
+              }))
+            : [];
+
+          return {
+            id: tx.id || `tx-${idx}-${Date.now()}`,
+            profileId: cleanPid,
+            friendName,
+            friendPhone: tx.friendPhone || tx.phoneNumber || '',
+            principalAmount: pAmount,
+            paidAmount: pPaid,
+            startDate: tx.startDate ? new Date(tx.startDate).toISOString() : nowIso,
+            returnDate: tx.returnDate || tx.dueDate ? new Date(tx.returnDate || tx.dueDate).toISOString() : nowIso,
+            notes: tx.notes || tx.description || '',
+            interestType: tx.interestType || 'none',
+            interestRate: Number(tx.interestRate) || 0,
+            isCompleted: typeof tx.isCompleted === 'boolean' ? tx.isCompleted : !!tx.isSettled,
+            repayments: reps,
+            hasTime: !!tx.hasTime,
+            interestFreeIfPaidByDueDate: !!tx.interestFreeIfPaidByDueDate,
+          };
+        });
+
+        resolve({
+          transactions: cleanTransactions,
+          settings: restoredSettings,
+        });
       } catch (err: any) {
         reject(new Error(err?.message || 'Failed to decrypt or parse backup file.'));
       }

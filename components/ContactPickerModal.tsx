@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Search, User, Phone, Check, RefreshCw, UserPlus, Sparkles } from 'lucide-react';
+import { X, Search, User, Phone, Check, RefreshCw, UserPlus, Sparkles, Hash } from 'lucide-react';
 import { fetchDeviceContactsList, DeviceContact } from '../utils/contacts';
 import { triggerHaptic } from '../hooks/useHaptics';
 
@@ -26,10 +26,10 @@ const AVATAR_GRADIENTS = [
 
 const getInitials = (name: string): string => {
   const parts = name.trim().split(/\s+/);
-  if (parts.length >= 2) {
+  if (parts.length >= 2 && parts[0] && parts[1]) {
     return (parts[0][0] + parts[1][0]).toUpperCase();
   }
-  return name.slice(0, 2).toUpperCase();
+  return (name.slice(0, 2) || '??').toUpperCase();
 };
 
 const getGradientForName = (name: string): string => {
@@ -39,6 +39,46 @@ const getGradientForName = (name: string): string => {
   }
   const index = Math.abs(hash) % AVATAR_GRADIENTS.length;
   return AVATAR_GRADIENTS[index];
+};
+
+/**
+ * Intelligently separates an input query into name and phone number.
+ * - If input is purely or predominantly phone digits (e.g. "9876543210", "+91 98765-43210"), sets phone and leaves name blank.
+ * - If input contains both name and phone (e.g. "Rohan 9876543210"), parses both out.
+ * - If input is letters/text, sets name and leaves phone blank.
+ */
+export const parseCustomContactInput = (input: string): { name: string; phone: string; isPhoneOnly: boolean } => {
+  const raw = input.trim();
+  if (!raw) return { name: '', phone: '', isPhoneOnly: false };
+
+  // 1. Check for combined Name + Phone number (e.g., "Rohan 9876543210" or "+919876543210 Rahul")
+  const phoneRegex = /(\+?[0-9][0-9\s\-()]{6,}[0-9])/;
+  const match = raw.match(phoneRegex);
+
+  if (match) {
+    const detectedPhone = match[0].trim();
+    const remainingText = raw
+      .replace(detectedPhone, '')
+      .replace(/^[-–—:,/]+|[-–—:,/]+$/g, '')
+      .trim();
+
+    if (remainingText.length > 0) {
+      return { name: remainingText, phone: detectedPhone, isPhoneOnly: false };
+    }
+    // Only phone was present in the match
+    return { name: '', phone: detectedPhone, isPhoneOnly: true };
+  }
+
+  // 2. Check if the string is purely digits and phone formatting symbols (+, -, space, parens)
+  const digitsOnly = raw.replace(/\D/g, '');
+  const nonPhoneChars = raw.replace(/[0-9\s+\-()]/g, '');
+
+  if (digitsOnly.length >= 6 && nonPhoneChars.length === 0) {
+    return { name: '', phone: raw, isPhoneOnly: true };
+  }
+
+  // 3. Otherwise treat as a Name
+  return { name: raw, phone: '', isPhoneOnly: false };
 };
 
 export const ContactPickerModal: React.FC<Props> = ({
@@ -52,6 +92,9 @@ export const ContactPickerModal: React.FC<Props> = ({
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const searchInputRef = useRef<HTMLInputElement | null>(null);
+
+  const themeHex = activeTheme?.hex || '#10b981';
 
   const loadContacts = async (force = false) => {
     setLoading(true);
@@ -70,6 +113,10 @@ export const ContactPickerModal: React.FC<Props> = ({
       setSearchQuery('');
       setSelectedId(null);
       loadContacts(false);
+      // Auto-focus search input with small delay for smooth mount transition
+      setTimeout(() => {
+        searchInputRef.current?.focus();
+      }, 150);
     }
   }, [isOpen]);
 
@@ -79,14 +126,34 @@ export const ContactPickerModal: React.FC<Props> = ({
     return s;
   }, [existingAccounts]);
 
+  // Robust Search: Matches Name, Phone raw string, and Normalized Digit string
   const filteredContacts = useMemo(() => {
     const q = searchQuery.toLowerCase().trim();
     if (!q) return contacts;
 
-    return contacts.filter(c =>
-      c.name.toLowerCase().includes(q) || c.phone.includes(q)
-    );
+    const qDigits = searchQuery.replace(/\D/g, '');
+
+    return contacts.filter(c => {
+      const name = (c.name || '').toLowerCase();
+      const phone = (c.phone || '').toLowerCase();
+      const phoneDigits = (c.phone || '').replace(/\D/g, '');
+
+      // 1. Name substring match
+      if (name.includes(q)) return true;
+
+      // 2. Raw phone string match
+      if (phone.includes(q)) return true;
+
+      // 3. Normalized digits match (e.g. typing "987654" matches "+91 (987) 654-3210")
+      if (qDigits.length >= 3 && phoneDigits.includes(qDigits)) return true;
+
+      return false;
+    });
   }, [contacts, searchQuery]);
+
+  const parsedCustom = useMemo(() => {
+    return parseCustomContactInput(searchQuery);
+  }, [searchQuery]);
 
   const handleSelectContact = (contact: DeviceContact) => {
     triggerHaptic('medium');
@@ -94,13 +161,18 @@ export const ContactPickerModal: React.FC<Props> = ({
     setTimeout(() => {
       onSelect({ name: contact.name, phone: contact.phone });
       onClose();
-    }, 220);
+    }, 180);
   };
 
-  const handleAddCustomName = () => {
+  const handleAddCustom = () => {
     if (!searchQuery.trim()) return;
     triggerHaptic('light');
-    onSelect({ name: searchQuery.trim(), phone: '' });
+
+    const parsed = parseCustomContactInput(searchQuery);
+    onSelect({
+      name: parsed.name,
+      phone: parsed.phone
+    });
     onClose();
   };
 
@@ -108,34 +180,34 @@ export const ContactPickerModal: React.FC<Props> = ({
 
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 z-[120] flex items-end sm:items-center justify-center p-0 sm:p-4">
+      <div className="fixed inset-0 z-[3600] flex items-end sm:items-center justify-center p-0 sm:p-4">
         {/* Backdrop */}
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           onClick={onClose}
-          className="fixed inset-0 bg-black/70 backdrop-blur-md"
+          className="fixed inset-0 bg-black/75 backdrop-blur-md"
         />
 
-        {/* Modal Window */}
+        {/* Modal Window Container */}
         <motion.div
           initial={{ y: '100%', opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           exit={{ y: '100%', opacity: 0 }}
-          transition={{ type: 'spring', damping: 28, stiffness: 300 }}
-          className="relative w-full max-w-lg h-[86vh] sm:h-[680px] bg-zinc-950/95 border border-white/10 rounded-t-[32px] sm:rounded-[32px] shadow-2xl flex flex-col overflow-hidden backdrop-blur-2xl"
+          transition={{ type: 'spring', damping: 28, stiffness: 320 }}
           style={{
-            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.7)',
+            fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Text", Inter, sans-serif',
           }}
+          className="relative w-full max-w-lg h-[88vh] sm:h-[680px] bg-[#121214] border border-white/10 rounded-t-[30px] sm:rounded-[30px] shadow-2xl flex flex-col overflow-hidden backdrop-blur-2xl"
         >
-          {/* Header Drag Handle for Mobile */}
+          {/* Top Drag Handle for Mobile */}
           <div className="w-full flex justify-center pt-3 pb-1 sm:hidden">
-            <div className="w-12 h-1.5 bg-zinc-700/60 rounded-full" />
+            <div className="w-10 h-1.5 bg-white/20 rounded-full" />
           </div>
 
-          {/* Top Bar */}
-          <div className="px-6 pt-4 pb-3 flex items-center justify-between border-b border-white/5">
+          {/* Top Bar Header */}
+          <div className="px-5 pt-3 pb-3 flex items-center justify-between border-b border-white/5">
             <div>
               <div className="flex items-center gap-2">
                 <h2 className="text-xl font-bold text-white tracking-tight">Choose Contact</h2>
@@ -143,44 +215,44 @@ export const ContactPickerModal: React.FC<Props> = ({
                   {contacts.length} Available
                 </span>
               </div>
-              <p className="text-xs text-zinc-400 mt-0.5">Select a contact to link or create a ledger record</p>
+              <p className="text-xs text-zinc-400 mt-0.5">Select from your phone or type to add</p>
             </div>
 
             <div className="flex items-center gap-2">
               <button
                 onClick={() => { triggerHaptic('light'); loadContacts(true); }}
                 disabled={loading}
-                className="p-2.5 rounded-full bg-zinc-900 border border-white/10 text-zinc-300 hover:text-white hover:bg-zinc-800 transition active:scale-95"
-                title="Refresh contacts"
+                className="p-2.5 rounded-full bg-white/5 border border-white/10 text-zinc-300 hover:text-white hover:bg-white/10 transition active:scale-95"
+                title="Refresh contacts from phone"
               >
                 <RefreshCw size={15} className={loading ? 'animate-spin text-emerald-400' : ''} />
               </button>
 
               <button
                 onClick={() => { triggerHaptic('light'); onClose(); }}
-                className="p-2.5 rounded-full bg-zinc-900 border border-white/10 text-zinc-400 hover:text-white hover:bg-zinc-800 transition active:scale-95"
+                className="p-2.5 rounded-full bg-white/5 border border-white/10 text-zinc-400 hover:text-white hover:bg-white/10 transition active:scale-95"
               >
                 <X size={16} />
               </button>
             </div>
           </div>
 
-          {/* Search Bar */}
-          <div className="p-4 border-b border-white/5 bg-zinc-900/40">
+          {/* Search Input Bar */}
+          <div className="p-3.5 px-4 border-b border-white/5 bg-zinc-900/60">
             <div className="relative flex items-center">
-              <Search className="absolute left-4 w-4 h-4 text-zinc-400 pointer-events-none" />
+              <Search className="absolute left-3.5 w-4 h-4 text-zinc-400 pointer-events-none z-10" />
               <input
+                ref={searchInputRef}
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search by contact name or phone number..."
-                className="w-full bg-zinc-900/90 border border-white/10 text-white placeholder-zinc-500 rounded-2xl pl-11 pr-10 py-3 text-sm focus:outline-none focus:border-emerald-500/50 focus:ring-2 focus:ring-emerald-500/20 transition"
-                autoFocus
+                placeholder="Search name or phone number..."
+                className="w-full bg-black/40 border border-white/10 text-white placeholder-zinc-500 rounded-xl pl-10 pr-9 py-2.5 text-sm focus:outline-none focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/25 transition"
               />
               {searchQuery && (
                 <button
-                  onClick={() => setSearchQuery('')}
-                  className="absolute right-3.5 p-1 rounded-full text-zinc-400 hover:text-white"
+                  onClick={() => { setSearchQuery(''); searchInputRef.current?.focus(); }}
+                  className="absolute right-3 p-1 rounded-full text-zinc-400 hover:text-white active:scale-90 z-10"
                 >
                   <X size={14} />
                 </button>
@@ -188,39 +260,46 @@ export const ContactPickerModal: React.FC<Props> = ({
             </div>
           </div>
 
-          {/* Contact List */}
-          <div className="flex-1 overflow-y-auto px-4 py-3 divide-y divide-white/5 scrollbar-thin scrollbar-thumb-zinc-800">
+          {/* Scrollable Contact List with Generous Bottom Padding */}
+          <div
+            className="flex-1 overflow-y-auto px-3.5 py-2 divide-y divide-white/5 scrollbar-thin scrollbar-thumb-zinc-800"
+            style={{
+              WebkitOverflowScrolling: 'touch',
+              overscrollBehavior: 'contain',
+              paddingBottom: 'calc(env(safe-area-inset-bottom, 20px) + 84px)',
+            }}
+          >
             {loading ? (
-              <div className="h-full flex flex-col items-center justify-center gap-3 text-zinc-400 py-16">
+              <div className="h-full flex flex-col items-center justify-center gap-3 text-zinc-400 py-20">
                 <RefreshCw size={28} className="animate-spin text-emerald-400" />
                 <span className="text-sm font-medium">Syncing contacts from phone...</span>
               </div>
             ) : filteredContacts.length > 0 ? (
               filteredContacts.map((contact, idx) => {
                 const isSelected = selectedId === contact.id;
-                const isInLedger = existingNameSet.has(contact.name.toLowerCase().trim());
-                const gradient = getGradientForName(contact.name);
+                const isInLedger = existingNameSet.has((contact.name || '').toLowerCase().trim());
+                const gradient = getGradientForName(contact.name || 'Unknown');
 
                 return (
                   <motion.div
                     key={contact.id || `${contact.name}_${idx}`}
-                    initial={{ opacity: 0, y: 10 }}
+                    initial={{ opacity: 0, y: 6 }}
                     animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: Math.min(idx * 0.02, 0.25) }}
+                    transition={{ duration: 0.15, delay: Math.min(idx * 0.015, 0.2) }}
                     onClick={() => handleSelectContact(contact)}
-                    className={`flex items-center justify-between p-3 rounded-2xl cursor-pointer transition-all active:scale-[0.98] ${
+                    className={`flex items-center justify-between p-3 rounded-2xl cursor-pointer transition-all active:scale-[0.985] ${
                       isSelected
                         ? 'bg-emerald-500/15 border border-emerald-500/30'
                         : 'hover:bg-white/[0.04]'
                     }`}
                   >
-                    <div className="flex items-center gap-3.5 min-w-0">
+                    <div className="flex items-center gap-3 min-w-0">
                       {/* Avatar */}
                       <div className={`w-11 h-11 rounded-2xl bg-gradient-to-br ${gradient} flex items-center justify-center text-white font-bold text-sm shadow-md shrink-0 border border-white/15`}>
                         {getInitials(contact.name)}
                       </div>
 
-                      {/* Info */}
+                      {/* Contact Info */}
                       <div className="min-w-0">
                         <div className="flex items-center gap-2">
                           <h4 className="text-sm font-semibold text-white truncate tracking-tight">
@@ -249,7 +328,7 @@ export const ContactPickerModal: React.FC<Props> = ({
                           <Check size={14} className="stroke-[3]" />
                         </div>
                       ) : (
-                        <div className="w-7 h-7 rounded-full bg-zinc-900 border border-white/10 flex items-center justify-center text-zinc-400 group-hover:text-white">
+                        <div className="w-7 h-7 rounded-full bg-zinc-900 border border-white/10 flex items-center justify-center text-zinc-400 hover:text-white">
                           <UserPlus size={13} />
                         </div>
                       )}
@@ -258,42 +337,64 @@ export const ContactPickerModal: React.FC<Props> = ({
                 );
               })
             ) : (
-              <div className="h-full flex flex-col items-center justify-center text-center p-8 py-14">
-                <div className="w-14 h-14 rounded-3xl bg-zinc-900 border border-white/10 flex items-center justify-center text-zinc-400 mb-3 shadow-lg">
-                  <User size={24} />
+              <div className="h-full flex flex-col items-center justify-center text-center p-6 py-14">
+                <div className="w-14 h-14 rounded-2xl bg-zinc-900 border border-white/10 flex items-center justify-center text-zinc-400 mb-3 shadow-lg">
+                  {parsedCustom.isPhoneOnly ? <Phone size={24} /> : <User size={24} />}
                 </div>
-                <h4 className="text-base font-bold text-white mb-1">No contacts found</h4>
+                <h4 className="text-base font-bold text-white mb-1">No contacts match</h4>
                 <p className="text-xs text-zinc-400 max-w-xs mb-5">
                   {searchQuery
-                    ? `No contacts match "${searchQuery}". Tap below to create a new profile with this name.`
-                    : 'No device contacts could be read. Make sure contacts permission is allowed.'}
+                    ? `No contacts found for "${searchQuery}". Tap below to use it directly in your deal.`
+                    : 'No device contacts could be found.'}
                 </p>
 
                 {searchQuery.trim() && (
                   <button
-                    onClick={handleAddCustomName}
-                    className="flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-emerald-500 text-black font-semibold text-xs shadow-lg shadow-emerald-500/20 hover:bg-emerald-400 active:scale-95 transition"
+                    onClick={handleAddCustom}
+                    className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-emerald-500 text-black font-semibold text-xs shadow-lg shadow-emerald-500/20 hover:bg-emerald-400 active:scale-95 transition"
                   >
                     <Sparkles size={14} />
-                    <span>Use "{searchQuery.trim()}" as Name</span>
+                    <span>
+                      {parsedCustom.name && parsedCustom.phone
+                        ? `Use Name "${parsedCustom.name}" & Phone "${parsedCustom.phone}"`
+                        : parsedCustom.isPhoneOnly
+                        ? `Use "${parsedCustom.phone}" as Phone Number`
+                        : `Use "${parsedCustom.name}" as Contact Name`}
+                    </span>
                   </button>
                 )}
               </div>
             )}
           </div>
 
-          {/* Quick Add Custom Footer */}
+          {/* Quick Add Custom Bar at Bottom (Intelligent Name/Phone Separator) */}
           {searchQuery.trim() && filteredContacts.length > 0 && (
-            <div className="p-3 px-4 bg-zinc-900/80 border-t border-white/5 flex items-center justify-between">
-              <span className="text-xs text-zinc-400 truncate">
-                Don't see who you want?
-              </span>
+            <div className="p-3 px-4 bg-[#18181B] border-t border-white/10 flex items-center justify-between gap-3 shadow-xl z-10">
+              <div className="min-w-0">
+                <span className="text-xs text-zinc-400 block truncate">
+                  Don't see who you want?
+                </span>
+                <span className="text-[11px] text-zinc-500 block truncate">
+                  {parsedCustom.isPhoneOnly
+                    ? `Detected phone: ${parsedCustom.phone}`
+                    : parsedCustom.name && parsedCustom.phone
+                    ? `Name: ${parsedCustom.name} • Phone: ${parsedCustom.phone}`
+                    : `Detected name: ${parsedCustom.name}`}
+                </span>
+              </div>
+
               <button
-                onClick={handleAddCustomName}
-                className="text-xs font-semibold text-emerald-400 hover:text-emerald-300 flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 active:scale-95 transition"
+                onClick={handleAddCustom}
+                className="text-xs font-semibold text-emerald-400 hover:text-emerald-300 flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-500/15 border border-emerald-500/30 active:scale-95 transition shrink-0"
               >
-                <UserPlus size={12} />
-                <span>Use "{searchQuery.slice(0, 15)}"</span>
+                {parsedCustom.isPhoneOnly ? <Phone size={12} /> : <UserPlus size={12} />}
+                <span>
+                  {parsedCustom.isPhoneOnly
+                    ? 'Use as Phone'
+                    : parsedCustom.name && parsedCustom.phone
+                    ? 'Use Name & Phone'
+                    : 'Use as Name'}
+                </span>
               </button>
             </div>
           )}

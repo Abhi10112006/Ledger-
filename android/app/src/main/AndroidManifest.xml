@@ -16,7 +16,6 @@
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
 
@@ -27,7 +26,7 @@
             android:icon="@mipmap/ic_launcher_emerald"
             android:roundIcon="@mipmap/ic_launcher_emerald_round"
             android:label="@string/title_activity_main"
-            android:enabled="false"
+            android:enabled="true"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
@@ -92,10 +91,38 @@
         </activity-alias>
 
         <activity-alias
+            android:name=".MainActivityPlatinum"
+            android:targetActivity=".MainActivity"
+            android:icon="@mipmap/ic_launcher_platinum"
+            android:roundIcon="@mipmap/ic_launcher_platinum_round"
+            android:label="@string/title_activity_main"
+            android:enabled="false"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+
+        <activity-alias
             android:name=".MainActivityTokyo"
             android:targetActivity=".MainActivity"
             android:icon="@mipmap/ic_launcher_tokyo"
             android:roundIcon="@mipmap/ic_launcher_tokyo_round"
+            android:label="@string/title_activity_main"
+            android:enabled="false"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+
+        <activity-alias
+            android:name=".MainActivityCrimson"
+            android:targetActivity=".MainActivity"
+            android:icon="@mipmap/ic_launcher_crimson"
+            android:roundIcon="@mipmap/ic_launcher_crimson_round"
             android:label="@string/title_activity_main"
             android:enabled="false"
             android:exported="true">

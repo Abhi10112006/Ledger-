@@ -4,6 +4,7 @@ import { useKeyboard } from '../contexts/KeyboardContext';
 import { Delete, Check, ArrowUp, SlidersHorizontal, MoveVertical, X, RotateCcw, Smile, Maximize2, Moon, Sun, Cloud } from 'lucide-react';
 import { motion, AnimatePresence, PanInfo } from 'framer-motion';
 import { AppSettings } from '../types';
+import { triggerHaptic } from '../hooks/useHaptics';
 
 interface Props {
   activeTheme: any;
@@ -14,15 +15,6 @@ interface Props {
 type ShiftState = 'OFF' | 'ONCE' | 'LOCKED';
 type ViewMode = 'ALPHA' | 'SYMBOLS' | 'EMOJI';
 type KeyboardTheme = 'dark' | 'grey' | 'light';
-
-// --- HAPTIC ENGINE ---
-const triggerHaptic = () => {
-  if (typeof navigator !== 'undefined' && navigator.vibrate) {
-    try {
-      navigator.vibrate(25);
-    } catch (e) { }
-  }
-};
 
 // --- LAYOUTS ---
 const NUM_PAD = [
@@ -190,7 +182,7 @@ const VirtualKeyboard = React.memo<Props>(({ activeTheme, settings, updateSettin
 
   const changeKbTheme = (theme: KeyboardTheme) => {
     updateSetting('keyboardTheme', theme);
-    triggerHaptic();
+    triggerHaptic('selection');
   };
 
   useEffect(() => {
@@ -323,7 +315,7 @@ const VirtualKeyboard = React.memo<Props>(({ activeTheme, settings, updateSettin
   }, []);
 
   const startDeleting = useCallback(() => {
-    triggerHaptic();
+    triggerHaptic('key');
     deleteCharacter();
 
     const btn = keyRefs.current.get('special-BACKSPACE');
@@ -339,7 +331,7 @@ const VirtualKeyboard = React.memo<Props>(({ activeTheme, settings, updateSettin
     stopDeleting();
     deleteTimerRef.current = setTimeout(() => {
       deleteIntervalRef.current = setInterval(() => {
-        triggerHaptic();
+        triggerHaptic('key');
         deleteCharacter();
         if (btn) {
           btn.classList.remove('v-key-pressed');
@@ -385,7 +377,7 @@ const VirtualKeyboard = React.memo<Props>(({ activeTheme, settings, updateSettin
     }
 
     if (key === 'DONE') {
-      triggerHaptic();
+      triggerHaptic('selection');
       closeKeyboard(true);
       return;
     }
@@ -416,7 +408,7 @@ const VirtualKeyboard = React.memo<Props>(({ activeTheme, settings, updateSettin
       return;
     }
 
-    triggerHaptic();
+    triggerHaptic('key');
 
     if (key === 'SHIFT') {
       handleShiftToggle();
@@ -444,12 +436,12 @@ const VirtualKeyboard = React.memo<Props>(({ activeTheme, settings, updateSettin
     updateSetting('keyboardScale', tempScale);
     setIsResizeMode(false);
     setShowTools(false);
-    triggerHaptic();
+    triggerHaptic('selection');
   };
 
   const resetResize = () => {
     setTempScale(1);
-    triggerHaptic();
+    triggerHaptic('selection');
   };
 
   const getCurrentLayout = () => {
@@ -624,7 +616,7 @@ const VirtualKeyboard = React.memo<Props>(({ activeTheme, settings, updateSettin
                   onPointerDown={(e) => {
                     e.preventDefault();
                     setShowTools(true);
-                    triggerHaptic();
+                    triggerHaptic('selection');
                   }}
                   className="p-2 rounded-lg bg-slate-900/60 border border-transparent hover:border-white/5 text-slate-500 hover:text-white transition-colors active:scale-90"
                 >

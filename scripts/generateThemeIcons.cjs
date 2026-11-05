@@ -8,9 +8,11 @@ const THEMES = {
   blue: '#3b82f6',
   rose: '#f43f5e',
   amber: '#f59e0b',
+  platinum: '#cbd5e1',
   tokyo: '#ec4899',
-  aurora: '#06b6d4',
-  carbon: '#94a3b8'
+  crimson: '#dc2626',
+  aurora: '#2dd4bf',
+  carbon: '#52525b'
 };
 
 const createSvg = (size, hexColor, round = false) => `

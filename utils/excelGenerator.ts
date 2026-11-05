@@ -38,18 +38,24 @@ export async function exportExcelDossier(
     let grandOverdueDeals = 0;
     const now = new Date();
 
+    const safeDateStr = (dateStr?: string) => {
+      if (!dateStr) return '—';
+      const d = new Date(dateStr);
+      return isNaN(d.getTime()) ? '—' : d.toLocaleDateString('en-GB');
+    };
+
     transactions.forEach((tx) => {
       const name = (tx.friendName || 'Unknown').trim();
-      const phone = tx.phoneNumber || '—';
+      const phone = tx.friendPhone || '—';
       const payable = getTotalPayable(tx);
       const repaid = (tx.repayments || []).reduce((sum, r) => sum + (Number(r.amount) || 0), 0);
       const balance = Math.max(0, payable - repaid);
-      const isSettled = tx.isSettled || balance <= 0;
+      const isSettled = tx.isCompleted || balance <= 0.01;
 
       let isOverdue = false;
-      if (!isSettled && tx.dueDate) {
-        const due = new Date(tx.dueDate);
-        if (due < now) isOverdue = true;
+      if (!isSettled && tx.returnDate) {
+        const due = new Date(tx.returnDate);
+        if (!isNaN(due.getTime()) && due < now) isOverdue = true;
       }
 
       if (!counterpartiesMap.has(name)) {
@@ -61,11 +67,12 @@ export async function exportExcelDossier(
           balanceDue: 0,
           activeDealsCount: 0,
           overdueDealsCount: 0,
-          trustScore: tx.trustScore ?? 85,
+          trustScore: 85,
         });
       }
 
       const row = counterpartiesMap.get(name)!;
+      if (phone !== '—') row.phone = phone;
       row.totalLent += payable;
       row.totalRepaid += repaid;
       row.balanceDue += balance;
@@ -357,26 +364,31 @@ export async function exportExcelDossier(
 
     let s2RowIdx = 4;
     // Flatten transactions with their repayments in chronological order
-    const sortedTx = [...transactions].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    const sortedTx = [...transactions].sort((a, b) => {
+      const timeA = new Date(a.startDate || 0).getTime();
+      const timeB = new Date(b.startDate || 0).getTime();
+      return (isNaN(timeA) ? 0 : timeA) - (isNaN(timeB) ? 0 : timeB);
+    });
 
     sortedTx.forEach((tx) => {
       const payable = getTotalPayable(tx);
       const totalRepaidForTx = (tx.repayments || []).reduce((sum, r) => sum + (Number(r.amount) || 0), 0);
       const balance = Math.max(0, payable - totalRepaidForTx);
+      const phoneDisplay = tx.friendPhone || '—';
 
       // Primary Loan Entry
       const loanRow = sheet2.getRow(s2RowIdx);
       loanRow.values = [
-        tx.date ? new Date(tx.date).toLocaleDateString('en-GB') : '—',
-        tx.friendName,
-        tx.phoneNumber || '—',
+        safeDateStr(tx.startDate),
+        tx.friendName || 'Unknown',
+        phoneDisplay,
         'LOAN ADVANCED',
-        tx.amount,
+        Number(tx.principalAmount) || 0,
         tx.interestRate ? `${tx.interestRate}% (${tx.interestType || 'Simple'})` : '0%',
         totalRepaidForTx,
         balance,
-        tx.dueDate ? new Date(tx.dueDate).toLocaleDateString('en-GB') : 'No Deadline',
-        tx.description || '—',
+        tx.returnDate ? safeDateStr(tx.returnDate) : 'No Deadline',
+        tx.notes || '—',
       ];
       loanRow.height = 21;
       loanRow.font = { name: 'Calibri', size: 9.5, color: { argb: 'FF0F172A' } };
@@ -395,16 +407,16 @@ export async function exportExcelDossier(
       (tx.repayments || []).forEach((rep) => {
         const repRow = sheet2.getRow(s2RowIdx);
         repRow.values = [
-          rep.date ? new Date(rep.date).toLocaleDateString('en-GB') : '—',
-          `↳ ${tx.friendName}`,
-          tx.phoneNumber || '—',
+          safeDateStr(rep.date),
+          `↳ ${tx.friendName || 'Unknown'}`,
+          phoneDisplay,
           'REPAYMENT RECEIVED',
           0,
           '—',
-          rep.amount,
+          Number(rep.amount) || 0,
           balance,
-          rep.date ? new Date(rep.date).toLocaleDateString('en-GB') : '—',
-          rep.notes ? `Payment: ${rep.notes}` : 'Installment credited',
+          safeDateStr(rep.date),
+          'Installment credited',
         ];
         repRow.height = 19;
         repRow.font = { name: 'Calibri', size: 9, italic: true, color: { argb: 'FF475569' } };

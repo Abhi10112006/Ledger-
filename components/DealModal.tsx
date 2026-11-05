@@ -472,8 +472,12 @@ const DealModal: React.FC<Props> = ({
             isOpen={isContactPickerOpen}
             onClose={() => setIsContactPickerOpen(false)}
             onSelect={(contact) => {
-              setFriendName(contact.name);
-              if (contact.phone) setFriendPhone(contact.phone);
+              if (contact.name && contact.name.trim().length > 0) {
+                setFriendName(contact.name.trim());
+              }
+              if (contact.phone && contact.phone.trim().length > 0) {
+                setFriendPhone(contact.phone.trim());
+              }
               setSelectedProfileId(null);
             }}
             existingAccounts={existingAccounts}

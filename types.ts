@@ -54,6 +54,7 @@ export interface AppSettings {
   background: BackgroundType;
   currency: string;
   language?: string;
+  hasOnboarded?: boolean;
   
   // UPI Settings
   upiId?: string;

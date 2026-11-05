@@ -13,30 +13,57 @@ import com.getcapacitor.annotation.CapacitorPlugin;
 public class NativeThemeIconPlugin extends Plugin {
 
     private static final String[] THEMES = {
-        "emerald", "violet", "blue", "rose", "amber", "tokyo", "aurora", "carbon"
+        "emerald", "violet", "blue", "rose", "amber", "platinum", "tokyo", "crimson", "aurora", "carbon"
     };
 
     @PluginMethod
     public void changeIcon(PluginCall call) {
-        String theme = call.getString("theme", "emerald").toLowerCase();
+        String rawTheme = call.getString("theme", "emerald");
+        String theme = rawTheme != null ? rawTheme.toLowerCase().trim() : "emerald";
+
+        // Validate theme or fallback to emerald
+        boolean validTheme = false;
+        for (String t : THEMES) {
+            if (t.equals(theme)) {
+                validTheme = true;
+                break;
+            }
+        }
+        if (!validTheme) {
+            theme = "emerald";
+        }
+
         Context context = getContext();
         PackageManager pm = context.getPackageManager();
         String packageName = context.getPackageName();
 
         try {
+            // 1. Enable the new target activity-alias first with DONT_KILL_APP
+            String targetAliasName = packageName + ".MainActivity" + capitalize(theme);
+            ComponentName targetComponent = new ComponentName(packageName, targetAliasName);
+
+            pm.setComponentEnabledSetting(
+                targetComponent,
+                PackageManager.COMPONENT_ENABLED_STATE_ENABLED,
+                PackageManager.DONT_KILL_APP
+            );
+
+            // 2. Disable all other activity-aliases (disabling the previous one) with DONT_KILL_APP
             for (String t : THEMES) {
-                String aliasName = packageName + ".MainActivity" + capitalize(t);
-                ComponentName componentName = new ComponentName(packageName, aliasName);
+                if (!t.equals(theme)) {
+                    String otherAliasName = packageName + ".MainActivity" + capitalize(t);
+                    ComponentName otherComponent = new ComponentName(packageName, otherAliasName);
 
-                int newState = t.equals(theme)
-                    ? PackageManager.COMPONENT_ENABLED_STATE_ENABLED
-                    : PackageManager.COMPONENT_ENABLED_STATE_DISABLED;
-
-                pm.setComponentEnabledSetting(
-                    componentName,
-                    newState,
-                    PackageManager.DONT_KILL_APP
-                );
+                    int currentState = pm.getComponentEnabledSetting(otherComponent);
+                    // Only disable if not already disabled
+                    if (currentState != PackageManager.COMPONENT_ENABLED_STATE_DISABLED) {
+                        pm.setComponentEnabledSetting(
+                            otherComponent,
+                            PackageManager.COMPONENT_ENABLED_STATE_DISABLED,
+                            PackageManager.DONT_KILL_APP
+                        );
+                    }
+                }
             }
 
             JSObject ret = new JSObject();

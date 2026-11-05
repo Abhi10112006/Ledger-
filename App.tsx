@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Plus, Search, UserPlus, WifiOff } from 'lucide-react';
+import { Plus, Search, UserPlus, WifiOff, X } from 'lucide-react';
 import { useLedger } from './hooks/useLedger';
 import { useAdManager } from './hooks/useAdManager';
 import { getMeta, saveMeta } from './utils/db';
@@ -165,6 +165,9 @@ const AppContent: React.FC = () => {
     setActiveRepaymentId(null);
     closeAd();
     closeKeyboard();
+    if (typeof window !== 'undefined') {
+      sessionStorage.setItem('abhi_ledger_is_logged_out', 'true');
+    }
     setIsLoggedIn(false);
   }, [closeAd, setIsLoggedIn, closeKeyboard, haptic]);
 
@@ -173,28 +176,24 @@ const AppContent: React.FC = () => {
   const [settingsOriginMenu, setSettingsOriginMenu] = useState(false);
 
   const navigateToProfile = (profileId: string, origin: 'active-deals' | 'search' | null = null) => {
-    haptic('light');
     setProfileOriginModal(origin);
     setSelectedProfileId(profileId);
   };
 
   const handleCloseProfile = useCallback(() => {
-    haptic('light');
     setSelectedProfileId(null);
     if (profileOriginModal === 'active-deals') {
       setIsActiveDealsModalOpen(true);
     }
     setProfileOriginModal(null);
-  }, [profileOriginModal, haptic]);
+  }, [profileOriginModal]);
 
   const handleOpenTypography = (origin: 'settings' | 'menu' | null = null) => {
-    haptic('light');
     setTypographyOrigin(origin);
     setIsTypographyModalOpen(true);
   };
 
   const handleCloseTypography = useCallback(() => {
-    haptic('light');
     setIsTypographyModalOpen(false);
     if (typographyOrigin === 'settings') {
       setIsSettingsModalOpen(true);
@@ -202,29 +201,26 @@ const AppContent: React.FC = () => {
       setIsMobileMenuOpen(true);
     }
     setTypographyOrigin(null);
-  }, [typographyOrigin, haptic]);
+  }, [typographyOrigin]);
 
   const handleOpenSettings = (fromMenu = false) => {
-    haptic('light');
     setSettingsOriginMenu(fromMenu);
     setIsSettingsModalOpen(true);
   };
 
   const handleCloseSettings = useCallback(() => {
-    haptic('light');
     setIsSettingsModalOpen(false);
     if (settingsOriginMenu) {
       setSettingsOriginMenu(false);
       setIsMobileMenuOpen(true);
     }
-  }, [settingsOriginMenu, haptic]);
+  }, [settingsOriginMenu]);
 
   const handleBackAction = useCallback(() => {
     handleCloseProfile();
   }, [handleCloseProfile]);
 
   const openModal = (setter: React.Dispatch<React.SetStateAction<boolean>>) => {
-    haptic('light');
     setter(true);
   };
 
@@ -251,27 +247,27 @@ const AppContent: React.FC = () => {
     // Priority must match the visual stacking order (Z-Index)
 
     // 1. Critical Overlays
-    if (isDeleteModalOpen) { haptic('light'); setIsDeleteModalOpen(false); return; }
+    if (isDeleteModalOpen) { setIsDeleteModalOpen(false); return; }
 
     // 2. Secondary Modals
-    if (isEditDateModalOpen) { haptic('light'); setIsEditDateModalOpen(false); return; }
-    if (isPaymentModalOpen) { haptic('light'); setIsPaymentModalOpen(false); return; }
-    if (isDashboardDealModalOpen) { haptic('light'); setIsDashboardDealModalOpen(false); return; }
-    if (isProfileDealModalOpen) { haptic('light'); setIsProfileDealModalOpen(false); return; }
+    if (isEditDateModalOpen) { setIsEditDateModalOpen(false); return; }
+    if (isPaymentModalOpen) { setIsPaymentModalOpen(false); return; }
+    if (isDashboardDealModalOpen) { setIsDashboardDealModalOpen(false); return; }
+    if (isProfileDealModalOpen) { setIsProfileDealModalOpen(false); return; }
 
     // 3. Full Screen / Main Modals
-    if (isBackupModalOpen) { haptic('light'); setIsBackupModalOpen(false); return; }
-    if (isSettingsModalOpen) { haptic('light'); setIsSettingsModalOpen(false); return; }
-    if (isTypographyModalOpen) { haptic('light'); setIsTypographyModalOpen(false); return; }
+    if (isBackupModalOpen) { setIsBackupModalOpen(false); return; }
+    if (isSettingsModalOpen) { setIsSettingsModalOpen(false); return; }
+    if (isTypographyModalOpen) { setIsTypographyModalOpen(false); return; }
 
     // 4. Content Layers
-    if (isActiveDealsModalOpen) { haptic('light'); setIsActiveDealsModalOpen(false); return; }
+    if (isActiveDealsModalOpen) { setIsActiveDealsModalOpen(false); return; }
 
     // 5. Profile View
-    if (selectedProfileId) { haptic('light'); setSelectedProfileId(null); return; }
+    if (selectedProfileId) { setSelectedProfileId(null); return; }
 
     // 6. Base Modals
-    if (isMobileMenuOpen) { haptic('light'); setIsMobileMenuOpen(false); return; }
+    if (isMobileMenuOpen) { setIsMobileMenuOpen(false); return; }
 
     // Fallback
     if (isAdOpen) { closeAd(); }
@@ -279,7 +275,7 @@ const AppContent: React.FC = () => {
   }, [
     isDeleteModalOpen, isEditDateModalOpen, isPaymentModalOpen, isDashboardDealModalOpen, isProfileDealModalOpen,
     isBackupModalOpen, isSettingsModalOpen, isTypographyModalOpen, isActiveDealsModalOpen, selectedProfileId, isMobileMenuOpen,
-    isAdOpen, closeAd, closeKeyboard, haptic
+    isAdOpen, closeAd, closeKeyboard
   ]);
 
   // Handle Hardware Back Button (Android) - Ref-based state access
@@ -660,8 +656,19 @@ const AppContent: React.FC = () => {
       {/* MAIN APP CONTENT */}
       {!isLoggedIn ? (
         <WelcomeScreen
-          settings={settings} activeTheme={activeTheme} onLogin={() => { haptic('medium'); setIsLoggedIn(true); }}
+          settings={settings}
+          activeTheme={activeTheme}
+          onLogin={() => {
+            if (typeof window !== 'undefined') {
+              sessionStorage.removeItem('abhi_ledger_is_logged_out');
+            }
+            haptic('medium');
+            setIsLoggedIn(true);
+          }}
           handleImport={handleImport}
+          restoreBackupData={restoreBackupData}
+          updateSetting={updateSetting}
+          hasTransactions={transactions.length > 0}
         />
       ) : (
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.5 }}>
@@ -700,27 +707,72 @@ const AppContent: React.FC = () => {
                 </div>
 
                 {/* Search bar */}
-                <div id="tour-search" style={{ position: 'relative', marginBottom: 8 }}>
-                  <div style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }}>
-                    <Search size={15} style={{ color: 'rgba(235,235,245,0.35)' }} />
+                <div id="tour-search" style={{ position: 'relative', marginBottom: 10 }}>
+                  <div
+                    style={{
+                      position: 'absolute',
+                      left: 14,
+                      top: '50%',
+                      transform: 'translateY(-50%)',
+                      pointerEvents: 'none',
+                      zIndex: 10,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      color: 'rgba(235, 235, 245, 0.55)',
+                    }}
+                  >
+                    <Search size={17} strokeWidth={2.2} />
                   </div>
                   <input
                     {...kbSearch}
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder="Search"
+                    placeholder="Search contacts..."
                     style={{
-                      width: '100%', height: 40, paddingLeft: 38, paddingRight: 16,
+                      width: '100%',
+                      height: 42,
+                      paddingLeft: 42,
+                      paddingRight: searchQuery ? 40 : 16,
                       background: 'var(--app-card-bg, rgba(120,120,128,0.18))',
                       border: '0.5px solid var(--app-card-border, rgba(255,255,255,0.06))',
                       borderRadius: 'var(--app-radius-sm, 12px)',
                       backdropFilter: 'blur(var(--app-glass-blur, 16px))',
                       WebkitBackdropFilter: 'blur(var(--app-glass-blur, 16px))',
                       fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Text", Inter, sans-serif',
-                      fontWeight: 400, fontSize: 16, letterSpacing: '-0.01em',
-                      color: '#fff', outline: 'none', boxSizing: 'border-box',
+                      fontWeight: 400,
+                      fontSize: 15,
+                      letterSpacing: '-0.01em',
+                      color: '#fff',
+                      outline: 'none',
+                      boxSizing: 'border-box',
                     }}
                   />
+                  {searchQuery && (
+                    <button
+                      onClick={() => setSearchQuery('')}
+                      style={{
+                        position: 'absolute',
+                        right: 12,
+                        top: '50%',
+                        transform: 'translateY(-50%)',
+                        width: 22,
+                        height: 22,
+                        borderRadius: '50%',
+                        background: 'rgba(235, 235, 245, 0.2)',
+                        border: 'none',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        cursor: 'pointer',
+                        padding: 0,
+                        zIndex: 10,
+                        color: 'rgba(255, 255, 255, 0.9)',
+                      }}
+                    >
+                      <X size={12} strokeWidth={2.5} />
+                    </button>
+                  )}
                 </div>
 
                 <div className="mt-2" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--app-content-gap, 8px)' }}>
@@ -870,6 +922,7 @@ const AppContent: React.FC = () => {
             currentFont={settings.fontStyle}
             onSelect={(font) => updateSetting('fontStyle', font)}
             activeTheme={activeTheme}
+            currency={settings.currency}
           />
           <ActiveDealsModal
             isOpen={isActiveDealsModalOpen}

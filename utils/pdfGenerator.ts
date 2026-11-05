@@ -151,6 +151,7 @@ export const createStatementDoc = async (
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
+  let isOverdue = false;
   let statusText = "● SETTLED (ALL CLEAR)";
   let pillBg: [number, number, number] = [236, 253, 245];
   let pillBorder: [number, number, number] = [16, 185, 129];
@@ -164,6 +165,7 @@ export const createStatementDoc = async (
 
       if (diffDays < 0) {
         const daysLate = Math.abs(diffDays);
+        isOverdue = true;
         statusText = `● OVERDUE BY ${daysLate} DAY${daysLate === 1 ? '' : 'S'}`;
         pillBg = [254, 242, 242];
         pillBorder = [239, 68, 68];
@@ -457,12 +459,14 @@ export const generateStatementPDF = async (
   try {
     const doc = await createStatementDoc(profileId, friendName, allTransactions, settings);
 
-    const { saveToDocuments, downloadOrShare, isNative } = await import('./androidFileHandler');
+    const { saveToLedgerStorage, downloadOrShare, isNative } = await import('./androidFileHandler');
     const blob = doc.output('blob');
-    const filename = `Statement_${friendName.replace(/\s+/g, '_')}_${profileId.slice(0, 6)}.pdf`;
+    const cleanName = (friendName || 'client').replace(/[^a-zA-Z0-9]/g, '_');
+    const cleanId = (profileId || 'id').replace(/[^a-zA-Z0-9]/g, '').slice(0, 6);
+    const filename = `Statement_${cleanName}_${cleanId}.pdf`;
 
     if (isNative) {
-      await saveToDocuments(filename, blob, 'Statement PDF');
+      await saveToLedgerStorage(filename, blob, 'Statements', 'application/pdf', 'Statement PDF');
     } else {
       await downloadOrShare(filename, blob, 'application/pdf', 'Statement PDF');
     }
