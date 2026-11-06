@@ -31,6 +31,8 @@ import { useVirtualKeyboard } from './hooks/useVirtualKeyboard';
 import { useHaptics, triggerHaptic } from './hooks/useHaptics';
 import { useDebounce } from './hooks/useDebounce';
 import { useBackHandler, executeTopBackHandler } from './utils/backHandler';
+import { Capacitor } from '@capacitor/core';
+import { NativeSecurity } from './utils/securityPin';
 
 const TOUR_KEY = 'abhi_ledger_tour_complete_v9';
 const CURRENCIES = ['₹', '$', '€', '₩', '£', '¥'];
@@ -289,11 +291,48 @@ const AppContent: React.FC = () => {
 
   const lastBackPressTime = useRef(0);
   const lastBackgroundTime = useRef<number>(Date.now());
+  const lastUnlockTime = useRef<number>(Date.now());
   const settingsRef = useRef(settings);
 
   useEffect(() => {
     settingsRef.current = settings;
   }, [settings]);
+
+  const handleUnlockSuccess = useCallback(() => {
+    lastUnlockTime.current = Date.now();
+    setIsBiometricVerified(true);
+  }, []);
+
+  const checkShouldLock = useCallback(async () => {
+    if (!settingsRef.current.useBiometricLock) return;
+
+    // 1. Guard: If unlocked within the last 4 seconds, ignore
+    if (Date.now() - lastUnlockTime.current < 4000) {
+      return;
+    }
+
+    // 2. Guard: If native biometric prompt is active or was recently dismissed, ignore
+    try {
+      if (Capacitor.isNativePlatform()) {
+        const res = await NativeSecurity.isAuthenticating();
+        if (res?.isAuthenticating) {
+          return;
+        }
+      }
+    } catch (e) {
+      // Ignore native check error
+    }
+
+    // 3. Check elapsed background duration
+    const elapsedSec = (Date.now() - lastBackgroundTime.current) / 1000;
+    const configuredTimeout = settingsRef.current.securityLockTimeout ?? 0;
+
+    // Minimum 2.5s threshold so brief pauses (keyboard, permission prompt, contact picker) never falsely lock the app
+    const thresholdSec = Math.max(2.5, configuredTimeout);
+    if (elapsedSec >= thresholdSec) {
+      setIsBiometricVerified(false);
+    }
+  }, []);
 
   // Visibility auto-lock for web and native resume
   useEffect(() => {
@@ -301,16 +340,12 @@ const AppContent: React.FC = () => {
       if (document.hidden) {
         lastBackgroundTime.current = Date.now();
       } else {
-        const elapsedSec = (Date.now() - lastBackgroundTime.current) / 1000;
-        const timeoutSec = settingsRef.current.securityLockTimeout ?? 0;
-        if (settingsRef.current.useBiometricLock && elapsedSec >= timeoutSec) {
-          setIsBiometricVerified(false);
-        }
+        checkShouldLock();
       }
     };
     document.addEventListener('visibilitychange', handleVisibility);
     return () => document.removeEventListener('visibilitychange', handleVisibility);
-  }, []);
+  }, [checkShouldLock]);
 
   useEffect(() => {
     backButtonStateRef.current = {
@@ -385,11 +420,7 @@ const AppContent: React.FC = () => {
         if (!isActive) {
           lastBackgroundTime.current = Date.now();
         } else {
-          const elapsedSec = (Date.now() - lastBackgroundTime.current) / 1000;
-          const timeoutSec = settingsRef.current.securityLockTimeout ?? 0;
-          if (settingsRef.current.useBiometricLock && elapsedSec >= timeoutSec) {
-            setIsBiometricVerified(false);
-          }
+          checkShouldLock();
         }
       });
     };
@@ -540,7 +571,7 @@ const AppContent: React.FC = () => {
       <BiometricLockScreen
         activeTheme={activeTheme}
         settings={settings}
-        onUnlock={() => setIsBiometricVerified(true)}
+        onUnlock={handleUnlockSuccess}
         onSaveNewPin={(pinHash) => updateSetting('securityPinHash', pinHash)}
       />
     );
@@ -917,6 +948,10 @@ const AppContent: React.FC = () => {
             themes={THEMES}
             currencies={CURRENCIES}
             tourStep={tourStep}
+            onUpdateAvailable={(info) => {
+              setUpdateInfo(info);
+              setUpdateDismissed(false);
+            }}
           />
           <TypographyModal
             isOpen={isTypographyModalOpen}

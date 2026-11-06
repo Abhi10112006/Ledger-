@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import {
   X, Check, Lock, Film, Sliders, CheckCircle2, ChevronRight,
-  ShieldCheck, KeyRound, Fingerprint, ScanFace
+  ShieldCheck, KeyRound, Fingerprint, ScanFace, RefreshCw
 } from 'lucide-react';
 import { AppSettings, ThemeColor, CornerRadius, BaseColor, BackgroundType, Density } from '../types';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useHaptics } from '../hooks/useHaptics';
-import { APP_VERSION } from '../utils/version';
+import { APP_VERSION, checkForUpdate, VersionInfo } from '../utils/version';
 import { SetPinModal } from './SetPinModal';
 import { useBackHandler } from '../utils/backHandler';
 
@@ -19,6 +19,7 @@ interface Props {
   themes: Record<string, any>;
   currencies: string[];
   tourStep?: number;
+  onUpdateAvailable?: (info: VersionInfo) => void;
 }
 
 // ────────────────────────────────────────────────
@@ -182,16 +183,50 @@ const SettingsModal: React.FC<Props> = ({
   activeTheme,
   themes,
   tourStep,
+  onUpdateAvailable,
 }) => {
   const [activeTab, setActiveTab] = useState<'general' | 'visual' | 'layout'>('general');
   const [customCurrency, setCustomCurrency] = useState('');
   const [isEditingCustomCurrency, setIsEditingCustomCurrency] = useState(false);
   const [isSetPinModalOpen, setIsSetPinModalOpen] = useState(false);
+  const [isCheckingUpdate, setIsCheckingUpdate] = useState(false);
 
   useBackHandler(isSetPinModalOpen, () => {
     setIsSetPinModalOpen(false);
   });
   const haptic = useHaptics();
+
+  const handleCheckUpdate = async () => {
+    setIsCheckingUpdate(true);
+    haptic('selection');
+    try {
+      const update = await checkForUpdate();
+      if (update) {
+        haptic('success');
+        window.dispatchEvent(
+          new CustomEvent('abhi-ledger-toast', {
+            detail: { message: `Update available: v${update.version} (${update.versionName})`, type: 'info' },
+          })
+        );
+        onUpdateAvailable?.(update);
+      } else {
+        haptic('light');
+        window.dispatchEvent(
+          new CustomEvent('abhi-ledger-toast', {
+            detail: { message: `You are on the latest version (v${APP_VERSION})`, type: 'success' },
+          })
+        );
+      }
+    } catch {
+      window.dispatchEvent(
+        new CustomEvent('abhi-ledger-toast', {
+          detail: { message: 'Unable to check for updates. Check internet connection.', type: 'error' },
+        })
+      );
+    } finally {
+      setIsCheckingUpdate(false);
+    }
+  };
 
   useEffect(() => {
     if (tourStep) {
@@ -1167,11 +1202,33 @@ const SettingsModal: React.FC<Props> = ({
                   </motion.div>
                 </AnimatePresence>
 
-                {/* Footer: Version */}
-                <div style={{ textAlign: 'center', padding: '16px 0 6px' }}>
-                  <span style={{ fontSize: 12, color: 'rgba(235, 235, 245, 0.35)', fontWeight: 500 }}>
+                {/* Footer: Version & Check Update */}
+                <div style={{ textAlign: 'center', padding: '16px 0 10px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
+                  <span style={{ fontSize: 12, color: 'rgba(235, 235, 245, 0.4)', fontWeight: 500 }}>
                     App version v{APP_VERSION}
                   </span>
+                  <button
+                    type="button"
+                    disabled={isCheckingUpdate}
+                    onClick={handleCheckUpdate}
+                    style={{
+                      padding: '6px 14px',
+                      borderRadius: 20,
+                      background: 'rgba(255, 255, 255, 0.06)',
+                      border: '0.5px solid rgba(255, 255, 255, 0.1)',
+                      color: activeTheme.hex,
+                      fontSize: 11.5,
+                      fontWeight: 600,
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 6,
+                      cursor: isCheckingUpdate ? 'wait' : 'pointer',
+                      transition: 'all 0.15s ease',
+                    }}
+                  >
+                    <RefreshCw size={12} className={isCheckingUpdate ? 'animate-spin' : ''} />
+                    <span>{isCheckingUpdate ? 'Checking for updates...' : 'Check for Updates'}</span>
+                  </button>
                 </div>
               </div>
 

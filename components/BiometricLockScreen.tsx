@@ -8,7 +8,7 @@ import { AppSettings } from '../types';
 import { LogoIcon } from './Logo';
 import { formatAppTitle } from '../utils/branding';
 import { verifyFingerprint, verifyFaceLock, getBiometricCapabilities } from '../hooks/useBiometrics';
-import { verifySecurityPin, hashSecurityPin } from '../utils/securityPin';
+import { verifySecurityPin, hashSecurityPin, saveSecurityPinHardware } from '../utils/securityPin';
 import { useHaptics } from '../hooks/useHaptics';
 
 interface Props {
@@ -90,9 +90,11 @@ export const BiometricLockScreen: React.FC<Props> = ({
     if (result.success) {
       haptic('success');
       onUnlock();
-    } else {
+    } else if (result.usePin) {
+      setActiveTab('pin');
+    } else if (!result.cancelled) {
       haptic('error');
-      setErrorMessage(result.error || 'Fingerprint verification cancelled or failed.');
+      setErrorMessage(result.error || 'Fingerprint verification failed.');
     }
   };
 
@@ -109,9 +111,11 @@ export const BiometricLockScreen: React.FC<Props> = ({
     if (result.success) {
       haptic('success');
       onUnlock();
-    } else {
+    } else if (result.usePin) {
+      setActiveTab('pin');
+    } else if (!result.cancelled) {
       haptic('error');
-      setErrorMessage(result.error || 'Face verification cancelled or failed.');
+      setErrorMessage(result.error || 'Face verification failed.');
     }
   };
 
@@ -171,7 +175,7 @@ export const BiometricLockScreen: React.FC<Props> = ({
     if (setupStep === 'confirm') {
       if (fullPin === tempFirstPin) {
         haptic('success');
-        const hash = await hashSecurityPin(fullPin);
+        const hash = await saveSecurityPinHardware(fullPin);
         if (onSaveNewPin) {
           onSaveNewPin(hash);
         }

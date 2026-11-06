@@ -1,5 +1,16 @@
-import { NativeBiometric, BiometryType } from '@capgo/capacitor-native-biometric';
 import { Capacitor } from '@capacitor/core';
+import { NativeSecurity } from '../utils/securityPin';
+
+export enum BiometryType {
+  NONE = 0,
+  TOUCH_ID = 1,
+  FACE_ID = 2,
+  FINGERPRINT = 3,
+  FACE_AUTHENTICATION = 4,
+  IRIS_AUTHENTICATION = 5,
+  MULTIPLE = 6,
+  DEVICE_CREDENTIAL = 7,
+}
 
 export interface BiometricCapabilities {
   isAvailable: boolean;
@@ -10,9 +21,15 @@ export interface BiometricCapabilities {
   deviceIsSecure: boolean;
 }
 
+export interface VerifyResult {
+  success: boolean;
+  cancelled?: boolean;
+  usePin?: boolean;
+  error?: string;
+}
+
 export const getBiometricCapabilities = async (): Promise<BiometricCapabilities> => {
   if (!Capacitor.isNativePlatform()) {
-    // In web / browser testing
     return {
       isAvailable: true,
       biometryType: BiometryType.MULTIPLE,
@@ -24,37 +41,32 @@ export const getBiometricCapabilities = async (): Promise<BiometricCapabilities>
   }
 
   try {
-    const result = await NativeBiometric.isAvailable();
-    const type = result.biometryType;
-    let name = 'Biometrics';
-    let hasFingerprint = false;
-    let hasFaceLock = false;
+    const status = await NativeSecurity.getBiometricStatus();
+    const isAvail = !!status.isAvailable;
+    let bType = BiometryType.NONE;
+    let name = 'None';
 
-    if (type === BiometryType.FINGERPRINT || type === BiometryType.TOUCH_ID) {
-      name = 'Fingerprint';
-      hasFingerprint = true;
-    } else if (type === BiometryType.FACE_ID || type === BiometryType.FACE_AUTHENTICATION) {
+    if (status.hasFingerprint && status.hasFaceLock) {
+      bType = BiometryType.MULTIPLE;
+      name = 'Fingerprint & Face Lock';
+    } else if (status.hasFaceLock) {
+      bType = BiometryType.FACE_AUTHENTICATION;
       name = 'Face Lock';
-      hasFaceLock = true;
-    } else if (type === BiometryType.MULTIPLE || type === BiometryType.DEVICE_CREDENTIAL) {
-      name = 'Biometrics & Face';
-      hasFingerprint = true;
-      hasFaceLock = true;
-    } else {
-      hasFingerprint = true;
-      hasFaceLock = true;
+    } else if (status.hasFingerprint) {
+      bType = BiometryType.FINGERPRINT;
+      name = 'Fingerprint';
     }
 
     return {
-      isAvailable: !!result.isAvailable,
-      biometryType: type,
+      isAvailable: isAvail,
+      biometryType: bType,
       biometryName: name,
-      hasFingerprint,
-      hasFaceLock,
-      deviceIsSecure: !!result.deviceIsSecure,
+      hasFingerprint: !!status.hasFingerprint,
+      hasFaceLock: !!status.hasFaceLock,
+      deviceIsSecure: isAvail,
     };
   } catch (err) {
-    console.warn('Failed to query biometric availability:', err);
+    console.warn('Failed to query biometric availability via NativeSecurity:', err);
     return {
       isAvailable: false,
       biometryType: BiometryType.NONE,
@@ -68,56 +80,52 @@ export const getBiometricCapabilities = async (): Promise<BiometricCapabilities>
 
 export const verifyFingerprint = async (
   reason = 'Touch the fingerprint sensor to unlock Ledger.'
-): Promise<{ success: boolean; error?: string }> => {
+): Promise<VerifyResult> => {
   if (!Capacitor.isNativePlatform()) {
-    // Browser simulated success for testing
     return { success: true };
   }
 
   try {
-    const caps = await getBiometricCapabilities();
-    if (!caps.isAvailable) {
-      return { success: false, error: 'Fingerprint sensor is not available on this device.' };
-    }
-
-    await NativeBiometric.verifyIdentity({
-      reason,
+    const res = await NativeSecurity.authenticateBiometric({
       title: 'Fingerprint Unlock',
-      subtitle: 'Touch the fingerprint sensor to access your ledger.',
+      subtitle: reason,
       negativeButtonText: 'Use 6-Digit PIN',
-      maxAttempts: 3,
+      mode: 'fingerprint',
     });
-    return { success: true };
+    return {
+      success: !!res.success,
+      cancelled: !!res.cancelled,
+      usePin: !!res.usePin,
+      error: res.error,
+    };
   } catch (e: any) {
-    console.warn('Fingerprint verification failed or was dismissed:', e);
+    console.warn('Fingerprint verification failed:', e);
     return { success: false, error: e?.message || 'Fingerprint verification cancelled.' };
   }
 };
 
 export const verifyFaceLock = async (
-  reason = 'Scan your face to unlock Ledger.'
-): Promise<{ success: boolean; error?: string }> => {
+  reason = 'Look at the front camera to unlock Ledger.'
+): Promise<VerifyResult> => {
   if (!Capacitor.isNativePlatform()) {
-    // Browser simulated success for testing
     return { success: true };
   }
 
   try {
-    const caps = await getBiometricCapabilities();
-    if (!caps.isAvailable) {
-      return { success: false, error: 'Face biometric sensor is not available on this device.' };
-    }
-
-    await NativeBiometric.verifyIdentity({
-      reason,
-      title: 'Face Lock Verification',
-      subtitle: 'Look at the front camera to verify face authentication.',
+    const res = await NativeSecurity.authenticateBiometric({
+      title: 'Face Lock Unlock',
+      subtitle: reason,
       negativeButtonText: 'Use 6-Digit PIN',
-      maxAttempts: 3,
+      mode: 'face',
     });
-    return { success: true };
+    return {
+      success: !!res.success,
+      cancelled: !!res.cancelled,
+      usePin: !!res.usePin,
+      error: res.error,
+    };
   } catch (e: any) {
-    console.warn('Face verification failed or was dismissed:', e);
+    console.warn('Face verification failed:', e);
     return { success: false, error: e?.message || 'Face verification cancelled.' };
   }
 };
@@ -130,17 +138,13 @@ export const verifyUserIdentity = async (
   }
 
   try {
-    const result = await NativeBiometric.isAvailable();
-    if (!result.isAvailable) return true;
-
-    await NativeBiometric.verifyIdentity({
-      reason,
+    const res = await NativeSecurity.authenticateBiometric({
       title: 'Security Verification',
-      subtitle: 'Confirm your fingerprint or face scan to proceed.',
-      negativeButtonText: 'Use PIN',
-      maxAttempts: 3,
+      subtitle: reason,
+      negativeButtonText: 'Cancel',
+      mode: 'any',
     });
-    return true;
+    return !!res.success;
   } catch (e) {
     console.error('Biometric authentication failed or was cancelled', e);
     return false;

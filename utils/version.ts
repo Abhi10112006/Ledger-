@@ -21,7 +21,7 @@ export const APP_VERSION_NAME = 'Modern Fintech Overhaul';
 const VERSION_URL = 'https://raw.githubusercontent.com/Abhi10112006/Ledger-/main/public/version.json';
 
 // Fallback URL — Vercel deployment of the same app
-const VERSION_URL_FALLBACK = 'https://abhis-ledger.vercel.app/version.json';
+const VERSION_URL_FALLBACK = 'https://ledger69.vercel.app/version.json';
 
 export interface VersionInfo {
   version: string;

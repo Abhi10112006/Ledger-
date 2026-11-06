@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { X, Check, UserPlus, ChevronDown, ShieldCheck } from 'lucide-react';
 import { ContactPickerModal } from './ContactPickerModal';
 import { InterestType } from '../types';
@@ -94,6 +94,8 @@ const DealModal: React.FC<Props> = ({
   const { isVisible: isKeyboardVisible } = useKeyboard();
 
   const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [isDismissed, setIsDismissed] = useState(false);
+  const amountInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (isOpen) {
@@ -103,6 +105,7 @@ const DealModal: React.FC<Props> = ({
       setStartTime('');
       setInterestFree(false);
       setSearchResults([]);
+      setIsDismissed(false);
       setAmount('');
       setShowAdvanced(false);
       setStartDate(new Date().toISOString().split('T')[0]);
@@ -110,17 +113,27 @@ const DealModal: React.FC<Props> = ({
   }, [isOpen, initialName, initialProfileId]);
 
   useEffect(() => {
-    if (!friendName || selectedProfileId || initialName) { setSearchResults([]); return; }
+    if (!friendName || selectedProfileId || initialName || isDismissed) {
+      setSearchResults([]);
+      return;
+    }
+    const q = friendName.trim().toLowerCase();
+    if (!q) {
+      setSearchResults([]);
+      return;
+    }
     const results = existingAccounts
-      .filter(acc => acc.name.toLowerCase().includes(friendName.toLowerCase()))
-      .slice(0, 3);
+      .filter(acc => acc.name.toLowerCase().includes(q))
+      .slice(0, 4);
     setSearchResults(results);
-  }, [friendName, selectedProfileId, initialName, existingAccounts]);
+  }, [friendName, selectedProfileId, initialName, existingAccounts, isDismissed]);
 
   const selectExisting = (profile: any) => {
     setFriendName(profile.name);
     setSelectedProfileId(profile.id);
+    setIsDismissed(true);
     setSearchResults([]);
+    amountInputRef.current?.focus();
   };
 
   /**
@@ -223,7 +236,17 @@ const DealModal: React.FC<Props> = ({
               style={{ flex: 1, overflowY: 'auto', padding: '16px 20px', paddingBottom: 4 }}
               className="scrollbar-hide"
               onKeyDown={(e) => {
-                if (e.key === 'Enter' && (e.target as HTMLElement).tagName !== 'TEXTAREA') handleSubmit();
+                const target = e.target as HTMLElement;
+                if (e.key === 'Enter' && target.tagName !== 'TEXTAREA') {
+                  if (target.getAttribute('placeholder') === 'Enter name') {
+                    e.preventDefault();
+                    setIsDismissed(true);
+                    setSearchResults([]);
+                    amountInputRef.current?.focus();
+                    return;
+                  }
+                  if (friendName && amount) handleSubmit();
+                }
               }}
             >
               <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -253,11 +276,24 @@ const DealModal: React.FC<Props> = ({
                       placeholder="Enter name"
                       value={friendName}
                       onChange={e => {
-                        if (!initialName) { setFriendName(e.target.value); setSelectedProfileId(null); }
+                        if (!initialName) {
+                          setIsDismissed(false);
+                          setFriendName(e.target.value);
+                          setSelectedProfileId(null);
+                        }
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          setIsDismissed(true);
+                          setSearchResults([]);
+                          amountInputRef.current?.focus();
+                        }
                       }}
                       onBlur={(e) => {
                         if (kbName.onBlur) kbName.onBlur(e);
-                        setTimeout(() => setSearchResults([]), 200);
+                        setTimeout(() => setSearchResults([]), 250);
                       }}
                       style={{
                         ...inputStyle,
@@ -270,44 +306,225 @@ const DealModal: React.FC<Props> = ({
                       <Check size={16} style={{ position: 'absolute', left: 13, top: '50%', transform: 'translateY(-50%)', color: activeTheme.hex }} />
                     )}
                   </div>
-                  {/* Existing contact suggestions */}
-                  {searchResults.length > 0 && !initialName && (
-                    <div style={{
-                      position: 'absolute', top: '100%', left: 0, right: 0, marginTop: 4,
-                      background: '#2C2C2E', borderRadius: 12,
-                      border: '0.5px solid rgba(255,255,255,0.08)',
-                      boxShadow: '0 4px 20px rgba(0,0,0,0.4)',
-                      zIndex: 20, overflow: 'hidden',
-                    }}>
-                      <div style={{ padding: '8px 12px 4px', fontSize: 10, fontWeight: 600, color: 'rgba(235,235,245,0.3)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                        Existing Contacts
-                      </div>
-                      {searchResults.map((res, i) => (
-                        <button
-                          key={res.id}
-                          type="button"
-                          onClick={() => selectExisting(res)}
+
+                  {/* Existing contact suggestions with spring popover animation */}
+                  <AnimatePresence>
+                    {searchResults.length > 0 && !initialName && !isDismissed && (
+                      <motion.div
+                        initial={{ opacity: 0, y: -8, scale: 0.98 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: -6, scale: 0.98 }}
+                        transition={{ type: 'spring', damping: 25, stiffness: 400 }}
+                        style={{
+                          position: 'absolute',
+                          top: '100%',
+                          left: 0,
+                          right: 0,
+                          marginTop: 6,
+                          background: 'rgba(28, 28, 30, 0.96)',
+                          backdropFilter: 'blur(20px)',
+                          WebkitBackdropFilter: 'blur(20px)',
+                          borderRadius: 16,
+                          border: '0.5px solid rgba(255, 255, 255, 0.12)',
+                          boxShadow: '0 14px 36px rgba(0,0,0,0.6), 0 2px 8px rgba(0,0,0,0.4)',
+                          zIndex: 50,
+                          overflow: 'hidden',
+                        }}
+                      >
+                        {/* Header bar with title and explicit close button */}
+                        <div
                           style={{
-                            width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                            padding: '10px 12px', background: 'transparent', border: 'none', cursor: 'pointer',
-                            borderTop: i > 0 ? '0.5px solid rgba(255,255,255,0.05)' : 'none',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            padding: '9px 12px 7px',
+                            borderBottom: '0.5px solid rgba(255, 255, 255, 0.06)',
+                            background: 'rgba(255, 255, 255, 0.03)',
                           }}
                         >
-                          <span style={{ fontSize: 15, fontWeight: 500, color: '#fff' }}>{res.name}</span>
-                          <span style={{ fontSize: 10, color: 'rgba(235,235,245,0.3)', fontFamily: 'monospace' }}>#{res.id}</span>
-                        </button>
-                      ))}
-                    </div>
-                  )}
+                          <span
+                            style={{
+                              fontSize: 10.5,
+                              fontWeight: 600,
+                              color: 'rgba(235,235,245,0.45)',
+                              textTransform: 'uppercase',
+                              letterSpacing: '0.04em',
+                            }}
+                          >
+                            Existing Contacts ({searchResults.length})
+                          </span>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              setIsDismissed(true);
+                              setSearchResults([]);
+                            }}
+                            style={{
+                              background: 'rgba(255, 255, 255, 0.08)',
+                              border: 'none',
+                              borderRadius: 10,
+                              width: 22,
+                              height: 22,
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              color: 'rgba(235, 235, 245, 0.6)',
+                              cursor: 'pointer',
+                              padding: 0,
+                            }}
+                            title="Close suggestions"
+                          >
+                            <X size={12} strokeWidth={2.5} />
+                          </button>
+                        </div>
+
+                        {/* List items */}
+                        <div style={{ display: 'flex', flexDirection: 'column' }}>
+                          {searchResults.map((res, i) => {
+                            const initials = res.name
+                              .trim()
+                              .split(/\s+/)
+                              .slice(0, 2)
+                              .map((p: string) => p[0]?.toUpperCase() || '')
+                              .join('') || '??';
+
+                            return (
+                              <motion.button
+                                key={res.id}
+                                type="button"
+                                whileTap={{ scale: 0.98, backgroundColor: 'rgba(255, 255, 255, 0.08)' }}
+                                onClick={() => selectExisting(res)}
+                                style={{
+                                  width: '100%',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'space-between',
+                                  padding: '10px 12px',
+                                  background: 'transparent',
+                                  border: 'none',
+                                  cursor: 'pointer',
+                                  textAlign: 'left',
+                                  borderTop: i > 0 ? '0.5px solid rgba(255, 255, 255, 0.05)' : 'none',
+                                  transition: 'background 0.15s ease',
+                                }}
+                              >
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
+                                  <div
+                                    style={{
+                                      width: 30,
+                                      height: 30,
+                                      borderRadius: 9,
+                                      background: `${activeTheme.hex}22`,
+                                      border: `0.5px solid ${activeTheme.hex}44`,
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      justifyContent: 'center',
+                                      color: activeTheme.hex,
+                                      fontSize: 11,
+                                      fontWeight: 700,
+                                      flexShrink: 0,
+                                    }}
+                                  >
+                                    {initials}
+                                  </div>
+                                  <div style={{ minWidth: 0 }}>
+                                    <div
+                                      style={{
+                                        fontSize: 14.5,
+                                        fontWeight: 600,
+                                        color: '#FFFFFF',
+                                        letterSpacing: '-0.01em',
+                                        whiteSpace: 'nowrap',
+                                        overflow: 'hidden',
+                                        textOverflow: 'ellipsis',
+                                      }}
+                                    >
+                                      {res.name}
+                                    </div>
+                                    <div
+                                      style={{
+                                        fontSize: 11,
+                                        color: 'rgba(235, 235, 245, 0.4)',
+                                        fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Text", monospace',
+                                      }}
+                                    >
+                                      ID: {res.id}
+                                    </div>
+                                  </div>
+                                </div>
+
+                                <div
+                                  style={{
+                                    fontSize: 11,
+                                    fontWeight: 600,
+                                    color: activeTheme.hex,
+                                    padding: '3px 8px',
+                                    borderRadius: 6,
+                                    background: `${activeTheme.hex}14`,
+                                    border: `0.5px solid ${activeTheme.hex}30`,
+                                    flexShrink: 0,
+                                  }}
+                                >
+                                  Select
+                                </div>
+                              </motion.button>
+                            );
+                          })}
+                        </div>
+
+                        {/* Footer hint */}
+                        <div
+                          style={{
+                            padding: '6px 12px 7px',
+                            background: 'rgba(0, 0, 0, 0.3)',
+                            borderTop: '0.5px solid rgba(255, 255, 255, 0.04)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                          }}
+                        >
+                          <span style={{ fontSize: 10, color: 'rgba(235, 235, 245, 0.35)' }}>
+                            Press Enter to continue with "{friendName}"
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setIsDismissed(true);
+                              setSearchResults([]);
+                              amountInputRef.current?.focus();
+                            }}
+                            style={{
+                              background: 'none',
+                              border: 'none',
+                              padding: 0,
+                              fontSize: 10.5,
+                              fontWeight: 600,
+                              color: activeTheme.hex,
+                              cursor: 'pointer',
+                            }}
+                          >
+                            Skip to Amount →
+                          </button>
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                 </div>
 
                 {/* Amount */}
                 <div>
                   <label style={labelStyle}>Amount ({currency})</label>
                   <input
+                    ref={amountInputRef}
                     {...kbAmount}
                     value={amount}
                     onChange={e => setAmount(e.target.value)}
+                    onFocus={() => {
+                      setIsDismissed(true);
+                      setSearchResults([]);
+                    }}
                     placeholder="0"
                     style={{ ...inputStyle, fontSize: 22, fontWeight: 700, letterSpacing: '-0.02em' }}
                   />

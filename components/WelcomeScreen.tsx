@@ -303,6 +303,8 @@ const WelcomeScreen: React.FC<Props> = ({
             accentColor={accentColor}
             isFocused={isFocused}
             celebrateTrigger={celebrateCount}
+            isRestoring={isRestoring}
+            hasCustomName={hasCustomName}
             onTap={() => haptic('selection')}
           />
         </div>

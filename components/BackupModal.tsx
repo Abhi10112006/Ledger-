@@ -1,14 +1,14 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
-  X, ShieldCheck, HardDriveDownload, FileSpreadsheet, Lock,
-  CheckCircle2, AlertCircle, Loader2, ChevronRight, FolderUp, Printer, Sparkles
+  X, ShieldCheck, FileSpreadsheet, Lock,
+  CheckCircle2, AlertCircle, Loader2, ChevronRight, FolderUp,
+  Download, Clock, Check, Sparkles
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Transaction, AppSettings } from '../types';
 import { useHaptics } from '../hooks/useHaptics';
 import { exportEncryptedBackup, importBackupFile } from '../utils/cryptoBackup';
 import { exportExcelDossier } from '../utils/excelGenerator';
-import { formatAppTitle } from '../utils/branding';
 
 interface Props {
   isOpen: boolean;
@@ -30,35 +30,69 @@ export const BackupModal: React.FC<Props> = ({
   const [isExportingBak, setIsExportingBak] = useState(false);
   const [isRestoring, setIsRestoring] = useState(false);
   const [isExportingXlsx, setIsExportingXlsx] = useState(false);
+  const [lastBackupTime, setLastBackupTime] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const haptic = useHaptics();
 
+  // Load last backup timestamp from localStorage
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem('ledger_last_backup_time');
+      if (stored) setLastBackupTime(stored);
+    } catch {
+      // Ignore storage errors
+    }
+  }, [isOpen]);
+
   const isOled = settings.baseColor === 'oled';
   const sheetBg = isOled ? '#000000' : '#141416';
-  const cardBg = isOled ? 'rgba(255, 255, 255, 0.05)' : '#1C1C1E';
+  const cardBg = isOled ? 'rgba(255, 255, 255, 0.04)' : '#1C1C1E';
   const cardBorder = isOled
-    ? '0.5px solid rgba(255, 255, 255, 0.1)'
-    : '0.5px solid rgba(255, 255, 255, 0.08)';
+    ? '0.5px solid rgba(255, 255, 255, 0.09)'
+    : '0.5px solid rgba(255, 255, 255, 0.07)';
+
+  const cardRadius = settings.cornerRadius === 'sharp' ? 10 : settings.cornerRadius === 'round' ? 18 : 24;
 
   const showToast = (message: string, type: 'success' | 'error' = 'success') => {
     window.dispatchEvent(
       new CustomEvent('abhi-ledger-toast', { detail: { message, type } })
     );
     setFeedback({ message, type });
-    setTimeout(() => setFeedback(null), 4000);
+    setTimeout(() => setFeedback(null), 3800);
+  };
+
+  // Format the last backup time for user-friendly display
+  const formatFriendlyTime = (iso: string | null) => {
+    if (!iso) return 'Not backed up yet';
+    try {
+      const date = new Date(iso);
+      const now = new Date();
+      const isToday = date.toDateString() === now.toDateString();
+      const timeStr = date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+      if (isToday) return `Today at ${timeStr}`;
+      return `${date.toLocaleDateString([], { month: 'short', day: 'numeric' })} at ${timeStr}`;
+    } catch {
+      return 'Recently';
+    }
   };
 
   // ─── OPTION A: SAVE SECURE BACKUP ───
   const handleSaveEncryptedBackup = async () => {
+    if (isExportingBak || isRestoring || isExportingXlsx) return;
     haptic('medium');
     setIsExportingBak(true);
     try {
       const result = await exportEncryptedBackup(transactions, settings);
       if (result.success) {
         haptic('success');
-        showToast(`Backup saved to Documents/Ledger/Backups/`);
+        const nowIso = new Date().toISOString();
+        try {
+          localStorage.setItem('ledger_last_backup_time', nowIso);
+          setLastBackupTime(nowIso);
+        } catch {}
+        showToast('Backup saved securely to your device!');
       } else {
         haptic('error');
         showToast(result.error || 'Failed to create backup.', 'error');
@@ -73,7 +107,8 @@ export const BackupModal: React.FC<Props> = ({
 
   // ─── OPTION B: RESTORE FROM BACKUP ───
   const handleTriggerFileSelect = () => {
-    haptic('light');
+    if (isExportingBak || isRestoring || isExportingXlsx) return;
+    haptic('selection');
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
       fileInputRef.current.click();
@@ -93,10 +128,10 @@ export const BackupModal: React.FC<Props> = ({
       onRestoreSuccess(restoredTx, restoredSettings);
       setTimeout(() => {
         onClose();
-      }, 1200);
+      }, 1000);
     } catch (err: any) {
       haptic('error');
-      showToast(err?.message || 'Could not read backup file. Please try another file.', 'error');
+      showToast(err?.message || 'Could not restore backup. Please verify the file.', 'error');
     } finally {
       setIsRestoring(false);
       if (fileInputRef.current) fileInputRef.current.value = '';
@@ -105,26 +140,29 @@ export const BackupModal: React.FC<Props> = ({
 
   // ─── OPTION C: DOWNLOAD PRINT-READY EXCEL ───
   const handleExportExcel = async () => {
+    if (isExportingBak || isRestoring || isExportingXlsx) return;
     haptic('medium');
     setIsExportingXlsx(true);
     try {
       const result = await exportExcelDossier(transactions, settings);
       if (result.success) {
         haptic('success');
-        showToast(`Excel file saved to Documents/Ledger/Excel Reports/`);
+        showToast('Spreadsheet exported successfully!');
       } else {
         haptic('error');
-        showToast(result.error || 'Failed to export Excel file.', 'error');
+        showToast(result.error || 'Failed to export spreadsheet.', 'error');
       }
     } catch (err: any) {
       haptic('error');
-      showToast(err?.message || 'Error generating Excel.', 'error');
+      showToast(err?.message || 'Error generating spreadsheet.', 'error');
     } finally {
       setIsExportingXlsx(false);
     }
   };
 
   if (!isOpen) return null;
+
+  const isBusy = isExportingBak || isRestoring || isExportingXlsx;
 
   return (
     <AnimatePresence>
@@ -143,17 +181,16 @@ export const BackupModal: React.FC<Props> = ({
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
+          transition={{ duration: 0.25 }}
           onClick={() => {
-            if (!isExportingBak && !isRestoring && !isExportingXlsx) {
-              onClose();
-            }
+            if (!isBusy) onClose();
           }}
           style={{
             position: 'absolute',
             inset: 0,
             background: 'rgba(0, 0, 0, 0.72)',
-            backdropFilter: 'blur(12px)',
-            WebkitBackdropFilter: 'blur(12px)',
+            backdropFilter: 'blur(16px)',
+            WebkitBackdropFilter: 'blur(16px)',
           }}
         />
 
@@ -162,26 +199,26 @@ export const BackupModal: React.FC<Props> = ({
           initial={{ y: '100%' }}
           animate={{ y: 0 }}
           exit={{ y: '100%' }}
-          transition={{ type: 'spring', stiffness: 320, damping: 32 }}
+          transition={{ type: 'spring', damping: 30, stiffness: 320 }}
           style={{
             position: 'relative',
             width: '100%',
             maxWidth: 520,
-            maxHeight: '94vh',
+            maxHeight: '92vh',
             borderTopLeftRadius: 28,
             borderTopRightRadius: 28,
             background: sheetBg,
             border: '0.5px solid rgba(255, 255, 255, 0.12)',
-            boxShadow: '0 -20px 60px rgba(0, 0, 0, 0.85)',
+            boxShadow: '0 -16px 50px rgba(0, 0, 0, 0.9)',
             display: 'flex',
             flexDirection: 'column',
             overflowY: 'auto',
-            paddingBottom: 'calc(env(safe-area-inset-bottom, 16px) + 20px)',
-            fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Text", Inter, sans-serif',
+            paddingBottom: 'calc(env(safe-area-inset-bottom, 16px) + 24px)',
+            fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Text", -apple-system-subheadline, Inter, sans-serif',
           }}
           className="scrollbar-hide"
         >
-          {/* Top ambient color glow */}
+          {/* Subtle top ambient glow from theme */}
           <div
             style={{
               position: 'absolute',
@@ -189,8 +226,8 @@ export const BackupModal: React.FC<Props> = ({
               left: '50%',
               transform: 'translateX(-50%)',
               width: '80%',
-              height: 160,
-              background: `radial-gradient(ellipse at top center, ${activeTheme.hex}22 0%, transparent 75%)`,
+              height: 180,
+              background: `radial-gradient(ellipse at top center, ${activeTheme.hex}25 0%, transparent 70%)`,
               pointerEvents: 'none',
               zIndex: 0,
             }}
@@ -198,7 +235,7 @@ export const BackupModal: React.FC<Props> = ({
 
           {/* Grab Bar */}
           <div style={{ display: 'flex', justifyContent: 'center', paddingTop: 12, paddingBottom: 6, position: 'relative', zIndex: 1 }}>
-            <div style={{ width: 38, height: 4.5, borderRadius: 3, background: 'rgba(255, 255, 255, 0.22)' }} />
+            <div style={{ width: 36, height: 4, borderRadius: 2, background: 'rgba(255, 255, 255, 0.25)' }} />
           </div>
 
           {/* Header Row */}
@@ -207,113 +244,97 @@ export const BackupModal: React.FC<Props> = ({
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'space-between',
-              padding: '10px 24px 8px',
+              padding: '8px 24px 14px',
               position: 'relative',
               zIndex: 1,
             }}
           >
             <div>
-              <div
+              <h2
                 style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 8,
+                  margin: 0,
+                  fontSize: 22,
+                  fontWeight: 700,
+                  letterSpacing: '-0.025em',
+                  color: '#FFFFFF',
+                  fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", Inter, sans-serif',
                 }}
               >
-                <h2
-                  style={{
-                    margin: 0,
-                    fontSize: 22,
-                    fontWeight: 700,
-                    letterSpacing: '-0.02em',
-                    color: '#FFFFFF',
-                    fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", Inter, sans-serif',
-                  }}
-                >
-                  Backup & Export
-                </h2>
-                <div
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: 4,
-                    padding: '2px 8px',
-                    borderRadius: 10,
-                    background: 'rgba(16, 185, 129, 0.15)',
-                    border: '0.5px solid rgba(16, 185, 129, 0.3)',
-                    color: '#10B981',
-                    fontSize: 10,
-                    fontWeight: 700,
-                    letterSpacing: '0.04em',
-                    textTransform: 'uppercase',
-                  }}
-                >
-                  <Lock size={10} />
-                  Safe & Private
-                </div>
-              </div>
+                Vault & Backups
+              </h2>
               <p
                 style={{
-                  margin: '4px 0 0',
+                  margin: '3px 0 0',
                   fontSize: 13,
                   color: 'rgba(235, 235, 245, 0.55)',
                   letterSpacing: '-0.01em',
                 }}
               >
-                Keep your accounts safe or export ready-to-print spreadsheets
+                Protect, restore, or export your financial records
               </p>
             </div>
 
             <motion.button
-              whileTap={{ scale: 0.9 }}
-              onClick={onClose}
+              whileTap={{ scale: 0.92 }}
+              onClick={() => {
+                if (!isBusy) {
+                  haptic('light');
+                  onClose();
+                }
+              }}
               style={{
-                width: 34,
-                height: 34,
-                borderRadius: 17,
+                width: 32,
+                height: 32,
+                borderRadius: 16,
                 background: 'rgba(255, 255, 255, 0.08)',
                 border: 'none',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 cursor: 'pointer',
-                color: 'rgba(235, 235, 245, 0.7)',
+                color: 'rgba(235, 235, 245, 0.75)',
                 flexShrink: 0,
               }}
             >
-              <X size={17} />
+              <X size={16} />
             </motion.button>
           </div>
 
-          {/* Feedback Banner if active */}
-          {feedback && (
-            <motion.div
-              initial={{ opacity: 0, y: -6 }}
-              animate={{ opacity: 1, y: 0 }}
-              style={{
-                margin: '12px 24px 4px',
-                padding: '10px 14px',
-                borderRadius: 14,
-                background: feedback.type === 'success' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)',
-                border: `0.5px solid ${feedback.type === 'success' ? '#10B981' : '#EF4444'}40`,
-                display: 'flex',
-                alignItems: 'center',
-                gap: 10,
-                color: '#FFFFFF',
-                fontSize: 13,
-                fontWeight: 500,
-              }}
-            >
-              {feedback.type === 'success' ? (
-                <CheckCircle2 size={16} style={{ color: '#10B981', flexShrink: 0 }} />
-              ) : (
-                <AlertCircle size={16} style={{ color: '#EF4444', flexShrink: 0 }} />
-              )}
-              <span style={{ flex: 1 }}>{feedback.message}</span>
-            </motion.div>
-          )}
+          {/* Feedback Banner */}
+          <AnimatePresence>
+            {feedback && (
+              <motion.div
+                initial={{ opacity: 0, y: -8, scale: 0.98 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: -6, scale: 0.98 }}
+                transition={{ duration: 0.2 }}
+                style={{
+                  margin: '0 20px 14px',
+                  padding: '12px 16px',
+                  borderRadius: 16,
+                  background: feedback.type === 'success' ? 'rgba(16, 185, 129, 0.16)' : 'rgba(239, 68, 68, 0.16)',
+                  border: `0.5px solid ${feedback.type === 'success' ? '#10B981' : '#EF4444'}50`,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 12,
+                  color: '#FFFFFF',
+                  fontSize: 13,
+                  fontWeight: 500,
+                  position: 'relative',
+                  zIndex: 2,
+                }}
+              >
+                {feedback.type === 'success' ? (
+                  <CheckCircle2 size={18} style={{ color: '#10B981', flexShrink: 0 }} />
+                ) : (
+                  <AlertCircle size={18} style={{ color: '#EF4444', flexShrink: 0 }} />
+                )}
+                <span style={{ flex: 1, lineHeight: 1.35 }}>{feedback.message}</span>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
-          {/* Hidden File Input for Restore - Supports all standard and legacy backup types */}
+          {/* Hidden File Input for Restore */}
           <input
             type="file"
             ref={fileInputRef}
@@ -322,10 +343,9 @@ export const BackupModal: React.FC<Props> = ({
             style={{ display: 'none' }}
           />
 
-          {/* 3 Main Action Cards */}
           <div
             style={{
-              padding: '16px 20px',
+              padding: '0 20px',
               display: 'flex',
               flexDirection: 'column',
               gap: 14,
@@ -333,414 +353,375 @@ export const BackupModal: React.FC<Props> = ({
               zIndex: 1,
             }}
           >
-            {/* ─── CARD A: SAVE SECURE BACKUP ─── */}
-            <motion.div
-              whileHover={{ y: -1 }}
-              whileTap={{ scale: 0.985 }}
-              onClick={!isExportingBak ? handleSaveEncryptedBackup : undefined}
+            {/* ─── HERO VAULT STATUS CARD ─── */}
+            <div
               style={{
                 background: cardBg,
                 border: cardBorder,
-                borderRadius: 20,
-                padding: '18px 18px',
-                cursor: isExportingBak ? 'default' : 'pointer',
+                borderRadius: cardRadius,
+                padding: '18px 20px',
                 display: 'flex',
-                flexDirection: 'column',
-                gap: 12,
+                alignItems: 'center',
+                gap: 16,
                 position: 'relative',
                 overflow: 'hidden',
-                transition: 'border-color 0.2s',
               }}
             >
-              {/* Card Header */}
-              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                  <div
+              {/* Vault Shield Emblem */}
+              <div
+                style={{
+                  width: 52,
+                  height: 52,
+                  borderRadius: 16,
+                  background: `linear-gradient(135deg, ${activeTheme.hex}30 0%, ${activeTheme.hex}10 100%)`,
+                  border: `1px solid ${activeTheme.hex}40`,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: activeTheme.hex,
+                  flexShrink: 0,
+                  boxShadow: `0 8px 20px -4px ${activeTheme.hex}30`,
+                }}
+              >
+                <ShieldCheck size={28} />
+              </div>
+
+              {/* Status Info */}
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+                  <span
                     style={{
-                      width: 44,
-                      height: 44,
-                      borderRadius: 14,
-                      background: 'rgba(16, 185, 129, 0.15)',
-                      border: '0.5px solid rgba(16, 185, 129, 0.3)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
+                      width: 7,
+                      height: 7,
+                      borderRadius: '50%',
+                      background: '#10B981',
+                      boxShadow: '0 0 8px #10B981',
+                      display: 'inline-block',
+                    }}
+                  />
+                  <span
+                    style={{
+                      fontSize: 12,
+                      fontWeight: 700,
                       color: '#10B981',
-                      flexShrink: 0,
+                      letterSpacing: '0.04em',
+                      textTransform: 'uppercase',
                     }}
                   >
-                    <ShieldCheck size={24} />
-                  </div>
-                  <div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <span
-                        style={{
-                          fontSize: 16,
-                          fontWeight: 700,
-                          color: '#FFFFFF',
-                          letterSpacing: '-0.01em',
-                        }}
-                      >
-                        Save Secure Backup
-                      </span>
-                      <span
-                        style={{
-                          fontSize: 9.5,
-                          fontWeight: 700,
-                          letterSpacing: '0.04em',
-                          padding: '2px 7px',
-                          borderRadius: 6,
-                          background: 'rgba(16, 185, 129, 0.2)',
-                          color: '#34D399',
-                        }}
-                      >
-                        PROTECTED
-                      </span>
-                    </div>
-                    <span
-                      style={{
-                        fontSize: 12,
-                        color: 'rgba(235, 235, 245, 0.5)',
-                        marginTop: 2,
-                        display: 'block',
-                      }}
-                    >
-                      Saved to Documents/Ledger/Backups
-                    </span>
-                  </div>
+                    Encrypted & Private
+                  </span>
                 </div>
 
                 <div
                   style={{
-                    width: 32,
-                    height: 32,
-                    borderRadius: 16,
-                    background: 'rgba(255, 255, 255, 0.06)',
+                    fontSize: 15,
+                    fontWeight: 600,
+                    color: '#FFFFFF',
+                    marginTop: 3,
+                    letterSpacing: '-0.01em',
+                  }}
+                >
+                  {transactions.length} Active {transactions.length === 1 ? 'Record' : 'Records'}
+                </div>
+
+                <div
+                  style={{
+                    fontSize: 12,
+                    color: 'rgba(235, 235, 245, 0.45)',
+                    marginTop: 2,
                     display: 'flex',
                     alignItems: 'center',
-                    justifyContent: 'center',
-                    color: 'rgba(235, 235, 245, 0.6)',
+                    gap: 5,
                   }}
                 >
-                  {isExportingBak ? (
-                    <Loader2 size={16} className="animate-spin text-emerald-400" />
-                  ) : (
-                    <ChevronRight size={18} />
-                  )}
+                  <Clock size={11} style={{ opacity: 0.7 }} />
+                  <span>Last backup: {formatFriendlyTime(lastBackupTime)}</span>
                 </div>
               </div>
+            </div>
 
-              {/* Description */}
-              <p
-                style={{
-                  margin: 0,
-                  fontSize: 12.5,
-                  lineHeight: 1.45,
-                  color: 'rgba(235, 235, 245, 0.65)',
-                }}
-              >
-                Creates a protected backup file of all your {transactions.length} transactions, contacts, and app preferences.
-                Your data is encrypted natively on this phone and stored safely in your phone's storage.
-              </p>
-
-              {/* Action Pill */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 2 }}>
-                <div
-                  style={{
-                    padding: '8px 14px',
-                    borderRadius: 10,
-                    background: 'rgba(16, 185, 129, 0.16)',
-                    border: '0.5px solid rgba(16, 185, 129, 0.35)',
-                    color: '#34D399',
-                    fontSize: 12,
-                    fontWeight: 600,
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: 6,
-                  }}
-                >
-                  <Lock size={12} />
-                  <span>Save Backup (.ledgerbak)</span>
-                </div>
-              </div>
-            </motion.div>
-
-            {/* ─── CARD B: RESTORE BACKUP ─── */}
+            {/* ─── ACTION 1: CREATE SECURE BACKUP ─── */}
             <motion.div
-              whileHover={{ y: -1 }}
               whileTap={{ scale: 0.985 }}
-              onClick={!isRestoring ? handleTriggerFileSelect : undefined}
+              onClick={handleSaveEncryptedBackup}
               style={{
                 background: cardBg,
                 border: cardBorder,
-                borderRadius: 20,
-                padding: '18px 18px',
-                cursor: isRestoring ? 'default' : 'pointer',
+                borderRadius: cardRadius,
+                padding: '16px 18px',
+                cursor: isBusy ? 'default' : 'pointer',
                 display: 'flex',
-                flexDirection: 'column',
-                gap: 12,
+                alignItems: 'center',
+                gap: 14,
                 position: 'relative',
-                overflow: 'hidden',
                 transition: 'border-color 0.2s',
               }}
             >
-              {/* Card Header */}
-              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                  <div
-                    style={{
-                      width: 44,
-                      height: 44,
-                      borderRadius: 14,
-                      background: 'rgba(139, 92, 246, 0.15)',
-                      border: '0.5px solid rgba(139, 92, 246, 0.3)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      color: '#A78BFA',
-                      flexShrink: 0,
-                    }}
-                  >
-                    <FolderUp size={24} />
-                  </div>
-                  <div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <span
-                        style={{
-                          fontSize: 16,
-                          fontWeight: 700,
-                          color: '#FFFFFF',
-                          letterSpacing: '-0.01em',
-                        }}
-                      >
-                        Restore From Backup
-                      </span>
-                      <span
-                        style={{
-                          fontSize: 9.5,
-                          fontWeight: 700,
-                          letterSpacing: '0.04em',
-                          padding: '2px 7px',
-                          borderRadius: 6,
-                          background: 'rgba(139, 92, 246, 0.2)',
-                          color: '#C4B5FD',
-                        }}
-                      >
-                        RESTORE
-                      </span>
-                    </div>
-                    <span
-                      style={{
-                        fontSize: 12,
-                        color: 'rgba(235, 235, 245, 0.5)',
-                        marginTop: 2,
-                        display: 'block',
-                      }}
-                    >
-                      Supports .ledgerbak, .json & old files
-                    </span>
-                  </div>
-                </div>
+              {/* Apple-style squircle icon */}
+              <div
+                style={{
+                  width: 44,
+                  height: 44,
+                  borderRadius: 13,
+                  background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.25) 0%, rgba(5, 150, 105, 0.12) 100%)',
+                  border: '0.5px solid rgba(16, 185, 129, 0.35)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: '#34D399',
+                  flexShrink: 0,
+                }}
+              >
+                <Download size={22} />
+              </div>
 
+              {/* Text content */}
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 16, fontWeight: 600, color: '#FFFFFF', letterSpacing: '-0.01em' }}>
+                  Back Up Now
+                </div>
                 <div
                   style={{
-                    width: 32,
-                    height: 32,
-                    borderRadius: 16,
-                    background: 'rgba(255, 255, 255, 0.06)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    color: 'rgba(235, 235, 245, 0.6)',
+                    fontSize: 12.5,
+                    color: 'rgba(235, 235, 245, 0.55)',
+                    marginTop: 2,
+                    lineHeight: 1.35,
                   }}
                 >
-                  {isRestoring ? (
-                    <Loader2 size={16} className="animate-spin text-purple-400" />
-                  ) : (
-                    <ChevronRight size={18} />
-                  )}
+                  Save a protected copy of all accounts & settings
                 </div>
               </div>
 
-              {/* Description */}
-              <p
+              {/* Action Pill / Spinner */}
+              <div
                 style={{
-                  margin: 0,
-                  fontSize: 12.5,
-                  lineHeight: 1.45,
-                  color: 'rgba(235, 235, 245, 0.65)',
+                  padding: '7px 14px',
+                  borderRadius: 100,
+                  background: isExportingBak
+                    ? 'rgba(16, 185, 129, 0.12)'
+                    : `linear-gradient(135deg, ${activeTheme.hex} 0%, ${activeTheme.hex}EE 100%)`,
+                  color: isExportingBak ? '#34D399' : '#000000',
+                  fontSize: 13,
+                  fontWeight: 600,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  flexShrink: 0,
+                  boxShadow: isExportingBak ? 'none' : `0 4px 14px -3px ${activeTheme.hex}60`,
                 }}
               >
-                Seamlessly restore your ledger records on this phone or when moving to a new device.
-                Works with any previous backup file, automatically detects the format, and restores your accounts instantly.
-              </p>
-
-              {/* Action Pill */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 2 }}>
-                <div
-                  style={{
-                    padding: '8px 14px',
-                    borderRadius: 10,
-                    background: 'rgba(139, 92, 246, 0.16)',
-                    border: '0.5px solid rgba(139, 92, 246, 0.35)',
-                    color: '#C4B5FD',
-                    fontSize: 12,
-                    fontWeight: 600,
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: 6,
-                  }}
-                >
-                  <HardDriveDownload size={12} />
-                  <span>Choose Backup File to Restore</span>
-                </div>
+                {isExportingBak ? (
+                  <>
+                    <Loader2 size={13} className="animate-spin text-emerald-400" />
+                    <span>Saving...</span>
+                  </>
+                ) : (
+                  <span>Back Up</span>
+                )}
               </div>
             </motion.div>
 
-            {/* ─── CARD C: DOWNLOAD PRINT-READY EXCEL ─── */}
+            {/* ─── ACTION 2: RESTORE FROM BACKUP ─── */}
             <motion.div
-              whileHover={{ y: -1 }}
               whileTap={{ scale: 0.985 }}
-              onClick={!isExportingXlsx ? handleExportExcel : undefined}
+              onClick={handleTriggerFileSelect}
               style={{
                 background: cardBg,
                 border: cardBorder,
-                borderRadius: 20,
-                padding: '18px 18px',
-                cursor: isExportingXlsx ? 'default' : 'pointer',
+                borderRadius: cardRadius,
+                padding: '16px 18px',
+                cursor: isBusy ? 'default' : 'pointer',
                 display: 'flex',
-                flexDirection: 'column',
-                gap: 12,
+                alignItems: 'center',
+                gap: 14,
                 position: 'relative',
-                overflow: 'hidden',
                 transition: 'border-color 0.2s',
               }}
             >
-              {/* Card Header */}
-              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                  <div
-                    style={{
-                      width: 44,
-                      height: 44,
-                      borderRadius: 14,
-                      background: 'rgba(245, 158, 11, 0.15)',
-                      border: '0.5px solid rgba(245, 158, 11, 0.3)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      color: '#F59E0B',
-                      flexShrink: 0,
-                    }}
-                  >
-                    <FileSpreadsheet size={24} />
-                  </div>
-                  <div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <span
-                        style={{
-                          fontSize: 16,
-                          fontWeight: 700,
-                          color: '#FFFFFF',
-                          letterSpacing: '-0.01em',
-                        }}
-                      >
-                        Export to Excel
-                      </span>
-                      <span
-                        style={{
-                          fontSize: 9.5,
-                          fontWeight: 700,
-                          letterSpacing: '0.04em',
-                          padding: '2px 7px',
-                          borderRadius: 6,
-                          background: 'rgba(245, 158, 11, 0.2)',
-                          color: '#FBBF24',
-                        }}
-                      >
-                        PRINT READY
-                      </span>
-                    </div>
-                    <span
-                      style={{
-                        fontSize: 12,
-                        color: 'rgba(235, 235, 245, 0.5)',
-                        marginTop: 2,
-                        display: 'block',
-                      }}
-                    >
-                      Saved to Documents/Ledger/Excel Reports
-                    </span>
-                  </div>
-                </div>
+              {/* Apple-style squircle icon */}
+              <div
+                style={{
+                  width: 44,
+                  height: 44,
+                  borderRadius: 13,
+                  background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.25) 0%, rgba(109, 40, 217, 0.12) 100%)',
+                  border: '0.5px solid rgba(139, 92, 246, 0.35)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: '#A78BFA',
+                  flexShrink: 0,
+                }}
+              >
+                <FolderUp size={22} />
+              </div>
 
+              {/* Text content */}
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 16, fontWeight: 600, color: '#FFFFFF', letterSpacing: '-0.01em' }}>
+                  Restore from Backup
+                </div>
                 <div
                   style={{
-                    width: 32,
-                    height: 32,
-                    borderRadius: 16,
-                    background: 'rgba(255, 255, 255, 0.06)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    color: 'rgba(235, 235, 245, 0.6)',
+                    fontSize: 12.5,
+                    color: 'rgba(235, 235, 245, 0.55)',
+                    marginTop: 2,
+                    lineHeight: 1.35,
                   }}
                 >
-                  {isExportingXlsx ? (
-                    <Loader2 size={16} className="animate-spin text-amber-400" />
-                  ) : (
-                    <ChevronRight size={18} />
-                  )}
+                  Import saved records from this phone or a new device
                 </div>
               </div>
 
-              {/* Description */}
+              {/* Action Pill / Spinner */}
+              <div
+                style={{
+                  padding: '7px 14px',
+                  borderRadius: 100,
+                  background: 'rgba(255, 255, 255, 0.1)',
+                  border: '0.5px solid rgba(255, 255, 255, 0.14)',
+                  color: '#FFFFFF',
+                  fontSize: 13,
+                  fontWeight: 600,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  flexShrink: 0,
+                }}
+              >
+                {isRestoring ? (
+                  <>
+                    <Loader2 size={13} className="animate-spin text-purple-400" />
+                    <span>Restoring...</span>
+                  </>
+                ) : (
+                  <>
+                    <span>Choose File</span>
+                    <ChevronRight size={14} style={{ opacity: 0.6 }} />
+                  </>
+                )}
+              </div>
+            </motion.div>
+
+            {/* ─── ACTION 3: EXPORT EXCEL SPREADSHEET ─── */}
+            <motion.div
+              whileTap={{ scale: 0.985 }}
+              onClick={handleExportExcel}
+              style={{
+                background: cardBg,
+                border: cardBorder,
+                borderRadius: cardRadius,
+                padding: '16px 18px',
+                cursor: isBusy ? 'default' : 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 14,
+                position: 'relative',
+                transition: 'border-color 0.2s',
+              }}
+            >
+              {/* Apple-style squircle icon */}
+              <div
+                style={{
+                  width: 44,
+                  height: 44,
+                  borderRadius: 13,
+                  background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.22) 0%, rgba(217, 119, 6, 0.12) 100%)',
+                  border: '0.5px solid rgba(245, 158, 11, 0.35)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: '#FBBF24',
+                  flexShrink: 0,
+                }}
+              >
+                <FileSpreadsheet size={22} />
+              </div>
+
+              {/* Text content */}
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 16, fontWeight: 600, color: '#FFFFFF', letterSpacing: '-0.01em' }}>
+                  Export to Excel
+                </div>
+                <div
+                  style={{
+                    fontSize: 12.5,
+                    color: 'rgba(235, 235, 245, 0.55)',
+                    marginTop: 2,
+                    lineHeight: 1.35,
+                  }}
+                >
+                  Generate a clean, printable ledger spreadsheet (.xlsx)
+                </div>
+              </div>
+
+              {/* Action Pill / Spinner */}
+              <div
+                style={{
+                  padding: '7px 14px',
+                  borderRadius: 100,
+                  background: 'rgba(255, 255, 255, 0.1)',
+                  border: '0.5px solid rgba(255, 255, 255, 0.14)',
+                  color: '#FFFFFF',
+                  fontSize: 13,
+                  fontWeight: 600,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  flexShrink: 0,
+                }}
+              >
+                {isExportingXlsx ? (
+                  <>
+                    <Loader2 size={13} className="animate-spin text-amber-400" />
+                    <span>Exporting...</span>
+                  </>
+                ) : (
+                  <span>Export</span>
+                )}
+              </div>
+            </motion.div>
+
+            {/* ─── REASSURING PRIVACY & SECURITY NOTE ─── */}
+            <div
+              style={{
+                marginTop: 6,
+                padding: '12px 16px',
+                borderRadius: cardRadius - 4,
+                background: 'rgba(255, 255, 255, 0.025)',
+                border: '0.5px solid rgba(255, 255, 255, 0.05)',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 12,
+              }}
+            >
+              <div
+                style={{
+                  width: 28,
+                  height: 28,
+                  borderRadius: 8,
+                  background: 'rgba(255, 255, 255, 0.06)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: 'rgba(235, 235, 245, 0.65)',
+                  flexShrink: 0,
+                }}
+              >
+                <Lock size={14} />
+              </div>
               <p
                 style={{
                   margin: 0,
-                  fontSize: 12.5,
+                  fontSize: 11.5,
                   lineHeight: 1.45,
-                  color: 'rgba(235, 235, 245, 0.65)',
+                  color: 'rgba(235, 235, 245, 0.45)',
+                  letterSpacing: '-0.01em',
                 }}
               >
-                Generates a clean spreadsheet featuring your app logo, executive totals, client balances,
-                and complete transaction history. Pre-formatted for A4 paper and ready to print or share.
+                <strong style={{ color: 'rgba(255, 255, 255, 0.8)', fontWeight: 600 }}>100% On-Device Privacy:</strong> All your financial data is encrypted and saved directly to your phone. Nothing is ever sent to any remote server or cloud.
               </p>
-
-              {/* Action Pill */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 2 }}>
-                <div
-                  style={{
-                    padding: '8px 14px',
-                    borderRadius: 10,
-                    background: 'rgba(245, 158, 11, 0.16)',
-                    border: '0.5px solid rgba(245, 158, 11, 0.35)',
-                    color: '#FBBF24',
-                    fontSize: 12,
-                    fontWeight: 600,
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: 6,
-                  }}
-                >
-                  <Printer size={12} />
-                  <span>Download Excel (.xlsx)</span>
-                </div>
-              </div>
-            </motion.div>
-          </div>
-
-          {/* Footer note */}
-          <div
-            style={{
-              padding: '6px 24px 12px',
-              textAlign: 'center',
-              fontSize: 11.5,
-              color: 'rgba(235, 235, 245, 0.4)',
-              letterSpacing: '-0.01em',
-            }}
-          >
-            All records are stored directly on your phone and stay 100% private to you.
+            </div>
           </div>
         </motion.div>
       </div>

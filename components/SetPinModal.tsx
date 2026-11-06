@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { X, KeyRound, Delete, CheckCircle2, AlertCircle, ShieldCheck } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useHaptics } from '../hooks/useHaptics';
-import { hashSecurityPin, verifySecurityPin } from '../utils/securityPin';
+import { hashSecurityPin, verifySecurityPin, saveSecurityPinHardware } from '../utils/securityPin';
 
 interface Props {
   isOpen: boolean;
@@ -91,7 +91,7 @@ export const SetPinModal: React.FC<Props> = ({
       if (step === 'confirm') {
         if (newDigits === newPinCandidate) {
           haptic('success');
-          const hashed = await hashSecurityPin(newDigits);
+          const hashed = await saveSecurityPinHardware(newDigits);
           onPinSaved(hashed);
           window.dispatchEvent(
             new CustomEvent('abhi-ledger-toast', {
