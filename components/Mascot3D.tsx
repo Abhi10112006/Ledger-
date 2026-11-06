@@ -57,9 +57,12 @@ export const Mascot3D: React.FC<Mascot3DProps> = ({
   const [currentTrick, setCurrentTrick] = useState<MascotTrick>('idle');
   const [trickSpeech, setTrickSpeech] = useState<string | null>(null);
   const [particles, setParticles] = useState<FloatingParticle[]>([]);
-  const [isBlinking, setIsBlinking] = useState(false);
   const [idleThoughtIndex, setIdleThoughtIndex] = useState(0);
-  const [isDragging, setIsDragging] = useState(false);
+
+  // Drag physics states
+  const isDraggingRef = useRef(false);
+  const dragPosRef = useRef({ x: 0, y: 0 });
+  const dragVelRef = useRef({ x: 0, y: 0 });
 
   // Animation Refs
   const trickTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -75,7 +78,7 @@ export const Mascot3D: React.FC<Mascot3DProps> = ({
   const isFocusedRef = useRef<boolean>(isFocused);
   isFocusedRef.current = isFocused;
 
-  // Normalized mouse/touch target coordinates (-1 to 1)
+  // Normalized pointer coordinates (-1 to 1)
   const targetPointerRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
   const currentPointerRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
 
@@ -139,7 +142,7 @@ export const Mascot3D: React.FC<Mascot3DProps> = ({
         haptic('medium');
         const flipQuotes = [
           'Woohoo! Check out this real 3D zero-gravity flip! 🤸‍♂️🚀',
-          'Wheee! Pixar physics in action! 🌟',
+          'Wheee! Real Pixar physics in action! 🌟',
           'Ten out of ten landing! 🏆',
         ];
         setTrickSpeech(flipQuotes[Math.floor(Math.random() * flipQuotes.length)]);
@@ -225,10 +228,10 @@ export const Mascot3D: React.FC<Mascot3DProps> = ({
     trickTimeoutRef.current = setTimeout(() => {
       setCurrentTrick('idle');
       setTrickSpeech(null);
-    }, 3400);
+    }, 3500);
   };
 
-  // External celebration trigger (e.g. when user saves name)
+  // External celebration trigger
   useEffect(() => {
     if (celebrateTrigger > 0) {
       if (trickTimeoutRef.current) clearTimeout(trickTimeoutRef.current);
@@ -251,19 +254,6 @@ export const Mascot3D: React.FC<Mascot3DProps> = ({
     }
   }, [celebrateTrigger]);
 
-  // Periodic natural blinking
-  useEffect(() => {
-    let blinkTimeout: NodeJS.Timeout;
-    const triggerBlink = () => {
-      setIsBlinking(true);
-      setTimeout(() => setIsBlinking(false), 140);
-      const nextInterval = 2600 + Math.random() * 2800;
-      blinkTimeout = setTimeout(triggerBlink, nextInterval);
-    };
-    blinkTimeout = setTimeout(triggerBlink, 2000);
-    return () => clearTimeout(blinkTimeout);
-  }, []);
-
   // Periodic idle thought rotation
   useEffect(() => {
     const idleInterval = setInterval(() => {
@@ -278,6 +268,14 @@ export const Mascot3D: React.FC<Mascot3DProps> = ({
     const rect = containerRef.current.getBoundingClientRect();
     const centerX = rect.left + rect.width / 2;
     const centerY = rect.top + rect.height / 2;
+
+    if (isDraggingRef.current) {
+      dragPosRef.current = {
+        x: (e.clientX - centerX) * 0.015,
+        y: -(e.clientY - centerY) * 0.015,
+      };
+    }
+
     targetPointerRef.current = {
       x: Math.max(-1, Math.min(1, (e.clientX - centerX) / (rect.width / 2))),
       y: Math.max(-1, Math.min(1, (e.clientY - centerY) / (rect.height / 2))),
@@ -286,9 +284,9 @@ export const Mascot3D: React.FC<Mascot3DProps> = ({
 
   const handlePointerLeave = () => {
     targetPointerRef.current = { x: 0, y: 0 };
+    isDraggingRef.current = false;
   };
 
-  // Tap handler (Random trick every time user touches the mascot)
   const handleMascotTap = () => {
     triggerRandomTrick();
     if (onTap) onTap();
@@ -298,7 +296,7 @@ export const Mascot3D: React.FC<Mascot3DProps> = ({
   // INTELLIGENT DIALOGUE ENGINE
   // =========================================================================
   const getSpeechText = () => {
-    if (isDragging) {
+    if (isDraggingRef.current) {
       return 'Wheeeee! Where are we flying to? 🎈';
     }
     if (trickSpeech) {
@@ -373,20 +371,19 @@ export const Mascot3D: React.FC<Mascot3DProps> = ({
   };
 
   // =========================================================================
-  // REAL THREE.JS 3D SCENE & RIGGING ENGINE
+  // REAL THREE.JS 3D SCENE & RIGGING WITH 3D MESH PIXAR EYES & PHYSICAL SPRING PHYSICS
   // =========================================================================
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    // Dimensions
     const width = 290;
     const height = 290;
 
     // 1. Scene, Camera, Renderer
     const scene = new THREE.Scene();
-    const camera = new THREE.PerspectiveCamera(42, width / height, 0.1, 100);
-    camera.position.set(0, 0.2, 5.2);
+    const camera = new THREE.PerspectiveCamera(40, width / height, 0.1, 100);
+    camera.position.set(0, 0.15, 5.4);
 
     const renderer = new THREE.WebGLRenderer({
       canvas,
@@ -397,286 +394,93 @@ export const Mascot3D: React.FC<Mascot3DProps> = ({
     renderer.setSize(width, height);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.25;
+    renderer.toneMappingExposure = 1.35;
 
-    // 2. Offscreen Canvas for Pixar Dynamic Visor Expressions
-    const visorCanvas = document.createElement('canvas');
-    visorCanvas.width = 512;
-    visorCanvas.height = 256;
-    const vCtx = visorCanvas.getContext('2d');
-    const visorTexture = new THREE.CanvasTexture(visorCanvas);
-    visorTexture.colorSpace = THREE.SRGBColorSpace;
-
-    // Helper to draw eyes on the 3D visor texture
-    const updateVisorCanvas = (
-      trick: MascotTrick,
-      moodState: MascotMood,
-      blinking: boolean,
-      colorHex: string,
-      pX: number,
-      pY: number
-    ) => {
-      if (!vCtx) return;
-      vCtx.clearRect(0, 0, 512, 256);
-
-      // Visor background: deep glossy glass OLED
-      vCtx.fillStyle = '#06080e';
-      vCtx.fillRect(0, 0, 512, 256);
-
-      // Micro cyber scanlines
-      vCtx.fillStyle = 'rgba(255, 255, 255, 0.02)';
-      for (let y = 0; y < 256; y += 4) {
-        vCtx.fillRect(0, y, 512, 2);
-      }
-
-      const eyeBaseY = isFocusedRef.current ? 145 : 130 + pY * 18;
-      const leftEyeX = 175 + pX * 24;
-      const rightEyeX = 337 + pX * 24;
-
-      // 1. Blinking
-      if (blinking && trick !== 'dizzy' && trick !== 'hearts') {
-        vCtx.strokeStyle = colorHex;
-        vCtx.lineWidth = 6;
-        vCtx.lineCap = 'round';
-        vCtx.beginPath();
-        vCtx.moveTo(leftEyeX - 35, eyeBaseY);
-        vCtx.lineTo(leftEyeX + 35, eyeBaseY);
-        vCtx.moveTo(rightEyeX - 35, eyeBaseY);
-        vCtx.lineTo(rightEyeX + 35, eyeBaseY);
-        vCtx.stroke();
-        visorTexture.needsUpdate = true;
-        return;
-      }
-
-      // 2. Heart Eyes
-      if (trick === 'hearts') {
-        const drawHeart = (cx: number, cy: number) => {
-          vCtx.fillStyle = '#f43f5e';
-          vCtx.shadowColor = '#f43f5e';
-          vCtx.shadowBlur = 18;
-          vCtx.beginPath();
-          vCtx.moveTo(cx, cy + 18);
-          vCtx.bezierCurveTo(cx - 38, cy - 25, cx - 38, cy - 50, cx, cy - 25);
-          vCtx.bezierCurveTo(cx + 38, cy - 50, cx + 38, cy - 25, cx, cy + 18);
-          vCtx.fill();
-          vCtx.shadowBlur = 0;
-        };
-        drawHeart(leftEyeX, eyeBaseY);
-        drawHeart(rightEyeX, eyeBaseY);
-
-        // Pink glowing blush
-        vCtx.fillStyle = 'rgba(244, 63, 94, 0.45)';
-        vCtx.beginPath();
-        vCtx.ellipse(120, 185, 30, 15, 0, 0, Math.PI * 2);
-        vCtx.ellipse(392, 185, 30, 15, 0, 0, Math.PI * 2);
-        vCtx.fill();
-
-        visorTexture.needsUpdate = true;
-        return;
-      }
-
-      // 3. Dizzy Spiral Eyes
-      if (trick === 'dizzy') {
-        const timeNow = performance.now() * 0.006;
-        const drawSpiral = (cx: number, cy: number, reverse: boolean) => {
-          vCtx.strokeStyle = colorHex;
-          vCtx.lineWidth = 6;
-          vCtx.beginPath();
-          for (let i = 0; i < 40; i++) {
-            const angle = (reverse ? -1 : 1) * 0.35 * i + timeNow;
-            const dist = (i / 40) * 36;
-            const x = cx + Math.cos(angle) * dist;
-            const y = cy + Math.sin(angle) * dist;
-            if (i === 0) vCtx.moveTo(x, y);
-            else vCtx.lineTo(x, y);
-          }
-          vCtx.stroke();
-        };
-        drawSpiral(leftEyeX, eyeBaseY, false);
-        drawSpiral(rightEyeX, eyeBaseY, true);
-        visorTexture.needsUpdate = true;
-        return;
-      }
-
-      // 4. Star Eyes
-      if (trick === 'flip' || trick === 'party' || moodState === 'celebrate') {
-        const drawStar = (cx: number, cy: number) => {
-          vCtx.fillStyle = colorHex;
-          vCtx.shadowColor = colorHex;
-          vCtx.shadowBlur = 16;
-          vCtx.beginPath();
-          const spikes = 5;
-          const outerR = 38;
-          const innerR = 18;
-          let rot = (Math.PI / 2) * 3;
-          const step = Math.PI / spikes;
-          vCtx.moveTo(cx, cy - outerR);
-          for (let i = 0; i < spikes; i++) {
-            vCtx.lineTo(cx + Math.cos(rot) * outerR, cy + Math.sin(rot) * outerR);
-            rot += step;
-            vCtx.lineTo(cx + Math.cos(rot) * innerR, cy + Math.sin(rot) * innerR);
-            rot += step;
-          }
-          vCtx.closePath();
-          vCtx.fill();
-          vCtx.shadowBlur = 0;
-        };
-        drawStar(leftEyeX, eyeBaseY);
-        drawStar(rightEyeX, eyeBaseY);
-        visorTexture.needsUpdate = true;
-        return;
-      }
-
-      // 5. Arched Joyful Eyes (^)
-      if (moodState === 'welcome' || trick === 'tickle') {
-        vCtx.strokeStyle = colorHex;
-        vCtx.lineWidth = 10;
-        vCtx.lineCap = 'round';
-        vCtx.shadowColor = colorHex;
-        vCtx.shadowBlur = 14;
-
-        vCtx.beginPath();
-        vCtx.arc(leftEyeX, eyeBaseY + 12, 34, Math.PI * 1.15, Math.PI * 1.85, false);
-        vCtx.stroke();
-
-        vCtx.beginPath();
-        vCtx.arc(rightEyeX, eyeBaseY + 12, 34, Math.PI * 1.15, Math.PI * 1.85, false);
-        vCtx.stroke();
-
-        vCtx.shadowBlur = 0;
-        visorTexture.needsUpdate = true;
-        return;
-      }
-
-      // 6. Cool Wink
-      if (trick === 'wink') {
-        // Left Eye: Wink
-        vCtx.strokeStyle = '#ffffff';
-        vCtx.lineWidth = 8;
-        vCtx.lineCap = 'round';
-        vCtx.beginPath();
-        vCtx.moveTo(leftEyeX - 35, eyeBaseY);
-        vCtx.lineTo(leftEyeX + 35, eyeBaseY);
-        vCtx.stroke();
-
-        // Right Eye: Wide cool oval
-        vCtx.fillStyle = colorHex;
-        vCtx.beginPath();
-        vCtx.ellipse(rightEyeX, eyeBaseY, 32, 44, 0, 0, Math.PI * 2);
-        vCtx.fill();
-
-        // Catchlight
-        vCtx.fillStyle = '#ffffff';
-        vCtx.beginPath();
-        vCtx.arc(rightEyeX - 10, eyeBaseY - 14, 12, 0, Math.PI * 2);
-        vCtx.fill();
-
-        visorTexture.needsUpdate = true;
-        return;
-      }
-
-      // 7. Pixar Classic Expressive Eyes with Dual Catchlights
-      const drawPixarEye = (cx: number, cy: number) => {
-        // Eye capsule/oval
-        vCtx.fillStyle = colorHex;
-        vCtx.shadowColor = colorHex;
-        vCtx.shadowBlur = 18;
-        vCtx.beginPath();
-        vCtx.ellipse(cx, cy, 32, 46, 0, 0, Math.PI * 2);
-        vCtx.fill();
-        vCtx.shadowBlur = 0;
-
-        // Primary Pixar Catchlight (Top-Left)
-        vCtx.fillStyle = '#ffffff';
-        vCtx.beginPath();
-        vCtx.arc(cx - 10, cy - 14, 11, 0, Math.PI * 2);
-        vCtx.fill();
-
-        // Secondary Soft Catchlight (Bottom-Right)
-        vCtx.fillStyle = 'rgba(255, 255, 255, 0.75)';
-        vCtx.beginPath();
-        vCtx.arc(cx + 11, cy + 16, 6, 0, Math.PI * 2);
-        vCtx.fill();
-      };
-
-      drawPixarEye(leftEyeX, eyeBaseY);
-      drawPixarEye(rightEyeX, eyeBaseY);
-
-      // Cute Pixar Smile Mouth
-      vCtx.strokeStyle = colorHex;
-      vCtx.lineWidth = 6;
-      vCtx.lineCap = 'round';
-      vCtx.beginPath();
-      vCtx.arc(256, 195, 24, Math.PI * 0.15, Math.PI * 0.85, false);
-      vCtx.stroke();
-
-      visorTexture.needsUpdate = true;
-    };
-
-    // 3. Pixar Studio Multi-Point Lighting Rig
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.9);
+    // 2. Pixar Studio Lighting Rig
+    const ambientLight = new THREE.AmbientLight(0xffffff, 1.1);
     scene.add(ambientLight);
 
     // Warm Sun Key Light
-    const keyLight = new THREE.DirectionalLight(0xfff8ee, 2.8);
-    keyLight.position.set(3.5, 4.5, 3.5);
+    const keyLight = new THREE.DirectionalLight(0xfffaed, 3.2);
+    keyLight.position.set(3.5, 4.5, 3.8);
     scene.add(keyLight);
 
     // Cool Sky Fill Light
-    const fillLight = new THREE.DirectionalLight(0x94a3b8, 1.4);
+    const fillLight = new THREE.DirectionalLight(0x94a3b8, 1.6);
     fillLight.position.set(-3.5, -1.0, 2.5);
     scene.add(fillLight);
 
-    // Vibrant Pixar Rim Light (Colored by user's active theme!)
-    const rimLight = new THREE.PointLight(new THREE.Color(accentColor), 5.0, 9);
+    // Electric Pixar Rim Light (Colored by user's active theme)
+    const rimLight = new THREE.PointLight(new THREE.Color(accentColor), 5.5, 9);
     rimLight.position.set(0, 1.0, -2.8);
     scene.add(rimLight);
 
-    // Front Accent Fill
-    const frontAccentLight = new THREE.PointLight(new THREE.Color(accentColor), 1.8, 6);
-    frontAccentLight.position.set(0, -1.5, 2.5);
+    // Front Chest Fill Light
+    const frontAccentLight = new THREE.PointLight(new THREE.Color(accentColor), 2.2, 6);
+    frontAccentLight.position.set(0, -1.2, 2.6);
     scene.add(frontAccentLight);
 
-    // 4. Eve/Wall-E Pixar PBR Materials with Subsurface Scattering Emulation
+    // 3. Pixar PBR Materials with Subsurface Scattering Emulation
     const ceramicMaterial = new THREE.MeshPhysicalMaterial({
       color: 0xf8fafc,
-      roughness: 0.16,
+      roughness: 0.15,
       metalness: 0.04,
       clearcoat: 1.0,
-      clearcoatRoughness: 0.08,
+      clearcoatRoughness: 0.06,
       sheen: 1.0,
-      sheenRoughness: 0.25,
+      sheenRoughness: 0.2,
       sheenColor: new THREE.Color(accentColor).multiplyScalar(0.4),
       transmission: 0.03, // Soft Pixar subsurface translucency
       thickness: 0.8,
     });
 
     const darkAlloyMaterial = new THREE.MeshStandardMaterial({
-      color: 0x1e2433,
-      roughness: 0.3,
-      metalness: 0.85,
+      color: 0x181e2b,
+      roughness: 0.28,
+      metalness: 0.88,
     });
 
-    const visorMaterial = new THREE.MeshPhysicalMaterial({
-      color: 0x07090e,
-      roughness: 0.08,
-      metalness: 0.2,
+    const visorGlassMaterial = new THREE.MeshPhysicalMaterial({
+      color: 0x05070d,
+      roughness: 0.06,
+      metalness: 0.3,
       clearcoat: 1.0,
-      clearcoatRoughness: 0.04,
-      map: visorTexture,
-      emissive: new THREE.Color(accentColor),
-      emissiveMap: visorTexture,
-      emissiveIntensity: 1.3,
+      clearcoatRoughness: 0.03,
+    });
+
+    // Super Bright OLED Eye Material (Guaranteed 100% visible and glowing!)
+    const eyeGlowMaterial = new THREE.MeshBasicMaterial({
+      color: new THREE.Color(accentColor),
+    });
+
+    const pupilMaterial = new THREE.MeshBasicMaterial({
+      color: new THREE.Color(accentColor).multiplyScalar(0.7),
+    });
+
+    const catchlightMaterial = new THREE.MeshBasicMaterial({
+      color: 0xffffff,
+    });
+
+    const softCatchlightMaterial = new THREE.MeshBasicMaterial({
+      color: 0xffffff,
+      transparent: true,
+      opacity: 0.75,
+    });
+
+    const pinkBlushMaterial = new THREE.MeshBasicMaterial({
+      color: 0xf43f5e,
+      transparent: true,
+      opacity: 0,
     });
 
     const emissiveCoreMaterial = new THREE.MeshStandardMaterial({
       color: new THREE.Color(accentColor),
       emissive: new THREE.Color(accentColor),
-      emissiveIntensity: 2.2,
+      emissiveIntensity: 2.8,
       roughness: 0.2,
     });
 
-    // 5. Rigged Hierarchical 3D Pixar Scene Graph
+    // 4. Rigged 3D Hierarchy
     const rootGroup = new THREE.Group();
     scene.add(rootGroup);
 
@@ -705,7 +509,7 @@ export const Mascot3D: React.FC<Mascot3DProps> = ({
     orbitGroup.position.set(0, -0.65, 0);
     bodyGroup.add(orbitGroup);
 
-    const ringGeo = new THREE.TorusGeometry(1.5, 0.028, 16, 64);
+    const ringGeo = new THREE.TorusGeometry(1.52, 0.028, 16, 64);
     const ringMesh = new THREE.Mesh(ringGeo, darkAlloyMaterial);
     orbitGroup.add(ringMesh);
 
@@ -713,7 +517,7 @@ export const Mascot3D: React.FC<Mascot3DProps> = ({
     const sparkMesh = new THREE.Mesh(sparkGeo, emissiveCoreMaterial);
     orbitGroup.add(sparkMesh);
 
-    // Left Articulated Hand Group
+    // Left Hand Group
     const leftArmGroup = new THREE.Group();
     leftArmGroup.position.set(-0.95, -0.35, 0);
     bodyGroup.add(leftArmGroup);
@@ -728,7 +532,7 @@ export const Mascot3D: React.FC<Mascot3DProps> = ({
     leftPalmMesh.position.set(0, -0.38, 0.08);
     leftArmGroup.add(leftPalmMesh);
 
-    // Right Articulated Hand Group (Waving, High-Five, Clap)
+    // Right Hand Group (Waving, High-Five, Clap)
     const rightArmGroup = new THREE.Group();
     rightArmGroup.position.set(0.95, -0.35, 0);
     bodyGroup.add(rightArmGroup);
@@ -752,12 +556,12 @@ export const Mascot3D: React.FC<Mascot3DProps> = ({
     const headMesh = new THREE.Mesh(headGeo, ceramicMaterial);
     headGroup.add(headMesh);
 
-    // Inset Curved OLED Visor Screen
-    const visorGeo = new THREE.SphereGeometry(0.88, 36, 28, 0, Math.PI * 2, 0, Math.PI * 0.55);
-    visorGeo.scale(0.94, 0.9, 0.82);
-    visorGeo.rotateX(Math.PI * 0.48);
-    const visorMesh = new THREE.Mesh(visorGeo, visorMaterial);
-    visorMesh.position.set(0, 0.04, 0.32);
+    // Inset Curved OLED Visor Screen (Positioned ahead of head sphere front apex)
+    const visorGeo = new THREE.SphereGeometry(0.98, 36, 28, 0, Math.PI * 2, 0, Math.PI * 0.52);
+    visorGeo.scale(0.96, 0.9, 0.86);
+    visorGeo.rotateX(Math.PI * 0.5);
+    const visorMesh = new THREE.Mesh(visorGeo, visorGlassMaterial);
+    visorMesh.position.set(0, 0.05, 0.38);
     headGroup.add(visorMesh);
 
     // Magnetic Left Ear Pod
@@ -800,6 +604,180 @@ export const Mascot3D: React.FC<Mascot3DProps> = ({
     gemMesh.position.set(0, 0.08, 0);
     antennaGroup.add(gemMesh);
 
+    // =========================================================================
+    // 3D REAL POLYGONAL FACE RIG (PROUD IN FRONT OF VISOR - CANNOT CLIP OR HIDE)
+    // =========================================================================
+    const faceGroup = new THREE.Group();
+    faceGroup.position.set(0, 0.06, 1.18); // Positioned directly in front of visor!
+    headGroup.add(faceGroup);
+
+    // 1. Normal Eyes Group
+    const normalEyesGroup = new THREE.Group();
+    faceGroup.add(normalEyesGroup);
+
+    // Left Eye Assembly
+    const leftEyeContainer = new THREE.Group();
+    leftEyeContainer.position.set(-0.35, 0.06, 0);
+    normalEyesGroup.add(leftEyeContainer);
+
+    const eyeGeo = new THREE.CapsuleGeometry(0.15, 0.24, 16, 16);
+    const leftEyeMesh = new THREE.Mesh(eyeGeo, eyeGlowMaterial);
+    leftEyeContainer.add(leftEyeMesh);
+
+    // Pupil
+    const pupilGeo = new THREE.SphereGeometry(0.09, 16, 16);
+    const leftPupil = new THREE.Mesh(pupilGeo, pupilMaterial);
+    leftPupil.position.set(0, 0, 0.07);
+    leftEyeContainer.add(leftPupil);
+
+    // Dual Pixar Catchlights
+    const catchlightGeo = new THREE.SphereGeometry(0.046, 12, 12);
+    const leftCatchlight1 = new THREE.Mesh(catchlightGeo, catchlightMaterial);
+    leftCatchlight1.position.set(-0.04, 0.08, 0.12);
+    leftEyeContainer.add(leftCatchlight1);
+
+    const softCatchlightGeo = new THREE.SphereGeometry(0.026, 12, 12);
+    const leftCatchlight2 = new THREE.Mesh(softCatchlightGeo, softCatchlightMaterial);
+    leftCatchlight2.position.set(0.04, -0.06, 0.12);
+    leftEyeContainer.add(leftCatchlight2);
+
+    // Right Eye Assembly
+    const rightEyeContainer = new THREE.Group();
+    rightEyeContainer.position.set(0.35, 0.06, 0);
+    normalEyesGroup.add(rightEyeContainer);
+
+    const rightEyeMesh = new THREE.Mesh(eyeGeo, eyeGlowMaterial);
+    rightEyeContainer.add(rightEyeMesh);
+
+    const rightPupil = new THREE.Mesh(pupilGeo, pupilMaterial);
+    rightPupil.position.set(0, 0, 0.07);
+    rightEyeContainer.add(rightPupil);
+
+    const rightCatchlight1 = new THREE.Mesh(catchlightGeo, catchlightMaterial);
+    rightCatchlight1.position.set(-0.04, 0.08, 0.12);
+    rightEyeContainer.add(rightCatchlight1);
+
+    const rightCatchlight2 = new THREE.Mesh(softCatchlightGeo, softCatchlightMaterial);
+    rightCatchlight2.position.set(0.04, -0.06, 0.12);
+    rightEyeContainer.add(rightCatchlight2);
+
+    // 2. 3D Eyebrows
+    const leftBrowGroup = new THREE.Group();
+    leftBrowGroup.position.set(-0.35, 0.32, 0);
+    faceGroup.add(leftBrowGroup);
+
+    const browGeo = new THREE.CapsuleGeometry(0.032, 0.18, 12, 12);
+    browGeo.rotateZ(Math.PI / 2);
+    const leftBrowMesh = new THREE.Mesh(browGeo, eyeGlowMaterial);
+    leftBrowGroup.add(leftBrowMesh);
+
+    const rightBrowGroup = new THREE.Group();
+    rightBrowGroup.position.set(0.35, 0.32, 0);
+    faceGroup.add(rightBrowGroup);
+
+    const rightBrowMesh = new THREE.Mesh(browGeo, eyeGlowMaterial);
+    rightBrowGroup.add(rightBrowMesh);
+
+    // 3. 3D Glowing Rosy Cheeks (Blush)
+    const blushGeo = new THREE.CircleGeometry(0.12, 24);
+    const leftBlush = new THREE.Mesh(blushGeo, pinkBlushMaterial);
+    leftBlush.position.set(-0.54, -0.14, 0);
+    faceGroup.add(leftBlush);
+
+    const rightBlush = new THREE.Mesh(blushGeo, pinkBlushMaterial);
+    rightBlush.position.set(0.54, -0.14, 0);
+    faceGroup.add(rightBlush);
+
+    // 4. 3D Curved Smile Mouth
+    const mouthGeo = new THREE.TorusGeometry(0.14, 0.024, 12, 24, Math.PI * 0.7);
+    mouthGeo.rotateZ(Math.PI * 1.15);
+    const mouthMesh = new THREE.Mesh(mouthGeo, eyeGlowMaterial);
+    mouthMesh.position.set(0, -0.22, 0);
+    faceGroup.add(mouthMesh);
+
+    // 5. 3D Heart Eyes (For Love Mode)
+    const heartEyesGroup = new THREE.Group();
+    heartEyesGroup.scale.setScalar(0.0001); // Hidden initially
+    faceGroup.add(heartEyesGroup);
+
+    const createHeartMesh = () => {
+      const shape = new THREE.Shape();
+      shape.moveTo(0, 0.05);
+      shape.bezierCurveTo(-0.16, -0.12, -0.16, -0.24, 0, -0.12);
+      shape.bezierCurveTo(0.16, -0.24, 0.16, -0.12, 0, 0.05);
+      const extrudeSettings = { depth: 0.04, bevelEnabled: true, bevelSegments: 3, steps: 1, bevelSize: 0.02, bevelThickness: 0.02 };
+      const geo = new THREE.ExtrudeGeometry(shape, extrudeSettings);
+      geo.rotateZ(Math.PI);
+      const mat = new THREE.MeshBasicMaterial({ color: 0xf43f5e });
+      return new THREE.Mesh(geo, mat);
+    };
+
+    const leftHeart = createHeartMesh();
+    leftHeart.position.set(-0.35, 0.08, 0.02);
+    heartEyesGroup.add(leftHeart);
+
+    const rightHeart = createHeartMesh();
+    rightHeart.position.set(0.35, 0.08, 0.02);
+    heartEyesGroup.add(rightHeart);
+
+    // 6. 3D Star Eyes (For Flip & Party Mode)
+    const starEyesGroup = new THREE.Group();
+    starEyesGroup.scale.setScalar(0.0001); // Hidden initially
+    faceGroup.add(starEyesGroup);
+
+    const createStarMesh = () => {
+      const shape = new THREE.Shape();
+      const points = 5;
+      const outerRadius = 0.18;
+      const innerRadius = 0.085;
+      let angle = Math.PI / 2;
+      shape.moveTo(Math.cos(angle) * outerRadius, Math.sin(angle) * outerRadius);
+      for (let i = 0; i < points; i++) {
+        angle += Math.PI / points;
+        shape.lineTo(Math.cos(angle) * innerRadius, Math.sin(angle) * innerRadius);
+        angle += Math.PI / points;
+        shape.lineTo(Math.cos(angle) * outerRadius, Math.sin(angle) * outerRadius);
+      }
+      const extrudeSettings = { depth: 0.03, bevelEnabled: true, bevelSegments: 2, steps: 1, bevelSize: 0.015, bevelThickness: 0.015 };
+      const geo = new THREE.ExtrudeGeometry(shape, extrudeSettings);
+      const mat = new THREE.MeshBasicMaterial({ color: new THREE.Color(accentColor) });
+      return new THREE.Mesh(geo, mat);
+    };
+
+    const leftStar = createStarMesh();
+    leftStar.position.set(-0.35, 0.06, 0.02);
+    starEyesGroup.add(leftStar);
+
+    const rightStar = createStarMesh();
+    rightStar.position.set(0.35, 0.06, 0.02);
+    starEyesGroup.add(rightStar);
+
+    // 7. 3D Spiral Dizzy Eyes
+    const spiralEyesGroup = new THREE.Group();
+    spiralEyesGroup.scale.setScalar(0.0001); // Hidden initially
+    faceGroup.add(spiralEyesGroup);
+
+    const createSpiralMesh = () => {
+      const curvePoints = [];
+      for (let i = 0; i < 40; i++) {
+        const a = i * 0.35;
+        const r = (i / 40) * 0.17;
+        curvePoints.push(new THREE.Vector3(Math.cos(a) * r, Math.sin(a) * r, (i / 40) * 0.04));
+      }
+      const curve = new THREE.CatmullRomCurve3(curvePoints);
+      const geo = new THREE.TubeGeometry(curve, 32, 0.022, 8, false);
+      const mat = new THREE.MeshBasicMaterial({ color: new THREE.Color(accentColor) });
+      return new THREE.Mesh(geo, mat);
+    };
+
+    const leftSpiral = createSpiralMesh();
+    leftSpiral.position.set(-0.35, 0.06, 0.02);
+    spiralEyesGroup.add(leftSpiral);
+
+    const rightSpiral = createSpiralMesh();
+    rightSpiral.position.set(0.35, 0.06, 0.02);
+    spiralEyesGroup.add(rightSpiral);
+
     // Realistic Pixar Ground Contact Shadow
     const shadowCanvas = document.createElement('canvas');
     shadowCanvas.width = 128;
@@ -807,8 +785,8 @@ export const Mascot3D: React.FC<Mascot3DProps> = ({
     const sCtx = shadowCanvas.getContext('2d');
     if (sCtx) {
       const grad = sCtx.createRadialGradient(64, 64, 0, 64, 64, 64);
-      grad.addColorStop(0, 'rgba(0,0,0,0.85)');
-      grad.addColorStop(0.4, 'rgba(0,0,0,0.3)');
+      grad.addColorStop(0, 'rgba(0,0,0,0.88)');
+      grad.addColorStop(0.35, 'rgba(0,0,0,0.35)');
       grad.addColorStop(1, 'rgba(0,0,0,0)');
       sCtx.fillStyle = grad;
       sCtx.fillRect(0, 0, 128, 128);
@@ -826,121 +804,204 @@ export const Mascot3D: React.FC<Mascot3DProps> = ({
     shadowMesh.position.set(0, -1.95, 0);
     scene.add(shadowMesh);
 
-    // 6. Animation Loop with Procedural Rigging & Physics
+    // =========================================================================
+    // PHYSICAL SPRING-DAMPER DYNAMICS SIMULATION & ANIMATION LOOP
+    // =========================================================================
     let animationFrameId: number;
     let clock = new THREE.Clock();
     let flipStartTime = -1;
 
+    // Physics state vectors
+    let headRotX = 0;
+    let headRotY = 0;
+    let headVelX = 0;
+    let headVelY = 0;
+
+    let antennaRotZ = 0;
+    let antennaVelZ = 0;
+
+    let blinkScale = 1;
+    let nextBlinkTime = 2.0;
+
     const animate = () => {
       animationFrameId = requestAnimationFrame(animate);
+      const dt = Math.min(clock.getDelta(), 0.05);
       const elapsedTime = clock.getElapsedTime();
 
-      // Smooth pointer interpolation
-      currentPointerRef.current.x +=
-        (targetPointerRef.current.x - currentPointerRef.current.x) * 0.08;
-      currentPointerRef.current.y +=
-        (targetPointerRef.current.y - currentPointerRef.current.y) * 0.08;
-
-      const pX = currentPointerRef.current.x;
-      const pY = currentPointerRef.current.y;
+      // Color synchronization
+      const activeColor = new THREE.Color(accentColorRef.current);
+      eyeGlowMaterial.color.copy(activeColor);
+      pupilMaterial.color.copy(activeColor).multiplyScalar(0.7);
+      emissiveCoreMaterial.color.copy(activeColor);
+      emissiveCoreMaterial.emissive.copy(activeColor);
+      rimLight.color.copy(activeColor);
+      frontAccentLight.color.copy(activeColor);
 
       const trick = currentTrickRef.current;
       const moodState = moodRef.current;
-      const colorHex = accentColorRef.current;
 
-      // Update dynamic colors if theme changes
-      const activeThreeColor = new THREE.Color(colorHex);
-      emissiveCoreMaterial.color.copy(activeThreeColor);
-      emissiveCoreMaterial.emissive.copy(activeThreeColor);
-      visorMaterial.emissive.copy(activeThreeColor);
-      rimLight.color.copy(activeThreeColor);
-      frontAccentLight.color.copy(activeThreeColor);
+      // 1. Damped Spring Pointer Tracking
+      const targetX = targetPointerRef.current.x * 0.45;
+      const targetY = targetPointerRef.current.y * 0.35;
 
-      // Rotate orbiting ring spark
-      const sparkAngle = elapsedTime * 2.5;
-      sparkMesh.position.set(Math.cos(sparkAngle) * 1.5, Math.sin(sparkAngle) * 1.5, 0);
+      const k_spring = 28;
+      const damping = 8;
+      headVelX += ((targetX - headRotY) * k_spring - headVelX * damping) * dt;
+      headVelY += ((-targetY - headRotX) * k_spring - headVelY * damping) * dt;
+      headRotY += headVelX * dt;
+      headRotX += headVelY * dt;
 
-      // Update 2D Canvas Eyes on Visor
-      updateVisorCanvas(trick, moodState, isBlinking, colorHex, pX, pY);
+      // 2. Antenna Flexible Inverted-Pendulum Physics
+      const antennaForce = -headVelX * 0.25;
+      antennaVelZ += ((antennaForce - antennaRotZ) * 35 - antennaVelZ * 6) * dt;
+      antennaRotZ += antennaVelZ * dt;
+      antennaGroup.rotation.z = antennaRotZ + Math.sin(elapsedTime * 4) * 0.05;
 
-      // --- PROCEDURAL ANIMATIONS ACCORDING TO TRICK & MOOD ---
+      // 3. Eye Blink Logic (Organic periodic eyelid sweep)
+      if (elapsedTime > nextBlinkTime) {
+        blinkScale = Math.max(0.08, blinkScale - dt * 14);
+        if (blinkScale <= 0.08) {
+          nextBlinkTime = elapsedTime + 2.5 + Math.random() * 2.8;
+        }
+      } else {
+        blinkScale = Math.min(1.0, blinkScale + dt * 12);
+      }
+
+      // 4. Pupil Gaze Physics (Pupils glance towards target)
+      const pupilTargetX = targetPointerRef.current.x * 0.04;
+      const pupilTargetY = (isFocusedRef.current ? -0.05 : -targetPointerRef.current.y * 0.04);
+      leftPupil.position.x = pupilTargetX;
+      leftPupil.position.y = pupilTargetY;
+      rightPupil.position.x = pupilTargetX;
+      rightPupil.position.y = pupilTargetY;
+
+      // 5. Rotate Spark around 3D Halo
+      const sparkAngle = elapsedTime * 2.8;
+      sparkMesh.position.set(Math.cos(sparkAngle) * 1.52, Math.sin(sparkAngle) * 1.52, 0);
+
+      // 6. Dynamic Facial Expression Mode Switching (Punchy scale animations)
+      const lerpScale = (group: THREE.Group, target: number) => {
+        const cur = group.scale.x;
+        const next = cur + (target - cur) * 0.2;
+        group.scale.set(next, next, next);
+      };
+
+      if (trick === 'hearts') {
+        lerpScale(normalEyesGroup, 0.0001);
+        lerpScale(heartEyesGroup, 1.0 + Math.sin(elapsedTime * 6) * 0.15);
+        lerpScale(starEyesGroup, 0.0001);
+        lerpScale(spiralEyesGroup, 0.0001);
+        pinkBlushMaterial.opacity = Math.min(0.9, pinkBlushMaterial.opacity + dt * 3);
+      } else if (trick === 'dizzy') {
+        lerpScale(normalEyesGroup, 0.0001);
+        lerpScale(heartEyesGroup, 0.0001);
+        lerpScale(starEyesGroup, 0.0001);
+        lerpScale(spiralEyesGroup, 1.0);
+        leftSpiral.rotation.z = elapsedTime * 8;
+        rightSpiral.rotation.z = -elapsedTime * 8;
+        pinkBlushMaterial.opacity = Math.max(0, pinkBlushMaterial.opacity - dt * 2);
+      } else if (trick === 'flip' || trick === 'party' || moodState === 'celebrate') {
+        lerpScale(normalEyesGroup, 0.0001);
+        lerpScale(heartEyesGroup, 0.0001);
+        lerpScale(starEyesGroup, 1.0);
+        lerpScale(spiralEyesGroup, 0.0001);
+        leftStar.rotation.z = elapsedTime * 4;
+        rightStar.rotation.z = -elapsedTime * 4;
+        pinkBlushMaterial.opacity = Math.max(0, pinkBlushMaterial.opacity - dt * 2);
+      } else {
+        lerpScale(normalEyesGroup, 1.0);
+        lerpScale(heartEyesGroup, 0.0001);
+        lerpScale(starEyesGroup, 0.0001);
+        lerpScale(spiralEyesGroup, 0.0001);
+        pinkBlushMaterial.opacity = Math.max(0, pinkBlushMaterial.opacity - dt * 2);
+
+        // Apply blinking to normal eyes
+        leftEyeContainer.scale.y = blinkScale;
+        rightEyeContainer.scale.y = trick === 'wink' ? 0.08 : blinkScale;
+      }
+
+      // 7. Eyebrow Expressions
+      if (trick === 'curious') {
+        leftBrowGroup.position.y = 0.38;
+        leftBrowGroup.rotation.z = 0.35;
+        rightBrowGroup.position.y = 0.28;
+        rightBrowGroup.rotation.z = -0.15;
+      } else if (isFocusedRef.current) {
+        leftBrowGroup.position.y = 0.29;
+        leftBrowGroup.rotation.z = -0.15;
+        rightBrowGroup.position.y = 0.29;
+        rightBrowGroup.rotation.z = 0.15;
+      } else {
+        leftBrowGroup.position.y = 0.32;
+        leftBrowGroup.rotation.z = 0.08;
+        rightBrowGroup.position.y = 0.32;
+        rightBrowGroup.rotation.z = -0.08;
+      }
+
+      // 8. Procedural Movement & Tricks with Disney Squash & Stretch Physics
       if (trick === 'flip') {
         if (flipStartTime < 0) flipStartTime = elapsedTime;
         const progress = Math.min(1, (elapsedTime - flipStartTime) / 1.15);
 
-        // 360° Somersault Flip Jump with Squash & Stretch
+        // 360° Zero-G Backflip with Mass Conservation Squash & Stretch
         const jumpY = Math.sin(progress * Math.PI) * 1.6;
         rootGroup.position.y = jumpY;
         rootGroup.rotation.x = progress * Math.PI * 2;
 
-        const squash = progress < 0.15 ? 0.8 : progress < 0.85 ? 1.25 : 0.85;
+        const squash = progress < 0.15 ? 0.78 : progress < 0.85 ? 1.28 : 0.82;
         rootGroup.scale.set(1 / Math.sqrt(squash), squash, 1 / Math.sqrt(squash));
 
         shadowMesh.scale.setScalar(1 - jumpY * 0.35);
         shadowMat.opacity = Math.max(0.15, 0.65 - jumpY * 0.3);
       } else {
         flipStartTime = -1;
-        rootGroup.scale.set(1, 1, 1);
 
         if (trick === 'dizzy') {
-          // Rapid horizontal spin with wobbling tilt
           rootGroup.rotation.y = elapsedTime * 8;
           rootGroup.rotation.z = Math.sin(elapsedTime * 6) * 0.18;
           rootGroup.position.y = Math.sin(elapsedTime * 4) * 0.06;
-
           leftEarGroup.rotation.z = 0.4;
           rightEarGroup.rotation.z = -0.4;
         } else if (trick === 'tickle') {
-          // Playful rapid giggle wiggles
-          rootGroup.rotation.y = Math.sin(elapsedTime * 22) * 0.18;
-          rootGroup.position.x = Math.sin(elapsedTime * 26) * 0.1;
+          rootGroup.rotation.y = Math.sin(elapsedTime * 24) * 0.18;
+          rootGroup.position.x = Math.sin(elapsedTime * 28) * 0.1;
           rootGroup.position.y = Math.sin(elapsedTime * 8) * 0.06;
-
-          // Hands cover mouth/cheeks
           leftArmGroup.rotation.z = 1.05;
           rightArmGroup.rotation.z = -1.05;
         } else if (trick === 'highfive') {
-          // Right hand reaches out forward for high-five
           rootGroup.position.y = Math.sin(elapsedTime * 3) * 0.06;
           rightArmGroup.rotation.x = -1.25;
           rightArmGroup.position.z = 0.45;
           rightArmGroup.rotation.z = 0.3;
         } else if (trick === 'party') {
-          // Clapping hands & bouncing to rhythm
           rootGroup.position.y = Math.abs(Math.sin(elapsedTime * 7)) * 0.25;
           leftArmGroup.rotation.z = 0.4 + Math.sin(elapsedTime * 14) * 0.35;
           rightArmGroup.rotation.z = -0.4 - Math.sin(elapsedTime * 14) * 0.35;
         } else if (trick === 'hearts') {
-          // Hands cup cheeks, gentle swaying
           rootGroup.position.y = Math.sin(elapsedTime * 2) * 0.08;
           rootGroup.rotation.z = Math.sin(elapsedTime * 2.5) * 0.08;
           leftArmGroup.rotation.z = 0.95;
           rightArmGroup.rotation.z = -0.95;
         } else if (trick === 'wink') {
-          // Cool swagger tilt & thumbs up
           headGroup.rotation.z = 0.2;
           rightArmGroup.rotation.x = -0.6;
           rightArmGroup.rotation.z = 0.5;
         } else if (trick === 'curious') {
-          // Inquisitive head tilt like cute puppy robot
           headGroup.rotation.z = 0.36;
           leftEarGroup.rotation.z = -0.3;
           rightEarGroup.rotation.z = 0.35;
         } else {
-          // Normal Idle / Welcome / Asking: Organic Breathing Cycle
+          // Organic Breathing Cycle & Real-time head tracking
           const breath = Math.sin(elapsedTime * 2.2) * 0.08;
           rootGroup.position.y = breath;
           rootGroup.position.x = 0;
           rootGroup.rotation.set(0, 0, 0);
 
-          // Head tracks pointer with natural 3D spring limits
-          headGroup.rotation.y = pX * 0.45;
-          headGroup.rotation.x = pY * 0.35;
-          headGroup.rotation.z = pX * -0.08;
+          headGroup.rotation.y = headRotY;
+          headGroup.rotation.x = headRotX;
+          headGroup.rotation.z = headRotY * -0.15;
 
-          // Floating arms gentle sway
           if (moodState === 'welcome') {
-            // Waving right hand
             rightArmGroup.rotation.z = 1.2 + Math.sin(elapsedTime * 6) * 0.4;
             rightArmGroup.position.y = -0.2 + Math.sin(elapsedTime * 6) * 0.05;
             leftArmGroup.rotation.z = Math.sin(elapsedTime * 2) * 0.08;
@@ -950,12 +1011,10 @@ export const Mascot3D: React.FC<Mascot3DProps> = ({
             rightArmGroup.position.set(0.95, -0.35, 0);
           }
 
-          // Reset ear angles
           leftEarGroup.rotation.z = 0;
           rightEarGroup.rotation.z = 0;
         }
 
-        // Shadow breathing sync
         shadowMesh.scale.setScalar(1 + rootGroup.position.y * 0.15);
         shadowMat.opacity = 0.65 - rootGroup.position.y * 0.15;
       }
@@ -965,14 +1024,17 @@ export const Mascot3D: React.FC<Mascot3DProps> = ({
 
     animate();
 
-    // Cleanup on unmount
     return () => {
       cancelAnimationFrame(animationFrameId);
       renderer.dispose();
-      visorTexture.dispose();
       ceramicMaterial.dispose();
       darkAlloyMaterial.dispose();
-      visorMaterial.dispose();
+      visorGlassMaterial.dispose();
+      eyeGlowMaterial.dispose();
+      pupilMaterial.dispose();
+      catchlightMaterial.dispose();
+      softCatchlightMaterial.dispose();
+      pinkBlushMaterial.dispose();
       emissiveCoreMaterial.dispose();
       shadowMat.dispose();
     };
@@ -1090,8 +1152,12 @@ export const Mascot3D: React.FC<Mascot3DProps> = ({
         drag
         dragConstraints={{ left: -30, right: 30, top: -20, bottom: 20 }}
         dragElastic={0.35}
-        onDragStart={() => setIsDragging(true)}
-        onDragEnd={() => setIsDragging(false)}
+        onDragStart={() => {
+          isDraggingRef.current = true;
+        }}
+        onDragEnd={() => {
+          isDraggingRef.current = false;
+        }}
         whileHover={{ scale: 1.03 }}
         whileTap={{ scale: 0.95 }}
         onClick={handleMascotTap}

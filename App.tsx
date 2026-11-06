@@ -1051,6 +1051,7 @@ const AppContent: React.FC = () => {
             <UpdateBanner
               updateInfo={updateInfo}
               activeTheme={activeTheme}
+              settings={settings}
               onDismiss={() => setUpdateDismissed(true)}
             />
           )}
