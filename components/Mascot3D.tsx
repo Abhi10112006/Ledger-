@@ -1,19 +1,20 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import * as THREE from 'three';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useHaptics } from '../hooks/useHaptics';
 
 export type MascotMood = 'asking' | 'typing' | 'welcome' | 'idle' | 'happy' | 'celebrate';
 export type MascotTrick =
   | 'idle'
-  | 'flip'
-  | 'hearts'
-  | 'dizzy'
-  | 'tickle'
-  | 'highfive'
-  | 'party'
   | 'wink'
-  | 'curious';
+  | 'spin'
+  | 'flip'
+  | 'celebrate'
+  | 'scan'
+  | 'curious'
+  | 'highfive'
+  | 'hearts';
 
 interface Mascot3DProps {
   mood?: MascotMood;
@@ -53,6 +54,9 @@ export const Mascot3D: React.FC<Mascot3DProps> = ({
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
+  // Loading & Readiness state
+  const [isLoaded, setIsLoaded] = useState(false);
+
   // Trick & Interaction States
   const [currentTrick, setCurrentTrick] = useState<MascotTrick>('idle');
   const [trickSpeech, setTrickSpeech] = useState<string | null>(null);
@@ -80,7 +84,16 @@ export const Mascot3D: React.FC<Mascot3DProps> = ({
 
   // Normalized pointer coordinates (-1 to 1)
   const targetPointerRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
-  const currentPointerRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
+
+  // Three.js & Animation References
+  const mixerRef = useRef<THREE.AnimationMixer | null>(null);
+  const actionsRef = useRef<Record<string, THREE.AnimationAction>>({});
+  const currentActionRef = useRef<THREE.AnimationAction | null>(null);
+  const eyeMatRef = useRef<THREE.MeshStandardMaterial | null>(null);
+  const headBoneRef = useRef<THREE.Object3D | null>(null);
+  const modelRootRef = useRef<THREE.Group | null>(null);
+  const shadowMeshRef = useRef<THREE.Mesh | null>(null);
+  const shadowMatRef = useRef<THREE.MeshBasicMaterial | null>(null);
 
   // Time of Day determination for intelligent greetings
   const timeGreeting = useMemo(() => {
@@ -118,17 +131,77 @@ export const Mascot3D: React.FC<Mascot3DProps> = ({
     setTimeout(() => setParticles([]), 2000);
   };
 
-  // Trigger playful tricks with lively animation and speech
+  // Helper to crossfade animation actions smoothly
+  const crossfadeToAction = (
+    actionName: string,
+    isLoop = false,
+    duration = 0.35,
+    onFinished?: () => void
+  ) => {
+    const actions = actionsRef.current;
+    if (!actions || !actions[actionName]) return;
+
+    const nextAction = actions[actionName];
+    const prevAction = currentActionRef.current;
+
+    if (prevAction === nextAction && nextAction.isRunning()) {
+      return;
+    }
+
+    if (prevAction && prevAction !== nextAction) {
+      prevAction.fadeOut(duration);
+    }
+
+    nextAction.reset();
+    if (isLoop) {
+      nextAction.setLoop(THREE.LoopRepeat, Infinity);
+      nextAction.clampWhenFinished = false;
+    } else {
+      nextAction.setLoop(THREE.LoopOnce, 1);
+      nextAction.clampWhenFinished = true;
+    }
+
+    nextAction.fadeIn(duration);
+    nextAction.play();
+    currentActionRef.current = nextAction;
+
+    if (!isLoop && onFinished && mixerRef.current) {
+      const mixer = mixerRef.current;
+      const handleFinish = (e: any) => {
+        if (e.action === nextAction) {
+          mixer.removeEventListener('finished', handleFinish);
+          onFinished();
+        }
+      };
+      mixer.addEventListener('finished', handleFinish);
+    }
+  };
+
+  // Return to appropriate background looping state based on mood
+  const returnToStateLoop = () => {
+    const m = moodRef.current;
+    if (m === 'typing') {
+      crossfadeToAction('EVE_ScanIdle_Loop', true, 0.4);
+    } else if (m === 'celebrate') {
+      crossfadeToAction('EVE_MultiPlayer_Win_Idle', true, 0.4);
+    } else if (m === 'welcome') {
+      crossfadeToAction('EVE_Idle_Active_Loop', true, 0.4);
+    } else {
+      crossfadeToAction('EVE_Idle_Loop01', true, 0.4);
+    }
+  };
+
+  // Trigger playful tricks with official Pixar EVE animations
   const triggerRandomTrick = () => {
     const availableTricks: MascotTrick[] = [
-      'flip',
-      'hearts',
-      'dizzy',
-      'tickle',
-      'highfive',
-      'party',
       'wink',
+      'spin',
+      'flip',
+      'celebrate',
+      'scan',
       'curious',
+      'highfive',
+      'hearts',
     ];
 
     const filtered = availableTricks.filter((t) => t !== currentTrick);
@@ -138,87 +211,114 @@ export const Mascot3D: React.FC<Mascot3DProps> = ({
     setCurrentTrick(chosen);
 
     switch (chosen) {
-      case 'flip': {
+      case 'wink': {
+        haptic('light');
+        const winkQuotes = [
+          'Stay cool! Your finances are under total control. 😎✌️',
+          "Directive: Wink and keep all transactions 100% offline! 🕶️",
+          'Affirmative! Everything is encrypted and private. ✨',
+        ];
+        setTrickSpeech(winkQuotes[Math.floor(Math.random() * winkQuotes.length)]);
+        spawnParticles('star');
+        crossfadeToAction('EVE_Idle_Wink', false, 0.25, () => {
+          returnToStateLoop();
+        });
+        break;
+      }
+      case 'spin': {
         haptic('medium');
+        const spinQuotes = [
+          'Gyroscopes calibrated! 360-degree security perimeter scan complete! 🌀✨',
+          'Wheee! Real zero-gravity pirouette! 🛸💫',
+          'Scanning all angles... Zero cloud trackers detected! 🤖',
+        ];
+        setTrickSpeech(spinQuotes[Math.floor(Math.random() * spinQuotes.length)]);
+        spawnParticles('star');
+        crossfadeToAction('EVE_Idle_Active_Spin', false, 0.25, () => {
+          returnToStateLoop();
+        });
+        break;
+      }
+      case 'flip': {
+        haptic('heavy');
         const flipQuotes = [
-          'Woohoo! Check out this real 3D zero-gravity flip! 🤸‍♂️🚀',
-          'Wheee! Real Pixar physics in action! 🌟',
-          'Ten out of ten landing! 🏆',
+          'Thrusters engaged! Check out this real Pixar zero-g boost! 🚀✨',
+          'Supersonic flight maneuver! All systems nominal! 🌌',
+          'Ten out of ten smooth landing! 🏆',
         ];
         setTrickSpeech(flipQuotes[Math.floor(Math.random() * flipQuotes.length)]);
         spawnParticles('star');
+        crossfadeToAction('EVE_FlyForwardBoost_Start', false, 0.25, () => {
+          returnToStateLoop();
+        });
+        break;
+      }
+      case 'celebrate': {
+        haptic('success');
+        const partyQuotes = [
+          'Cue the celebrations! 100% offline, zero subscriptions! 🎊🎈',
+          'Directive: Celebrate financial sovereignty! 🪩🎉',
+          'Woohoo! We are going to build immense wealth together! 🌟',
+        ];
+        setTrickSpeech(partyQuotes[Math.floor(Math.random() * partyQuotes.length)]);
+        spawnParticles('party');
+        crossfadeToAction('EVE_MultiPlayer_Win_Start', false, 0.25, () => {
+          crossfadeToAction('EVE_MultiPlayer_Win_Idle', true, 0.3);
+        });
+        break;
+      }
+      case 'scan': {
+        haptic('selection');
+        const scanQuotes = [
+          'Scanning local device storage... AES-256 vault verified! 🔍🛡️',
+          'Diagnostic check: Offline database is in pristine condition! ⚡',
+          'Direct sensor scan: No third-party servers detected! 💎',
+        ];
+        setTrickSpeech(scanQuotes[Math.floor(Math.random() * scanQuotes.length)]);
+        crossfadeToAction('EVE_ScanIdle_Loop', false, 0.3, () => {
+          returnToStateLoop();
+        });
+        break;
+      }
+      case 'curious': {
+        haptic('selection');
+        const curiousQuotes = [
+          'Hmm? Got exciting transactions to record today? 🧐📝',
+          'Directive: Awaiting your input! What shall we log? ✨',
+          'Curious sensors active! Ready when you are! 👀',
+        ];
+        setTrickSpeech(curiousQuotes[Math.floor(Math.random() * curiousQuotes.length)]);
+        crossfadeToAction('EVE_Idle_Active_PitchUp_L', false, 0.3, () => {
+          returnToStateLoop();
+        });
+        break;
+      }
+      case 'highfive': {
+        haptic('heavy');
+        const highfiveQuotes = [
+          'Virtual fist-bump! 👊💥 Teamwork makes the dream work!',
+          'Boom! High-five! 🖐️⚡ We are going to crush your financial goals!',
+          'Affirmative! Solid partnership locked in! 🚀',
+        ];
+        setTrickSpeech(highfiveQuotes[Math.floor(Math.random() * highfiveQuotes.length)]);
+        spawnParticles('star');
+        crossfadeToAction('EVE_BrakeFast', false, 0.25, () => {
+          returnToStateLoop();
+        });
         break;
       }
       case 'hearts': {
         haptic('double');
         const heartQuotes = [
           "Aww! You're making my battery melt! 🥰💖",
-          'Maximum friendship detected! Sending love your way! ❤️',
-          "You're the coolest vault keeper ever! ✨",
+          'Directive: Maximum friendship mode activated! ❤️',
+          'You are the best vault keeper in the galaxy! ✨',
         ];
         setTrickSpeech(heartQuotes[Math.floor(Math.random() * heartQuotes.length)]);
         spawnParticles('heart');
-        break;
-      }
-      case 'dizzy': {
-        haptic('light');
-        const dizzyQuotes = [
-          'Whoaaa... the ledger is spinning! Or is it me? 😵🌀',
-          'Too much speed! Hold onto your coins! 💫',
-          'Woah, my gyroscope is recalibrating haha! 🤖',
-        ];
-        setTrickSpeech(dizzyQuotes[Math.floor(Math.random() * dizzyQuotes.length)]);
-        break;
-      }
-      case 'tickle': {
-        haptic('selection');
-        const tickleQuotes = [
-          'Hahaha! Stop that, my tickle sensors are sensitive! 🤖😂',
-          'Hehe, that tickles right in the microchips! ⚡',
-          'No fair, tickling a robot is against the rules! 🤭',
-        ];
-        setTrickSpeech(tickleQuotes[Math.floor(Math.random() * tickleQuotes.length)]);
-        break;
-      }
-      case 'highfive': {
-        haptic('heavy');
-        const highfiveQuotes = [
-          "Boom! High-five! 🖐️⚡ We're gonna crush your debts!",
-          'Virtual fist-bump! 👊💥 Your money is safe with me.',
-          'Teamwork makes the dream work! 🚀',
-        ];
-        setTrickSpeech(highfiveQuotes[Math.floor(Math.random() * highfiveQuotes.length)]);
-        spawnParticles('star');
-        break;
-      }
-      case 'party': {
-        haptic('success');
-        const partyQuotes = [
-          'Cue the music! Time to celebrate financial freedom! 🪩🎉',
-          'Party time! 100% offline, zero subscriptions! 🎊',
-          'Woohoo! Debt-free life is the best life! 🎈',
-        ];
-        setTrickSpeech(partyQuotes[Math.floor(Math.random() * partyQuotes.length)]);
-        spawnParticles('party');
-        break;
-      }
-      case 'wink': {
-        haptic('light');
-        const winkQuotes = [
-          'Stay cool! Your finances are under total control. 😎✌️',
-          "Smooth as butter! I've got everything locked down. 🕶️",
-        ];
-        setTrickSpeech(winkQuotes[Math.floor(Math.random() * winkQuotes.length)]);
-        spawnParticles('star');
-        break;
-      }
-      case 'curious': {
-        haptic('selection');
-        const curiousQuotes = [
-          'Hmm? What are we recording today? 🧐',
-          "Got some exciting transactions to log? I'm ready! 📝",
-        ];
-        setTrickSpeech(curiousQuotes[Math.floor(Math.random() * curiousQuotes.length)]);
+        crossfadeToAction('EVE_Idle_Active_Loop', false, 0.3, () => {
+          returnToStateLoop();
+        });
         break;
       }
       default:
@@ -228,37 +328,58 @@ export const Mascot3D: React.FC<Mascot3DProps> = ({
     trickTimeoutRef.current = setTimeout(() => {
       setCurrentTrick('idle');
       setTrickSpeech(null);
-    }, 3500);
+      returnToStateLoop();
+    }, 3800);
   };
 
-  // External celebration trigger
+  // External celebration trigger (e.g. when user saves name or completes action)
   useEffect(() => {
     if (celebrateTrigger > 0) {
       if (trickTimeoutRef.current) clearTimeout(trickTimeoutRef.current);
-      setCurrentTrick('party');
+      setCurrentTrick('celebrate');
       haptic('success');
       spawnParticles('party');
 
       const clean = userName.trim();
       const celebrationQuotes = [
-        `It's official! Nice to meet you, ${clean}! 🎉`,
-        `Got it memorized, ${clean}! Let's build that wealth! 💎`,
-        `Welcome to the family, ${clean}! Your profile is all set! 🌟`,
+        `Directive confirmed! Nice to meet you, ${clean}! 🎉`,
+        `Saved locally with encryption, ${clean}! Let's build that wealth! 💎`,
+        `Welcome aboard, ${clean}! Your offline profile is set! 🌟`,
       ];
       setTrickSpeech(celebrationQuotes[Math.floor(Math.random() * celebrationQuotes.length)]);
+
+      crossfadeToAction('EVE_MultiPlayer_Win_Start', false, 0.25, () => {
+        crossfadeToAction('EVE_MultiPlayer_Win_Idle', true, 0.3);
+      });
 
       trickTimeoutRef.current = setTimeout(() => {
         setCurrentTrick('idle');
         setTrickSpeech(null);
-      }, 3800);
+        returnToStateLoop();
+      }, 4200);
     }
   }, [celebrateTrigger]);
+
+  // React to mood changes (typing, asking, welcome, idle)
+  useEffect(() => {
+    if (currentTrick !== 'idle') return; // Don't interrupt an active user trick
+
+    if (mood === 'typing') {
+      crossfadeToAction('EVE_ScanIdle_Loop', true, 0.35);
+    } else if (mood === 'celebrate') {
+      crossfadeToAction('EVE_MultiPlayer_Win_Idle', true, 0.35);
+    } else if (mood === 'welcome') {
+      crossfadeToAction('EVE_Idle_Active_Loop', true, 0.35);
+    } else {
+      crossfadeToAction('EVE_Idle_Loop01', true, 0.35);
+    }
+  }, [mood]);
 
   // Periodic idle thought rotation
   useEffect(() => {
     const idleInterval = setInterval(() => {
       setIdleThoughtIndex((prev) => prev + 1);
-    }, 14000);
+    }, 12000);
     return () => clearInterval(idleInterval);
   }, []);
 
@@ -271,8 +392,8 @@ export const Mascot3D: React.FC<Mascot3DProps> = ({
 
     if (isDraggingRef.current) {
       dragPosRef.current = {
-        x: (e.clientX - centerX) * 0.015,
-        y: -(e.clientY - centerY) * 0.015,
+        x: Math.max(-0.6, Math.min(0.6, (e.clientX - centerX) * 0.005)),
+        y: Math.max(-0.4, Math.min(0.4, -(e.clientY - centerY) * 0.005)),
       };
     }
 
@@ -297,7 +418,7 @@ export const Mascot3D: React.FC<Mascot3DProps> = ({
   // =========================================================================
   const getSpeechText = () => {
     if (isDraggingRef.current) {
-      return 'Wheeeee! Where are we flying to? 🎈';
+      return 'Wheeeee! Zero-gravity flight mode engaged! 🛸✨';
     }
     if (trickSpeech) {
       return trickSpeech;
@@ -307,16 +428,16 @@ export const Mascot3D: React.FC<Mascot3DProps> = ({
     }
     if (mood === 'celebrate') {
       const clean = userName && userName.trim() ? userName.trim().split(' ')[0] : 'friend';
-      return `Awesome, ${clean}! Name saved. Press Open Dashboard whenever you're ready! ⭐`;
+      return `Directive complete! Name saved, ${clean}. Press Open Dashboard whenever you're ready! ⭐`;
     }
 
     const cleanTyped = userName.trim();
     if (cleanTyped.length > 0 && mood === 'typing') {
       if (cleanTyped.length < 3) {
-        return `Ooh, starting with "${cleanTyped}"... I'm listening! 👀`;
+        return `Scanning... "${cleanTyped}" detected. I am listening! 👀`;
       }
       if (cleanTyped.length <= 8) {
-        return `Ooh, "${cleanTyped}" sounds so friendly! Love it! ✨`;
+        return `Ooh, "${cleanTyped}" has a great ring to it! Love it! ✨`;
       }
       return `Whoa, "${cleanTyped}"! That's a powerhouse name right there! 👑`;
     }
@@ -330,9 +451,9 @@ export const Mascot3D: React.FC<Mascot3DProps> = ({
         const first = cleanTyped.split(' ')[0];
         const returningQuotes = [
           `Welcome back, ${first}! Everything is safe and sound. 🔒`,
-          `Hey ${first}! Missed ya! Ready to check your dashboard? 📊`,
+          `Directive: All financial records encrypted and intact. Ready when you are, ${first}! 🚀`,
           `Welcome back, ${first}! Zero cloud leaks, 100% private. 🛡️`,
-          `Look who's back! All records are in order, ${first}. 🚀`,
+          `Look who is back! Systems nominal, ${first}. Let's check the ledger! 💎`,
         ];
         return returningQuotes[idleThoughtIndex % returningQuotes.length];
       }
@@ -346,23 +467,23 @@ export const Mascot3D: React.FC<Mascot3DProps> = ({
     const timeGreetingsMap: Record<string, string[]> = {
       morning: [
         `Good morning! Ready to start a fresh financial day? ${timeGreeting.icon}`,
-        'Rise and shine! Your private vault is unlocked and safe. ☕',
-        "Hi! I'm Ledgie, your Pixar-trained vault buddy. No cloud, 100% private! 🛡️",
+        'Directive: Protect your offline vault with AES-256 security! ☕',
+        "Hi! I'm EVE. No cloud, 100% private and offline! 🛡️",
       ],
       afternoon: [
-        `Good afternoon! Your financial records are in tip-top shape. ${timeGreeting.icon}`,
-        'Midday check-in! Everything is stored right on your phone. ✨',
-        'Hi! Feel free to write your name, or jump right into your dashboard! 🚀',
+        `Good afternoon! Financial records are in tip-top shape. ${timeGreeting.icon}`,
+        'Midday check-in! Everything is stored right on your device. ✨',
+        'Hi! Write your name above, or tap Open Dashboard to jump right in! 🚀',
       ],
       evening: [
         `Good evening! Ready to balance today's ledger? ${timeGreeting.icon}`,
-        'Evening! All your transactions are resting safely. 🌙',
-        'Hi! Tap on me if you want to see some fun tricks! 🎩',
+        'Evening! All transactions resting securely in encrypted SQLite. 🌙',
+        'Tap on me to see some flight maneuvers and fun tricks! 🎩',
       ],
       night: [
         `Burning the midnight oil? Your private vault never sleeps. ${timeGreeting.icon}`,
         'Late night accounting? Your data stays 100% offline. 🌌',
-        "Hi! I'm Ledgie. No logins needed, just pure private security! 🤖",
+        "E-v-a! No signups needed, just pure private security! 🤖",
       ],
     };
 
@@ -371,7 +492,7 @@ export const Mascot3D: React.FC<Mascot3DProps> = ({
   };
 
   // =========================================================================
-  // REAL THREE.JS 3D SCENE & RIGGING WITH 3D MESH PIXAR EYES & PHYSICAL SPRING PHYSICS
+  // REAL THREE.JS 3D SCENE LOADING EVE.GLB WITH PIXAR LIGHTING & SPRING PHYSICS
   // =========================================================================
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -382,8 +503,9 @@ export const Mascot3D: React.FC<Mascot3DProps> = ({
 
     // 1. Scene, Camera, Renderer
     const scene = new THREE.Scene();
-    const camera = new THREE.PerspectiveCamera(40, width / height, 0.1, 100);
-    camera.position.set(0, 0.15, 5.4);
+    const camera = new THREE.PerspectiveCamera(38, width / height, 0.1, 50);
+    // Positioned for optimal portrait framing of EVE
+    camera.position.set(0, 0.15, 3.25);
 
     const renderer = new THREE.WebGLRenderer({
       canvas,
@@ -397,626 +519,216 @@ export const Mascot3D: React.FC<Mascot3DProps> = ({
     renderer.toneMappingExposure = 1.35;
 
     // 2. Pixar Studio Lighting Rig
-    const ambientLight = new THREE.AmbientLight(0xffffff, 1.1);
+    const ambientLight = new THREE.AmbientLight(0xffffff, 1.25);
     scene.add(ambientLight);
 
     // Warm Sun Key Light
-    const keyLight = new THREE.DirectionalLight(0xfffaed, 3.2);
-    keyLight.position.set(3.5, 4.5, 3.8);
+    const keyLight = new THREE.DirectionalLight(0xfffaed, 3.0);
+    keyLight.position.set(3.0, 4.0, 3.5);
     scene.add(keyLight);
 
     // Cool Sky Fill Light
     const fillLight = new THREE.DirectionalLight(0x94a3b8, 1.6);
-    fillLight.position.set(-3.5, -1.0, 2.5);
+    fillLight.position.set(-3.0, -0.8, 2.5);
     scene.add(fillLight);
 
-    // Electric Pixar Rim Light (Colored by user's active theme)
+    // Electric Pixar Rim Backlight (Tinted by active theme)
     const rimLight = new THREE.PointLight(new THREE.Color(accentColor), 5.5, 9);
-    rimLight.position.set(0, 1.0, -2.8);
+    rimLight.position.set(0, 1.2, -2.5);
     scene.add(rimLight);
 
-    // Front Chest Fill Light
-    const frontAccentLight = new THREE.PointLight(new THREE.Color(accentColor), 2.2, 6);
-    frontAccentLight.position.set(0, -1.2, 2.6);
+    // Front Chest Fill Light (Tinted by active theme)
+    const frontAccentLight = new THREE.PointLight(new THREE.Color(accentColor), 2.2, 5);
+    frontAccentLight.position.set(0, -0.8, 2.4);
     scene.add(frontAccentLight);
 
-    // 3. Pixar PBR Materials with Subsurface Scattering Emulation
-    const ceramicMaterial = new THREE.MeshPhysicalMaterial({
-      color: 0xf8fafc,
-      roughness: 0.15,
-      metalness: 0.04,
-      clearcoat: 1.0,
-      clearcoatRoughness: 0.06,
-      sheen: 1.0,
-      sheenRoughness: 0.2,
-      sheenColor: new THREE.Color(accentColor).multiplyScalar(0.4),
-      transmission: 0.03, // Soft Pixar subsurface translucency
-      thickness: 0.8,
-    });
-
-    const darkAlloyMaterial = new THREE.MeshStandardMaterial({
-      color: 0x181e2b,
-      roughness: 0.28,
-      metalness: 0.88,
-    });
-
-    const visorGlassMaterial = new THREE.MeshPhysicalMaterial({
-      color: 0x05070d,
-      roughness: 0.06,
-      metalness: 0.3,
-      clearcoat: 1.0,
-      clearcoatRoughness: 0.03,
-    });
-
-    // Super Bright OLED Eye Material (Guaranteed 100% visible and glowing!)
-    const eyeGlowMaterial = new THREE.MeshBasicMaterial({
-      color: new THREE.Color(accentColor),
-    });
-
-    const pupilMaterial = new THREE.MeshBasicMaterial({
-      color: new THREE.Color(accentColor).multiplyScalar(0.7),
-    });
-
-    const catchlightMaterial = new THREE.MeshBasicMaterial({
-      color: 0xffffff,
-    });
-
-    const softCatchlightMaterial = new THREE.MeshBasicMaterial({
-      color: 0xffffff,
-      transparent: true,
-      opacity: 0.75,
-    });
-
-    const pinkBlushMaterial = new THREE.MeshBasicMaterial({
-      color: 0xf43f5e,
-      transparent: true,
-      opacity: 0,
-    });
-
-    const emissiveCoreMaterial = new THREE.MeshStandardMaterial({
-      color: new THREE.Color(accentColor),
-      emissive: new THREE.Color(accentColor),
-      emissiveIntensity: 2.8,
-      roughness: 0.2,
-    });
-
-    // 4. Rigged 3D Hierarchy
-    const rootGroup = new THREE.Group();
-    scene.add(rootGroup);
-
-    // Body Group (torso, core, arms, halo)
-    const bodyGroup = new THREE.Group();
-    rootGroup.add(bodyGroup);
-
-    // Torso Geometry (Eve-style aerodynamic egg/capsule chassis)
-    const bodyGeo = new THREE.SphereGeometry(0.85, 36, 28);
-    bodyGeo.scale(0.9, 1.25, 0.82);
-    const bodyMesh = new THREE.Mesh(bodyGeo, ceramicMaterial);
-    bodyMesh.position.set(0, -0.65, 0);
-    bodyGroup.add(bodyMesh);
-
-    // Belly Core Emblem (Pulsing glowing battery/heart indicator)
-    const coreGeo = new THREE.CylinderGeometry(0.18, 0.18, 0.06, 24);
-    coreGeo.rotateX(Math.PI / 2);
-    const coreMesh = new THREE.Mesh(coreGeo, emissiveCoreMaterial);
-    coreMesh.position.set(0, -0.58, 0.7);
-    bodyGroup.add(coreMesh);
-
-    // 3D Orbiting Halo Ring
-    const orbitGroup = new THREE.Group();
-    orbitGroup.rotation.x = Math.PI * 0.38;
-    orbitGroup.rotation.y = Math.PI * 0.08;
-    orbitGroup.position.set(0, -0.65, 0);
-    bodyGroup.add(orbitGroup);
-
-    const ringGeo = new THREE.TorusGeometry(1.52, 0.028, 16, 64);
-    const ringMesh = new THREE.Mesh(ringGeo, darkAlloyMaterial);
-    orbitGroup.add(ringMesh);
-
-    const sparkGeo = new THREE.SphereGeometry(0.09, 16, 16);
-    const sparkMesh = new THREE.Mesh(sparkGeo, emissiveCoreMaterial);
-    orbitGroup.add(sparkMesh);
-
-    // Left Hand Group
-    const leftArmGroup = new THREE.Group();
-    leftArmGroup.position.set(-0.95, -0.35, 0);
-    bodyGroup.add(leftArmGroup);
-
-    const handGeo = new THREE.CapsuleGeometry(0.14, 0.42, 16, 16);
-    const leftHandMesh = new THREE.Mesh(handGeo, ceramicMaterial);
-    leftHandMesh.position.set(0, -0.22, 0);
-    leftArmGroup.add(leftHandMesh);
-
-    const palmGeo = new THREE.SphereGeometry(0.06, 12, 12);
-    const leftPalmMesh = new THREE.Mesh(palmGeo, emissiveCoreMaterial);
-    leftPalmMesh.position.set(0, -0.38, 0.08);
-    leftArmGroup.add(leftPalmMesh);
-
-    // Right Hand Group (Waving, High-Five, Clap)
-    const rightArmGroup = new THREE.Group();
-    rightArmGroup.position.set(0.95, -0.35, 0);
-    bodyGroup.add(rightArmGroup);
-
-    const rightHandMesh = new THREE.Mesh(handGeo, ceramicMaterial);
-    rightHandMesh.position.set(0, -0.22, 0);
-    rightArmGroup.add(rightHandMesh);
-
-    const rightPalmMesh = new THREE.Mesh(palmGeo, emissiveCoreMaterial);
-    rightPalmMesh.position.set(0, -0.38, 0.08);
-    rightArmGroup.add(rightPalmMesh);
-
-    // Head Group (Neck pivot -> follows pointer / touch tracking)
-    const headGroup = new THREE.Group();
-    headGroup.position.set(0, 0.45, 0);
-    rootGroup.add(headGroup);
-
-    // Head Mesh (Eve-style pearlescent egg helmet)
-    const headGeo = new THREE.SphereGeometry(1.15, 48, 36);
-    headGeo.scale(1.0, 1.18, 0.96);
-    const headMesh = new THREE.Mesh(headGeo, ceramicMaterial);
-    headGroup.add(headMesh);
-
-    // Inset Curved OLED Visor Screen (Positioned ahead of head sphere front apex)
-    const visorGeo = new THREE.SphereGeometry(0.98, 36, 28, 0, Math.PI * 2, 0, Math.PI * 0.52);
-    visorGeo.scale(0.96, 0.9, 0.86);
-    visorGeo.rotateX(Math.PI * 0.5);
-    const visorMesh = new THREE.Mesh(visorGeo, visorGlassMaterial);
-    visorMesh.position.set(0, 0.05, 0.38);
-    headGroup.add(visorMesh);
-
-    // Magnetic Left Ear Pod
-    const leftEarGroup = new THREE.Group();
-    leftEarGroup.position.set(-1.18, 0.15, 0);
-    headGroup.add(leftEarGroup);
-
-    const earGeo = new THREE.CapsuleGeometry(0.15, 0.35, 16, 16);
-    const leftEarMesh = new THREE.Mesh(earGeo, darkAlloyMaterial);
-    leftEarGroup.add(leftEarMesh);
-
-    const earCoreGeo = new THREE.CylinderGeometry(0.08, 0.08, 0.04, 16);
-    earCoreGeo.rotateZ(Math.PI / 2);
-    const leftEarCore = new THREE.Mesh(earCoreGeo, emissiveCoreMaterial);
-    leftEarGroup.add(leftEarCore);
-
-    // Magnetic Right Ear Pod
-    const rightEarGroup = new THREE.Group();
-    rightEarGroup.position.set(1.18, 0.15, 0);
-    headGroup.add(rightEarGroup);
-
-    const rightEarMesh = new THREE.Mesh(earGeo, darkAlloyMaterial);
-    rightEarGroup.add(rightEarMesh);
-
-    const rightEarCore = new THREE.Mesh(earCoreGeo, emissiveCoreMaterial);
-    rightEarGroup.add(rightEarCore);
-
-    // Top Antenna & Pulsing Gem
-    const antennaGroup = new THREE.Group();
-    antennaGroup.position.set(0, 1.35, 0);
-    headGroup.add(antennaGroup);
-
-    const stemGeo = new THREE.CylinderGeometry(0.045, 0.045, 0.28, 16);
-    const stemMesh = new THREE.Mesh(stemGeo, darkAlloyMaterial);
-    stemMesh.position.set(0, -0.1, 0);
-    antennaGroup.add(stemMesh);
-
-    const gemGeo = new THREE.IcosahedronGeometry(0.14, 2);
-    const gemMesh = new THREE.Mesh(gemGeo, emissiveCoreMaterial);
-    gemMesh.position.set(0, 0.08, 0);
-    antennaGroup.add(gemMesh);
-
-    // =========================================================================
-    // 3D REAL POLYGONAL FACE RIG (PROUD IN FRONT OF VISOR - CANNOT CLIP OR HIDE)
-    // =========================================================================
-    const faceGroup = new THREE.Group();
-    faceGroup.position.set(0, 0.06, 1.18); // Positioned directly in front of visor!
-    headGroup.add(faceGroup);
-
-    // 1. Normal Eyes Group
-    const normalEyesGroup = new THREE.Group();
-    faceGroup.add(normalEyesGroup);
-
-    // Left Eye Assembly
-    const leftEyeContainer = new THREE.Group();
-    leftEyeContainer.position.set(-0.35, 0.06, 0);
-    normalEyesGroup.add(leftEyeContainer);
-
-    const eyeGeo = new THREE.CapsuleGeometry(0.15, 0.24, 16, 16);
-    const leftEyeMesh = new THREE.Mesh(eyeGeo, eyeGlowMaterial);
-    leftEyeContainer.add(leftEyeMesh);
-
-    // Pupil
-    const pupilGeo = new THREE.SphereGeometry(0.09, 16, 16);
-    const leftPupil = new THREE.Mesh(pupilGeo, pupilMaterial);
-    leftPupil.position.set(0, 0, 0.07);
-    leftEyeContainer.add(leftPupil);
-
-    // Dual Pixar Catchlights
-    const catchlightGeo = new THREE.SphereGeometry(0.046, 12, 12);
-    const leftCatchlight1 = new THREE.Mesh(catchlightGeo, catchlightMaterial);
-    leftCatchlight1.position.set(-0.04, 0.08, 0.12);
-    leftEyeContainer.add(leftCatchlight1);
-
-    const softCatchlightGeo = new THREE.SphereGeometry(0.026, 12, 12);
-    const leftCatchlight2 = new THREE.Mesh(softCatchlightGeo, softCatchlightMaterial);
-    leftCatchlight2.position.set(0.04, -0.06, 0.12);
-    leftEyeContainer.add(leftCatchlight2);
-
-    // Right Eye Assembly
-    const rightEyeContainer = new THREE.Group();
-    rightEyeContainer.position.set(0.35, 0.06, 0);
-    normalEyesGroup.add(rightEyeContainer);
-
-    const rightEyeMesh = new THREE.Mesh(eyeGeo, eyeGlowMaterial);
-    rightEyeContainer.add(rightEyeMesh);
-
-    const rightPupil = new THREE.Mesh(pupilGeo, pupilMaterial);
-    rightPupil.position.set(0, 0, 0.07);
-    rightEyeContainer.add(rightPupil);
-
-    const rightCatchlight1 = new THREE.Mesh(catchlightGeo, catchlightMaterial);
-    rightCatchlight1.position.set(-0.04, 0.08, 0.12);
-    rightEyeContainer.add(rightCatchlight1);
-
-    const rightCatchlight2 = new THREE.Mesh(softCatchlightGeo, softCatchlightMaterial);
-    rightCatchlight2.position.set(0.04, -0.06, 0.12);
-    rightEyeContainer.add(rightCatchlight2);
-
-    // 2. 3D Eyebrows
-    const leftBrowGroup = new THREE.Group();
-    leftBrowGroup.position.set(-0.35, 0.32, 0);
-    faceGroup.add(leftBrowGroup);
-
-    const browGeo = new THREE.CapsuleGeometry(0.032, 0.18, 12, 12);
-    browGeo.rotateZ(Math.PI / 2);
-    const leftBrowMesh = new THREE.Mesh(browGeo, eyeGlowMaterial);
-    leftBrowGroup.add(leftBrowMesh);
-
-    const rightBrowGroup = new THREE.Group();
-    rightBrowGroup.position.set(0.35, 0.32, 0);
-    faceGroup.add(rightBrowGroup);
-
-    const rightBrowMesh = new THREE.Mesh(browGeo, eyeGlowMaterial);
-    rightBrowGroup.add(rightBrowMesh);
-
-    // 3. 3D Glowing Rosy Cheeks (Blush)
-    const blushGeo = new THREE.CircleGeometry(0.12, 24);
-    const leftBlush = new THREE.Mesh(blushGeo, pinkBlushMaterial);
-    leftBlush.position.set(-0.54, -0.14, 0);
-    faceGroup.add(leftBlush);
-
-    const rightBlush = new THREE.Mesh(blushGeo, pinkBlushMaterial);
-    rightBlush.position.set(0.54, -0.14, 0);
-    faceGroup.add(rightBlush);
-
-    // 4. 3D Curved Smile Mouth
-    const mouthGeo = new THREE.TorusGeometry(0.14, 0.024, 12, 24, Math.PI * 0.7);
-    mouthGeo.rotateZ(Math.PI * 1.15);
-    const mouthMesh = new THREE.Mesh(mouthGeo, eyeGlowMaterial);
-    mouthMesh.position.set(0, -0.22, 0);
-    faceGroup.add(mouthMesh);
-
-    // 5. 3D Heart Eyes (For Love Mode)
-    const heartEyesGroup = new THREE.Group();
-    heartEyesGroup.scale.setScalar(0.0001); // Hidden initially
-    faceGroup.add(heartEyesGroup);
-
-    const createHeartMesh = () => {
-      const shape = new THREE.Shape();
-      shape.moveTo(0, 0.05);
-      shape.bezierCurveTo(-0.16, -0.12, -0.16, -0.24, 0, -0.12);
-      shape.bezierCurveTo(0.16, -0.24, 0.16, -0.12, 0, 0.05);
-      const extrudeSettings = { depth: 0.04, bevelEnabled: true, bevelSegments: 3, steps: 1, bevelSize: 0.02, bevelThickness: 0.02 };
-      const geo = new THREE.ExtrudeGeometry(shape, extrudeSettings);
-      geo.rotateZ(Math.PI);
-      const mat = new THREE.MeshBasicMaterial({ color: 0xf43f5e });
-      return new THREE.Mesh(geo, mat);
-    };
-
-    const leftHeart = createHeartMesh();
-    leftHeart.position.set(-0.35, 0.08, 0.02);
-    heartEyesGroup.add(leftHeart);
-
-    const rightHeart = createHeartMesh();
-    rightHeart.position.set(0.35, 0.08, 0.02);
-    heartEyesGroup.add(rightHeart);
-
-    // 6. 3D Star Eyes (For Flip & Party Mode)
-    const starEyesGroup = new THREE.Group();
-    starEyesGroup.scale.setScalar(0.0001); // Hidden initially
-    faceGroup.add(starEyesGroup);
-
-    const createStarMesh = () => {
-      const shape = new THREE.Shape();
-      const points = 5;
-      const outerRadius = 0.18;
-      const innerRadius = 0.085;
-      let angle = Math.PI / 2;
-      shape.moveTo(Math.cos(angle) * outerRadius, Math.sin(angle) * outerRadius);
-      for (let i = 0; i < points; i++) {
-        angle += Math.PI / points;
-        shape.lineTo(Math.cos(angle) * innerRadius, Math.sin(angle) * innerRadius);
-        angle += Math.PI / points;
-        shape.lineTo(Math.cos(angle) * outerRadius, Math.sin(angle) * outerRadius);
-      }
-      const extrudeSettings = { depth: 0.03, bevelEnabled: true, bevelSegments: 2, steps: 1, bevelSize: 0.015, bevelThickness: 0.015 };
-      const geo = new THREE.ExtrudeGeometry(shape, extrudeSettings);
-      const mat = new THREE.MeshBasicMaterial({ color: new THREE.Color(accentColor) });
-      return new THREE.Mesh(geo, mat);
-    };
-
-    const leftStar = createStarMesh();
-    leftStar.position.set(-0.35, 0.06, 0.02);
-    starEyesGroup.add(leftStar);
-
-    const rightStar = createStarMesh();
-    rightStar.position.set(0.35, 0.06, 0.02);
-    starEyesGroup.add(rightStar);
-
-    // 7. 3D Spiral Dizzy Eyes
-    const spiralEyesGroup = new THREE.Group();
-    spiralEyesGroup.scale.setScalar(0.0001); // Hidden initially
-    faceGroup.add(spiralEyesGroup);
-
-    const createSpiralMesh = () => {
-      const curvePoints = [];
-      for (let i = 0; i < 40; i++) {
-        const a = i * 0.35;
-        const r = (i / 40) * 0.17;
-        curvePoints.push(new THREE.Vector3(Math.cos(a) * r, Math.sin(a) * r, (i / 40) * 0.04));
-      }
-      const curve = new THREE.CatmullRomCurve3(curvePoints);
-      const geo = new THREE.TubeGeometry(curve, 32, 0.022, 8, false);
-      const mat = new THREE.MeshBasicMaterial({ color: new THREE.Color(accentColor) });
-      return new THREE.Mesh(geo, mat);
-    };
-
-    const leftSpiral = createSpiralMesh();
-    leftSpiral.position.set(-0.35, 0.06, 0.02);
-    spiralEyesGroup.add(leftSpiral);
-
-    const rightSpiral = createSpiralMesh();
-    rightSpiral.position.set(0.35, 0.06, 0.02);
-    spiralEyesGroup.add(rightSpiral);
-
-    // Realistic Pixar Ground Contact Shadow
+    // 3. Realistic Pixar Soft Ground Contact Shadow
     const shadowCanvas = document.createElement('canvas');
     shadowCanvas.width = 128;
     shadowCanvas.height = 128;
     const sCtx = shadowCanvas.getContext('2d');
     if (sCtx) {
       const grad = sCtx.createRadialGradient(64, 64, 0, 64, 64, 64);
-      grad.addColorStop(0, 'rgba(0,0,0,0.88)');
-      grad.addColorStop(0.35, 'rgba(0,0,0,0.35)');
+      grad.addColorStop(0, 'rgba(0,0,0,0.85)');
+      grad.addColorStop(0.35, 'rgba(0,0,0,0.32)');
       grad.addColorStop(1, 'rgba(0,0,0,0)');
       sCtx.fillStyle = grad;
       sCtx.fillRect(0, 0, 128, 128);
     }
     const shadowTexture = new THREE.CanvasTexture(shadowCanvas);
-    const shadowGeo = new THREE.PlaneGeometry(3.6, 3.6);
+    const shadowGeo = new THREE.PlaneGeometry(2.4, 2.4);
     const shadowMat = new THREE.MeshBasicMaterial({
       map: shadowTexture,
       transparent: true,
       depthWrite: false,
-      opacity: 0.65,
+      opacity: 0.6,
     });
     const shadowMesh = new THREE.Mesh(shadowGeo, shadowMat);
     shadowMesh.rotation.x = -Math.PI / 2;
-    shadowMesh.position.set(0, -1.95, 0);
+    shadowMesh.position.set(0, -1.18, 0);
     scene.add(shadowMesh);
+    shadowMeshRef.current = shadowMesh;
+    shadowMatRef.current = shadowMat;
+
+    // 4. Model Root Group
+    const modelRoot = new THREE.Group();
+    scene.add(modelRoot);
+    modelRootRef.current = modelRoot;
+
+    // 5. Load official Pixar EVE GLB Model
+    const loader = new GLTFLoader();
+    loader.load(
+      '/models/EVE.glb',
+      (gltf) => {
+        const model = gltf.scene;
+
+        // Scale & position EVE for ideal portrait balance
+        // Height of model is ~1.34; scale 1.48 makes height ~1.98
+        model.scale.setScalar(1.48);
+        model.position.set(0, -0.98, 0);
+        modelRoot.add(model);
+
+        // Enhance materials with Pixar enamel finish & radiant eye glow
+        model.traverse((child) => {
+          if ((child as THREE.Mesh).isMesh) {
+            const mesh = child as THREE.SkinnedMesh;
+            mesh.frustumCulled = false; // Prevents clipping during acrobatic animations
+
+            const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+            materials.forEach((mat) => {
+              if (mat instanceof THREE.MeshStandardMaterial) {
+                if (mat.name === 'mat_0' || mat.name === 'mat_1' || mat.name === 'mat_6') {
+                  // Smooth pearlescent white ceramic chassis
+                  mat.color.setHex(0xfafafa);
+                  mat.roughness = 0.16;
+                  mat.metalness = 0.05;
+                } else if (mat.name === 'EVE_Head_COMN') {
+                  // High-gloss dark face visor
+                  mat.roughness = 0.1;
+                  mat.metalness = 0.15;
+                } else if (mat.name === 'EVE_Eye_COMN') {
+                  // Bioluminescent OLED eye display
+                  mat.toneMapped = false; // Vivid glowing eyes
+                  mat.emissive = new THREE.Color(accentColorRef.current);
+                  mat.emissiveIntensity = 2.8;
+                  eyeMatRef.current = mat;
+                }
+              }
+            });
+          }
+        });
+
+        // Store bones
+        const headBone = model.getObjectByName('bone_002');
+        headBoneRef.current = headBone || null;
+
+        // Setup AnimationMixer
+        const mixer = new THREE.AnimationMixer(model);
+        mixerRef.current = mixer;
+
+        const actionsMap: Record<string, THREE.AnimationAction> = {};
+        gltf.animations.forEach((clip) => {
+          actionsMap[clip.name] = mixer.clipAction(clip);
+        });
+        actionsRef.current = actionsMap;
+
+        // Start with default idle animation
+        const initialClipName =
+          moodRef.current === 'typing'
+            ? 'EVE_ScanIdle_Loop'
+            : moodRef.current === 'welcome'
+            ? 'EVE_Idle_Active_Loop'
+            : 'EVE_Idle_Loop01';
+
+        const startAction = actionsMap[initialClipName] || actionsMap['EVE_Idle_Loop01'];
+        if (startAction) {
+          startAction.setLoop(THREE.LoopRepeat, Infinity);
+          startAction.play();
+          currentActionRef.current = startAction;
+        }
+
+        setIsLoaded(true);
+      },
+      undefined,
+      (error) => {
+        console.error('Failed to load EVE.glb:', error);
+      }
+    );
 
     // =========================================================================
-    // PHYSICAL SPRING-DAMPER DYNAMICS SIMULATION & ANIMATION LOOP
+    // DYNAMICS SIMULATION & ANIMATION LOOP
     // =========================================================================
     let animationFrameId: number;
-    let clock = new THREE.Clock();
-    let flipStartTime = -1;
+    const clock = new THREE.Clock();
 
-    // Physics state vectors
+    // Physics state vectors for spring-damped head look-at
     let headRotX = 0;
     let headRotY = 0;
     let headVelX = 0;
     let headVelY = 0;
-
-    let antennaRotZ = 0;
-    let antennaVelZ = 0;
-
-    let blinkScale = 1;
-    let nextBlinkTime = 2.0;
 
     const animate = () => {
       animationFrameId = requestAnimationFrame(animate);
       const dt = Math.min(clock.getDelta(), 0.05);
       const elapsedTime = clock.getElapsedTime();
 
-      // Color synchronization
+      // Color synchronization with user theme
       const activeColor = new THREE.Color(accentColorRef.current);
-      eyeGlowMaterial.color.copy(activeColor);
-      pupilMaterial.color.copy(activeColor).multiplyScalar(0.7);
-      emissiveCoreMaterial.color.copy(activeColor);
-      emissiveCoreMaterial.emissive.copy(activeColor);
+      if (eyeMatRef.current) {
+        eyeMatRef.current.emissive.copy(activeColor);
+        // Subtle bioluminescent breathing pulse on eyes
+        eyeMatRef.current.emissiveIntensity = 2.8 + Math.sin(elapsedTime * 3.0) * 0.4;
+      }
       rimLight.color.copy(activeColor);
       frontAccentLight.color.copy(activeColor);
 
-      const trick = currentTrickRef.current;
-      const moodState = moodRef.current;
+      // Update skeletal animation mixer
+      if (mixerRef.current) {
+        mixerRef.current.update(dt);
+      }
 
-      // 1. Damped Spring Pointer Tracking
+      // 1. Damped Spring Pointer Tracking for Head
       const targetX = targetPointerRef.current.x * 0.45;
       const targetY = targetPointerRef.current.y * 0.35;
 
-      const k_spring = 28;
-      const damping = 8;
+      const k_spring = 26;
+      const damping = 7.5;
       headVelX += ((targetX - headRotY) * k_spring - headVelX * damping) * dt;
       headVelY += ((-targetY - headRotX) * k_spring - headVelY * damping) * dt;
       headRotY += headVelX * dt;
       headRotX += headVelY * dt;
 
-      // 2. Antenna Flexible Inverted-Pendulum Physics
-      const antennaForce = -headVelX * 0.25;
-      antennaVelZ += ((antennaForce - antennaRotZ) * 35 - antennaVelZ * 6) * dt;
-      antennaRotZ += antennaVelZ * dt;
-      antennaGroup.rotation.z = antennaRotZ + Math.sin(elapsedTime * 4) * 0.05;
-
-      // 3. Eye Blink Logic (Organic periodic eyelid sweep)
-      if (elapsedTime > nextBlinkTime) {
-        blinkScale = Math.max(0.08, blinkScale - dt * 14);
-        if (blinkScale <= 0.08) {
-          nextBlinkTime = elapsedTime + 2.5 + Math.random() * 2.8;
-        }
-      } else {
-        blinkScale = Math.min(1.0, blinkScale + dt * 12);
+      // Layer procedural spring look-at ON TOP of skeletal animations!
+      if (headBoneRef.current) {
+        headBoneRef.current.rotation.y += headRotY * 0.7; // Yaw
+        headBoneRef.current.rotation.x += headRotX * 0.45; // Pitch
+        headBoneRef.current.rotation.z += headRotY * -0.15; // Inquisitive tilt
       }
 
-      // 4. Pupil Gaze Physics (Pupils glance towards target)
-      const pupilTargetX = targetPointerRef.current.x * 0.04;
-      const pupilTargetY = (isFocusedRef.current ? -0.05 : -targetPointerRef.current.y * 0.04);
-      leftPupil.position.x = pupilTargetX;
-      leftPupil.position.y = pupilTargetY;
-      rightPupil.position.x = pupilTargetX;
-      rightPupil.position.y = pupilTargetY;
-
-      // 5. Rotate Spark around 3D Halo
-      const sparkAngle = elapsedTime * 2.8;
-      sparkMesh.position.set(Math.cos(sparkAngle) * 1.52, Math.sin(sparkAngle) * 1.52, 0);
-
-      // 6. Dynamic Facial Expression Mode Switching (Punchy scale animations)
-      const lerpScale = (group: THREE.Group, target: number) => {
-        const cur = group.scale.x;
-        const next = cur + (target - cur) * 0.2;
-        group.scale.set(next, next, next);
-      };
-
-      if (trick === 'hearts') {
-        lerpScale(normalEyesGroup, 0.0001);
-        lerpScale(heartEyesGroup, 1.0 + Math.sin(elapsedTime * 6) * 0.15);
-        lerpScale(starEyesGroup, 0.0001);
-        lerpScale(spiralEyesGroup, 0.0001);
-        pinkBlushMaterial.opacity = Math.min(0.9, pinkBlushMaterial.opacity + dt * 3);
-      } else if (trick === 'dizzy') {
-        lerpScale(normalEyesGroup, 0.0001);
-        lerpScale(heartEyesGroup, 0.0001);
-        lerpScale(starEyesGroup, 0.0001);
-        lerpScale(spiralEyesGroup, 1.0);
-        leftSpiral.rotation.z = elapsedTime * 8;
-        rightSpiral.rotation.z = -elapsedTime * 8;
-        pinkBlushMaterial.opacity = Math.max(0, pinkBlushMaterial.opacity - dt * 2);
-      } else if (trick === 'flip' || trick === 'party' || moodState === 'celebrate') {
-        lerpScale(normalEyesGroup, 0.0001);
-        lerpScale(heartEyesGroup, 0.0001);
-        lerpScale(starEyesGroup, 1.0);
-        lerpScale(spiralEyesGroup, 0.0001);
-        leftStar.rotation.z = elapsedTime * 4;
-        rightStar.rotation.z = -elapsedTime * 4;
-        pinkBlushMaterial.opacity = Math.max(0, pinkBlushMaterial.opacity - dt * 2);
-      } else {
-        lerpScale(normalEyesGroup, 1.0);
-        lerpScale(heartEyesGroup, 0.0001);
-        lerpScale(starEyesGroup, 0.0001);
-        lerpScale(spiralEyesGroup, 0.0001);
-        pinkBlushMaterial.opacity = Math.max(0, pinkBlushMaterial.opacity - dt * 2);
-
-        // Apply blinking to normal eyes
-        leftEyeContainer.scale.y = blinkScale;
-        rightEyeContainer.scale.y = trick === 'wink' ? 0.08 : blinkScale;
+      // 2. Physics Drag & Spring-Damper Recovery
+      if (!isDraggingRef.current) {
+        const kDrag = 32;
+        const dDrag = 7.5;
+        dragVelRef.current.x += (-dragPosRef.current.x * kDrag - dragVelRef.current.x * dDrag) * dt;
+        dragVelRef.current.y += (-dragPosRef.current.y * kDrag - dragVelRef.current.y * dDrag) * dt;
+        dragPosRef.current.x += dragVelRef.current.x * dt;
+        dragPosRef.current.y += dragVelRef.current.y * dt;
       }
 
-      // 7. Eyebrow Expressions
-      if (trick === 'curious') {
-        leftBrowGroup.position.y = 0.38;
-        leftBrowGroup.rotation.z = 0.35;
-        rightBrowGroup.position.y = 0.28;
-        rightBrowGroup.rotation.z = -0.15;
-      } else if (isFocusedRef.current) {
-        leftBrowGroup.position.y = 0.29;
-        leftBrowGroup.rotation.z = -0.15;
-        rightBrowGroup.position.y = 0.29;
-        rightBrowGroup.rotation.z = 0.15;
-      } else {
-        leftBrowGroup.position.y = 0.32;
-        leftBrowGroup.rotation.z = 0.08;
-        rightBrowGroup.position.y = 0.32;
-        rightBrowGroup.rotation.z = -0.08;
+      // 3. Gentle Zero-G Floating Hover & Bank Roll
+      const hover = Math.sin(elapsedTime * 2.2) * 0.045;
+      if (modelRootRef.current) {
+        modelRootRef.current.position.y = hover + dragPosRef.current.y;
+        modelRootRef.current.position.x = dragPosRef.current.x;
+        // Natural aerodynamic banking when moved sideways
+        modelRootRef.current.rotation.z = -dragPosRef.current.x * 0.4;
       }
 
-      // 8. Procedural Movement & Tricks with Disney Squash & Stretch Physics
-      if (trick === 'flip') {
-        if (flipStartTime < 0) flipStartTime = elapsedTime;
-        const progress = Math.min(1, (elapsedTime - flipStartTime) / 1.15);
-
-        // 360° Zero-G Backflip with Mass Conservation Squash & Stretch
-        const jumpY = Math.sin(progress * Math.PI) * 1.6;
-        rootGroup.position.y = jumpY;
-        rootGroup.rotation.x = progress * Math.PI * 2;
-
-        const squash = progress < 0.15 ? 0.78 : progress < 0.85 ? 1.28 : 0.82;
-        rootGroup.scale.set(1 / Math.sqrt(squash), squash, 1 / Math.sqrt(squash));
-
-        shadowMesh.scale.setScalar(1 - jumpY * 0.35);
-        shadowMat.opacity = Math.max(0.15, 0.65 - jumpY * 0.3);
-      } else {
-        flipStartTime = -1;
-
-        if (trick === 'dizzy') {
-          rootGroup.rotation.y = elapsedTime * 8;
-          rootGroup.rotation.z = Math.sin(elapsedTime * 6) * 0.18;
-          rootGroup.position.y = Math.sin(elapsedTime * 4) * 0.06;
-          leftEarGroup.rotation.z = 0.4;
-          rightEarGroup.rotation.z = -0.4;
-        } else if (trick === 'tickle') {
-          rootGroup.rotation.y = Math.sin(elapsedTime * 24) * 0.18;
-          rootGroup.position.x = Math.sin(elapsedTime * 28) * 0.1;
-          rootGroup.position.y = Math.sin(elapsedTime * 8) * 0.06;
-          leftArmGroup.rotation.z = 1.05;
-          rightArmGroup.rotation.z = -1.05;
-        } else if (trick === 'highfive') {
-          rootGroup.position.y = Math.sin(elapsedTime * 3) * 0.06;
-          rightArmGroup.rotation.x = -1.25;
-          rightArmGroup.position.z = 0.45;
-          rightArmGroup.rotation.z = 0.3;
-        } else if (trick === 'party') {
-          rootGroup.position.y = Math.abs(Math.sin(elapsedTime * 7)) * 0.25;
-          leftArmGroup.rotation.z = 0.4 + Math.sin(elapsedTime * 14) * 0.35;
-          rightArmGroup.rotation.z = -0.4 - Math.sin(elapsedTime * 14) * 0.35;
-        } else if (trick === 'hearts') {
-          rootGroup.position.y = Math.sin(elapsedTime * 2) * 0.08;
-          rootGroup.rotation.z = Math.sin(elapsedTime * 2.5) * 0.08;
-          leftArmGroup.rotation.z = 0.95;
-          rightArmGroup.rotation.z = -0.95;
-        } else if (trick === 'wink') {
-          headGroup.rotation.z = 0.2;
-          rightArmGroup.rotation.x = -0.6;
-          rightArmGroup.rotation.z = 0.5;
-        } else if (trick === 'curious') {
-          headGroup.rotation.z = 0.36;
-          leftEarGroup.rotation.z = -0.3;
-          rightEarGroup.rotation.z = 0.35;
-        } else {
-          // Organic Breathing Cycle & Real-time head tracking
-          const breath = Math.sin(elapsedTime * 2.2) * 0.08;
-          rootGroup.position.y = breath;
-          rootGroup.position.x = 0;
-          rootGroup.rotation.set(0, 0, 0);
-
-          headGroup.rotation.y = headRotY;
-          headGroup.rotation.x = headRotX;
-          headGroup.rotation.z = headRotY * -0.15;
-
-          if (moodState === 'welcome') {
-            rightArmGroup.rotation.z = 1.2 + Math.sin(elapsedTime * 6) * 0.4;
-            rightArmGroup.position.y = -0.2 + Math.sin(elapsedTime * 6) * 0.05;
-            leftArmGroup.rotation.z = Math.sin(elapsedTime * 2) * 0.08;
-          } else {
-            leftArmGroup.rotation.z = Math.sin(elapsedTime * 2) * 0.08;
-            rightArmGroup.rotation.z = -Math.sin(elapsedTime * 2) * 0.08;
-            rightArmGroup.position.set(0.95, -0.35, 0);
-          }
-
-          leftEarGroup.rotation.z = 0;
-          rightEarGroup.rotation.z = 0;
-        }
-
-        shadowMesh.scale.setScalar(1 + rootGroup.position.y * 0.15);
-        shadowMat.opacity = 0.65 - rootGroup.position.y * 0.15;
+      // 4. Contact Shadow Sync
+      if (shadowMeshRef.current && shadowMatRef.current) {
+        const elev = hover + dragPosRef.current.y;
+        shadowMeshRef.current.scale.setScalar(1 + elev * 0.25);
+        shadowMatRef.current.opacity = Math.max(0.12, 0.6 - elev * 0.25);
       }
 
       renderer.render(scene, camera);
@@ -1027,16 +739,9 @@ export const Mascot3D: React.FC<Mascot3DProps> = ({
     return () => {
       cancelAnimationFrame(animationFrameId);
       renderer.dispose();
-      ceramicMaterial.dispose();
-      darkAlloyMaterial.dispose();
-      visorGlassMaterial.dispose();
-      eyeGlowMaterial.dispose();
-      pupilMaterial.dispose();
-      catchlightMaterial.dispose();
-      softCatchlightMaterial.dispose();
-      pinkBlushMaterial.dispose();
-      emissiveCoreMaterial.dispose();
+      shadowGeo.dispose();
       shadowMat.dispose();
+      shadowTexture.dispose();
     };
   }, []);
 
@@ -1081,7 +786,7 @@ export const Mascot3D: React.FC<Mascot3DProps> = ({
         initial={{ opacity: 0, y: 10, scale: 0.9 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
         transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
-        className="relative z-30 mb-2 max-w-[310px]"
+        className="relative z-30 mb-2 max-w-[320px]"
       >
         <div
           style={{
@@ -1164,6 +869,16 @@ export const Mascot3D: React.FC<Mascot3DProps> = ({
         className="relative flex items-center justify-center cursor-pointer select-none"
         style={{ width: 290, height: 290 }}
       >
+        {/* Subtle glowing loading placeholder while GLB model loads */}
+        {!isLoaded && (
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+            <div
+              className="w-16 h-16 rounded-full animate-ping opacity-30"
+              style={{ backgroundColor: accentColor }}
+            />
+          </div>
+        )}
+
         <canvas
           ref={canvasRef}
           style={{

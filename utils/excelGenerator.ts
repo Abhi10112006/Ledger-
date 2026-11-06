@@ -325,7 +325,14 @@ export async function exportExcelDossier(
         fitToPage: true,
         fitToWidth: 1,
         fitToHeight: 0,
-        margins: { left: 0.4, right: 0.4, top: 0.5, bottom: 0.5 },
+        margins: {
+          left: 0.4,
+          right: 0.4,
+          top: 0.5,
+          bottom: 0.5,
+          header: 0.3,
+          footer: 0.3,
+        },
       },
     });
 
