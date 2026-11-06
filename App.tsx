@@ -4,7 +4,8 @@ import { Plus, Search, UserPlus, WifiOff, X } from 'lucide-react';
 import { useLedger } from './hooks/useLedger';
 import { useAdManager } from './hooks/useAdManager';
 import { getMeta, saveMeta } from './utils/db';
-import { checkForUpdate, VersionInfo } from './utils/version';
+import { checkForUpdate, scheduleBackgroundUpdateCheck, VersionInfo } from './utils/version';
+import { notifyNewAppVersionAvailable } from './utils/notifications';
 import Navbar from './components/Navbar';
 import DashboardStats from './components/DashboardStats';
 import SettingsModal from './components/SettingsModal';
@@ -128,13 +129,18 @@ const AppContent: React.FC = () => {
   const activeRepayment = activeTx?.repayments.find(r => r.id === activeRepaymentId);
   const activeProfile = allAccounts.find(a => a.id === selectedProfileId);
 
-  // --- Check for updates once after boot ---
+  // --- Check for updates once after boot and schedule periodic background check ---
   useEffect(() => {
+    scheduleBackgroundUpdateCheck();
+
     if (!isLoggedIn) return;
     // Delay check by 3 seconds after login so it doesn't block the UI
     const timer = setTimeout(async () => {
       const update = await checkForUpdate();
-      if (update) setUpdateInfo(update);
+      if (update) {
+        setUpdateInfo(update);
+        notifyNewAppVersionAvailable(update);
+      }
     }, 3000);
     return () => clearTimeout(timer);
   }, [isLoggedIn]);
@@ -415,12 +421,19 @@ const AppContent: React.FC = () => {
         }
       });
 
-      // App lifecycle: auto-lock when returning from background
+      // App lifecycle: auto-lock and check updates when returning from background
       App.addListener('appStateChange', ({ isActive }: { isActive: boolean }) => {
         if (!isActive) {
           lastBackgroundTime.current = Date.now();
         } else {
           checkShouldLock();
+          // Check for update when resuming from background
+          checkForUpdate().then((update) => {
+            if (update) {
+              setUpdateInfo(update);
+              notifyNewAppVersionAvailable(update);
+            }
+          }).catch(() => {});
         }
       });
     };

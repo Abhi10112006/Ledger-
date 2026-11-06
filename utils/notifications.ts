@@ -1,6 +1,8 @@
 import { LocalNotifications } from '@capacitor/local-notifications';
+import { VersionInfo } from './version';
 
 const CHANNEL_ID = 'debt_reminders';
+export const CHANNEL_APP_UPDATES = 'app_updates';
 
 export const initNotificationChannels = async () => {
   try {
@@ -14,8 +16,60 @@ export const initNotificationChannels = async () => {
       lights: true,
       lightColor: '#10b981'
     });
+
+    await LocalNotifications.createChannel({
+      id: CHANNEL_APP_UPDATES,
+      name: 'App Updates & Releases',
+      description: 'Notifications when new versions of Abhi\'s Ledger are available',
+      importance: 4, // High importance
+      visibility: 1,
+      vibration: true,
+      lights: true,
+      lightColor: '#0a84ff'
+    });
   } catch (e) {
     console.warn('Notification channel init error:', e);
+  }
+};
+
+/**
+ * Fires a system tray notification when an update is detected
+ */
+export const notifyNewAppVersionAvailable = async (updateInfo: VersionInfo) => {
+  try {
+    await initNotificationChannels();
+
+    const notifId = 999901;
+    // Check if we already notified for this exact version in localStorage
+    const lastNotified = localStorage.getItem('last_notified_update_version');
+    if (lastNotified === updateInfo.version) {
+      return; // Already notified the user
+    }
+
+    const changelogSnippet = updateInfo.changelog?.[0] ? ` • ${updateInfo.changelog[0]}` : '';
+
+    await LocalNotifications.schedule({
+      notifications: [
+        {
+          title: `⚡ Ledger v${updateInfo.version} Available`,
+          body: `${updateInfo.versionName} is ready.${changelogSnippet} Tap to install directly!`,
+          id: notifId,
+          channelId: CHANNEL_APP_UPDATES,
+          schedule: { at: new Date(Date.now() + 1000) }, // 1s from now
+          extra: {
+            isUpdate: true,
+            version: updateInfo.version,
+            apkUrl: updateInfo.apkUrl,
+            downloadUrl: updateInfo.downloadUrl
+          }
+        }
+      ]
+    });
+
+    localStorage.setItem('last_notified_update_version', updateInfo.version);
+    console.log(`[Notification Engine] Sent update alert for v${updateInfo.version}`);
+  } catch (e) {
+    console.warn('[Notification Engine] Could not post update notification:', e);
   }
 };
 

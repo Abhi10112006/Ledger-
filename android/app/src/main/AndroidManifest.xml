@@ -167,12 +167,24 @@
             android:grantUriPermissions="true">
             <meta-data android:name="android.support.FILE_PROVIDER_PATHS" android:resource="@xml/file_paths" />
         </provider>
+
+        <!-- Background Update Check Receiver -->
+        <receiver
+            android:name=".AppUpdateBroadcastReceiver"
+            android:enabled="true"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="com.abhisledger.app.ACTION_CHECK_UPDATE" />
+            </intent-filter>
+        </receiver>
     </application>
 
     <!-- Core -->
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.VIBRATE" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
 
     <!-- Storage (for export/import on older Android) -->
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"

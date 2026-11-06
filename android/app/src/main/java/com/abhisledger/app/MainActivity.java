@@ -13,6 +13,7 @@ public class MainActivity extends BridgeActivity {
         registerPlugin(NativeThemeIconPlugin.class);
         registerPlugin(NativeTypographyPlugin.class);
         registerPlugin(NativeSecurityPlugin.class);
+        registerPlugin(NativeAppUpdatePlugin.class);
         super.onCreate(savedInstanceState);
         disableOverScroll();
     }
