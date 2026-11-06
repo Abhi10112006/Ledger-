@@ -123,6 +123,7 @@ const Navbar: React.FC<Props> = ({
 
         {/* Right: Menu button */}
         <motion.button
+          id="tour-menu-button"
           whileTap={{ scale: 0.88 }}
           onClick={() => {
             haptic('light');

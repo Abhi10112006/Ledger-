@@ -2,6 +2,7 @@ package com.abhisledger.app;
 
 import android.content.Context;
 import android.content.SharedPreferences;
+import android.content.pm.PackageManager;
 import android.os.Build;
 import android.os.Handler;
 import android.os.Looper;
@@ -98,26 +99,44 @@ public class NativeSecurityPlugin extends Plugin {
     @PluginMethod
     public void getBiometricStatus(PluginCall call) {
         try {
-            BiometricManager biometricManager = BiometricManager.from(getContext());
-            int strongAuth = biometricManager.canAuthenticate(BiometricManager.Authenticators.BIOMETRIC_STRONG);
-            int weakAuth = biometricManager.canAuthenticate(
-                BiometricManager.Authenticators.BIOMETRIC_STRONG | BiometricManager.Authenticators.BIOMETRIC_WEAK
-            );
+            Context ctx = getContext();
+            BiometricManager biometricManager = BiometricManager.from(ctx);
+            PackageManager pm = ctx.getPackageManager();
 
-            boolean hasStrong = (strongAuth == BiometricManager.BIOMETRIC_SUCCESS);
-            boolean hasWeakOrStrong = (weakAuth == BiometricManager.BIOMETRIC_SUCCESS);
+            int strongAuth = biometricManager.canAuthenticate(BiometricManager.Authenticators.BIOMETRIC_STRONG);
+            boolean hasStrongEnrolled = (strongAuth == BiometricManager.BIOMETRIC_SUCCESS);
+
+            boolean hasHardwareFingerprint = pm.hasSystemFeature(PackageManager.FEATURE_FINGERPRINT);
+            boolean hasHardwareFace = false;
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                hasHardwareFace = pm.hasSystemFeature(PackageManager.FEATURE_FACE);
+            }
+
+            // Real Face Lock requires dedicated hardware face sensor AND strong (Class 3) enrollment.
+            // This strictly filters out Class 2 2D camera locks which don't work reliably with BiometricPrompt.
+            boolean hasRealFaceLock = hasHardwareFace && hasStrongEnrolled;
+
+            // Fingerprint requires hardware fingerprint sensor AND strong enrollment
+            boolean hasRealFingerprint = hasHardwareFingerprint && hasStrongEnrolled;
+
+            // Fallback: If device reports strong biometric but neither feature flag matched individually,
+            // default to fingerprint as standard Android convention
+            if (hasStrongEnrolled && !hasRealFaceLock && !hasRealFingerprint) {
+                hasRealFingerprint = true;
+            }
 
             JSObject ret = new JSObject();
-            ret.put("isAvailable", hasWeakOrStrong || hasStrong);
-            ret.put("hasFingerprint", hasStrong);
-            ret.put("hasFaceLock", hasWeakOrStrong);
-            ret.put("canUseWeakFace", hasWeakOrStrong && !hasStrong);
+            ret.put("isAvailable", hasStrongEnrolled);
+            ret.put("hasFingerprint", hasRealFingerprint);
+            ret.put("hasFaceLock", hasRealFaceLock);
+            ret.put("isClass2CameraIgnored", true);
             call.resolve(ret);
         } catch (Exception e) {
             JSObject ret = new JSObject();
             ret.put("isAvailable", false);
             ret.put("hasFingerprint", false);
             ret.put("hasFaceLock", false);
+            ret.put("isClass2CameraIgnored", true);
             call.resolve(ret);
         }
     }
@@ -142,7 +161,8 @@ public class NativeSecurityPlugin extends Plugin {
                 }
 
                 BiometricManager biometricManager = BiometricManager.from(activity);
-                int authenticators = BiometricManager.Authenticators.BIOMETRIC_STRONG | BiometricManager.Authenticators.BIOMETRIC_WEAK;
+                // Enforce BIOMETRIC_STRONG (Class 3) only - prevents Class 2 camera locks from malfunctioning
+                int authenticators = BiometricManager.Authenticators.BIOMETRIC_STRONG;
                 int canAuth = biometricManager.canAuthenticate(authenticators);
 
                 if (canAuth != BiometricManager.BIOMETRIC_SUCCESS) {
@@ -152,7 +172,7 @@ public class NativeSecurityPlugin extends Plugin {
                     ret.put("success", false);
                     ret.put("cancelled", false);
                     ret.put("usePin", true);
-                    ret.put("error", "Biometrics not enrolled or unavailable on this device");
+                    ret.put("error", "Biometric authentication not enrolled or unavailable on this device");
                     call.resolve(ret);
                     return;
                 }

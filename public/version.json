@@ -1,16 +1,15 @@
 {
-  "version": "3.0.0",
-  "versionName": "Modern Fintech Overhaul",
-  "releaseDate": "2026-05-21",
+  "version": "3.5.0",
+  "versionName": "Fintech Pro & Direct In-App Updates",
+  "releaseDate": "2026-11-06",
   "changelog": [
-    "🎨 Complete visual overhaul — ultra-premium fintech aesthetic",
-    "📌 Sticky balance header — always visible while scrolling",
-    "👆 Native contacts picker — tap to import from your address book",
-    "🔒 Biometric security shield — fingerprint/face lock",
-    "🔔 Smart due-date notifications — never miss a deadline",
-    "💾 SQLite migration — bulletproof data storage",
-    "🧾 Premium light paper receipts — professional document generation",
-    "⚡ Smoother animations across the entire app"
+    "🚀 1-Tap Direct In-App APK download & native package installation",
+    "🔔 Background system tray notifications for new releases",
+    "🎨 Complete typography studio with real-time currency preview",
+    "🛡️ Dynamic theme-synced launcher icons via Android activity aliases",
+    "🧾 Fixed PDF statement formatting and vector status badges",
+    "⚡ Lightning fast SQLite storage engine with encrypted backups",
+    "🔒 Biometric fingerprint & hardware keystore security shield"
   ],
   "downloadUrl": "https://github.com/Abhi10112006/Ledger-/releases/latest",
   "apkUrl": "https://github.com/Abhi10112006/Ledger-/releases/latest/download/app-release.apk"

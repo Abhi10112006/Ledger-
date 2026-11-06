@@ -14,6 +14,7 @@ public class MainActivity extends BridgeActivity {
         registerPlugin(NativeTypographyPlugin.class);
         registerPlugin(NativeSecurityPlugin.class);
         registerPlugin(NativeAppUpdatePlugin.class);
+        registerPlugin(NativeRemindersPlugin.class);
         super.onCreate(savedInstanceState);
         disableOverScroll();
     }

@@ -6,6 +6,7 @@ import { useHaptics } from '../hooks/useHaptics';
 import { LogoIcon } from './Logo';
 import Mascot3D, { MascotMood } from './Mascot3D';
 import { importBackupFile } from '../utils/cryptoBackup';
+import { APP_VERSION } from '../utils/version';
 
 interface Props {
   settings: AppSettings;
@@ -291,7 +292,7 @@ const WelcomeScreen: React.FC<Props> = ({
               fontWeight: 700,
             }}
           >
-            v3.0
+            v{APP_VERSION}
           </span>
         </motion.div>
 

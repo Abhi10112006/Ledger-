@@ -13,8 +13,8 @@
 
 import { registerPlugin, Capacitor } from '@capacitor/core';
 
-export const APP_VERSION = '3.0.0';
-export const APP_VERSION_NAME = 'Modern Fintech Overhaul';
+export const APP_VERSION = '3.5.0';
+export const APP_VERSION_NAME = 'Fintech Pro Overhaul';
 
 // Primary URL: raw GitHub file from the app's actual repository
 const VERSION_URL = 'https://raw.githubusercontent.com/Abhi10112006/Ledger-/main/public/version.json';

@@ -32,10 +32,10 @@ export const getBiometricCapabilities = async (): Promise<BiometricCapabilities>
   if (!Capacitor.isNativePlatform()) {
     return {
       isAvailable: true,
-      biometryType: BiometryType.MULTIPLE,
+      biometryType: BiometryType.FINGERPRINT,
       biometryName: 'Biometrics (Simulated)',
       hasFingerprint: true,
-      hasFaceLock: true,
+      hasFaceLock: false,
       deviceIsSecure: true,
     };
   }

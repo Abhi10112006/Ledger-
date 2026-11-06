@@ -1,7 +1,7 @@
 {
   "name": "abhis-ledger",
   "private": true,
-  "version": "3.0.0",
+  "version": "3.5.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -27,6 +27,7 @@
     "@fontsource/inter": "^5.2.8",
     "@fontsource/jetbrains-mono": "^5.2.8",
     "@fontsource/special-elite": "^5.2.8",
+    "@types/three": "^0.187.0",
     "exceljs": "^4.4.0",
     "framer-motion": "10.16.4",
     "jeep-sqlite": "^2.8.0",
@@ -34,7 +35,8 @@
     "jspdf-autotable": "3.8.2",
     "lucide-react": "^1.14.0",
     "react": "18.2.0",
-    "react-dom": "18.2.0"
+    "react-dom": "18.2.0",
+    "three": "^0.187.0"
   },
   "devDependencies": {
     "@types/node": "^22.14.0",

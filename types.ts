@@ -82,6 +82,10 @@ export interface AppSettings {
   securityPinHash?: string;
   preferredUnlockMode?: 'biometric' | 'pin' | 'any';
   securityLockTimeout?: number; // In seconds (0 = Immediately, 60 = 1 min, 300 = 5 min)
+  
+  // Reminders & Notifications
+  enableReminders?: boolean;
+  enableUpdateNotifications?: boolean;
 }
 
 export type PreferredUnlockMode = 'biometric' | 'pin' | 'any';

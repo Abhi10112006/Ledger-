@@ -3,18 +3,34 @@
 # 💎 ABHI'S LEDGER // THE FINANCIAL MAINFRAME
 ### *Next-Generation Offline-First Debt Intelligence & Credit Ledger*
 
-[![Version](https://img.shields.io/badge/Version-3.0.0--Fintech-00F0FF?style=for-the-badge&logo=semver&logoColor=black)](https://github.com/Abhi10112006/Ledger-/releases)
+[![Version](https://img.shields.io/badge/Version-3.5.0--Fintech--Pro-00F0FF?style=for-the-badge&logo=semver&logoColor=black)](https://github.com/Abhi10112006/Ledger-/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge)](LICENSE)
 [![Platform](https://img.shields.io/badge/Platform-Android%20%7C%20Web%20PWA-3DDC84?style=for-the-badge&logo=android&logoColor=white)](https://ledger69.vercel.app/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.8-3178C6?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![React](https://img.shields.io/badge/React-18.2-61DAFB?style=for-the-badge&logo=react&logoColor=black)](https://react.dev/)
 [![Capacitor](https://img.shields.io/badge/Capacitor-8.0-119EFF?style=for-the-badge&logo=capacitor&logoColor=white)](https://capacitorjs.com/)
-[![Security](https://img.shields.io/badge/Security-AES--256--GCM-critical?style=for-the-badge&logo=shield&logoColor=white)](utils/cryptoBackup.ts)
+[![Security](https://img.shields.io/badge/Security-Hardware%20AES--256--GCM-critical?style=for-the-badge&logo=shield&logoColor=white)](utils/cryptoBackup.ts)
 [![Zero Cloud](https://img.shields.io/badge/Cloud-100%25%20Offline%20First-success?style=for-the-badge&logo=icloud&logoColor=white)](#-zero-cloud-privacy-guarantee)
 
 <br/>
 
-**[🌐 Launch Web Mainframe](https://ledger69.vercel.app/)** • **[📦 Download APK](https://github.com/Abhi10112006/Ledger-/releases)** • **[🛠️ Installation Guide](INSTALLATION.md)** • **[🗺️ Migration Plan](MIGRATION_IMPLEMENTATION_PLAN.md)**
+<p align="center">
+  <a href="https://github.com/Abhi10112006/Ledger-/releases/latest/download/app-release.apk">
+    <img src="https://img.shields.io/badge/⚡_DOWNLOAD_APK-v3.5.0_(Direct)-0A84FF?style=for-the-badge&logo=android&logoColor=white" height="40" alt="Download APK" />
+  </a>
+  &nbsp;&nbsp;
+  <a href="https://ledger69.vercel.app/">
+    <img src="https://img.shields.io/badge/🌐_LAUNCH_WEB_APP-Live_PWA-10B981?style=for-the-badge&logo=googlechrome&logoColor=white" height="40" alt="Launch Web App" />
+  </a>
+</p>
+
+<br/>
+
+![Abhi's Ledger Fintech Pro Banner](assets/docs/banner.svg)
+
+<br/>
+
+**[📦 Direct APK Download](https://github.com/Abhi10112006/Ledger-/releases/latest/download/app-release.apk)** • **[🌐 Web PWA](https://ledger69.vercel.app/)** • **[📖 Step-by-Step App Guide](#-step-by-step-guide-how-to-use-abhis-ledger)** • **[📲 1-Tap APK Install Guide](#-step-by-step-apk-download--installation-guide)** • **[🛠️ Installation Manual](INSTALLATION.md)**
 
 ---
 
@@ -22,49 +38,230 @@
 
 ## 💀 Kill The Spreadsheet. Bury The Notebook.
 
-Most personal finance and debt tracker apps are slow, cluttered with ads, and insist on uploading your private contacts and financial dealings to third-party cloud servers. 
+Most personal finance and debt tracker apps are sluggish, riddled with ads, and insist on uploading your private contacts, transactions, and financial records to third-party cloud servers. 
 
-**Abhi's Ledger** is engineered differently. Built as a high-fidelity **Cyberpunk Debt Intelligence System**, it combines a lightning-fast offline-first engine with military-grade device-only encryption, a proprietary **Neural Trust Scoring Algorithm**, instant **UPI settlement protocols**, and high-performance native Android hardware acceleration.
+**Abhi's Ledger** is engineered differently. Built as a high-fidelity **Cyberpunk Debt Intelligence System**, it combines a lightning-fast offline-first engine with military-grade device-only encryption, a proprietary **Neural Trust Scoring Algorithm**, instant **Dynamic UPI settlement protocols**, **1-Tap in-app sideload updates**, and high-performance native Android hardware acceleration.
 
 > **No accounts. No telemetry. No third-party servers. No subscription paywalls.**  
-> Your financial data lives exclusively in your hands.
+> Your financial data lives exclusively on your physical hardware.
 
 ---
 
-## ⚔️ The Ledger Advantage: Why We Win
+## 🏛️ Feature Matrix: Why Abhi's Ledger Wins
 
-| Feature | ❌ The "Other" Apps | 📉 Spreadsheets & Notes | 💎 Abhi's Ledger v3.0 |
+![Core Features Overview](assets/docs/features-overview.svg)
+
+| Capability | ❌ The "Other" Apps | 📉 Spreadsheets & Notes | 💎 Abhi's Ledger v3.5 |
 | :--- | :--- | :--- | :--- |
 | **Data Privacy** | Cloud servers, data mining | Plain text, unencrypted | **100% On-Device (SQLite & IndexedDB)** |
-| **Authentication** | Passwords stored on web servers | None | **Biometric Gate (Fingerprint/Face) + Salted PIN** |
-| **Settlement** | Manual text reminders | Manual copy-pasting | **Instant Dynamic UPI QR Codes + Shareable Cards** |
+| **Authentication** | Passwords stored on web servers | None | **Biometric Gate (Fingerprint/Face) + Hardware Keystore PIN** |
+| **In-App Updating** | App Store lock-in or manual download | None | **1-Tap Direct Sideload Download & System Package Installer** |
+| **Background Alerts** | Cloud push trackers (Firebase) | None | **Native Android AlarmManager Background Receivers** |
+| **Settlement** | Manual text reminders | Manual copy-pasting | **Instant Dynamic UPI QR Codes + WhatsApp Debt Slips** |
 | **Borrower Analysis** | None | Manual math | **Neural Trust Score Engine (0–100 scale)** |
 | **Backup Security** | Plaintext JSON / CSV | Plain files | **Hardware-backed AES-256-GCM + Android SAF** |
-| **Contacts Query** | Web form / Slow slow import | Manual entry | **Sub-35ms Native Cursor Projection** |
-| **Launcher Dynamic Icons** | Static app icon | N/A | **8 Dynamic Activity-Alias Themes (No restart)** |
-| **Statements** | Clunky screenshots | Raw CSV dumps | **Pixel-Perfect Branded PDF & Multi-Sheet XLSX** |
+| **Contacts Query** | Slow web forms / manual import | Manual typing | **Sub-35ms Native Cursor Projection** |
+| **Launcher Dynamic Icons** | Static app icon | N/A | **10 Dynamic Activity-Alias Themes (No restart)** |
+| **Statements** | Clunky screenshots | Raw CSV dumps | **Pixel-Perfect Branded PDF (Vector Badges) & Multi-Sheet XLSX** |
 | **Back Navigation** | App closes accidentally | N/A | **Universal LIFO Multi-Modal Back Stack** |
 | **Design Language** | Generic white & blue SaaS UI | Gray grids | **OLED True Black, Cyberpunk Neons & Glass** |
 
 ---
 
-## 🏛️ System Architecture
+## 📖 Step-by-Step Guide: How to Use Abhi's Ledger
 
-Abhi's Ledger runs on a hybrid high-performance architecture bridging native Android hardware APIs with a reactive TypeScript presentation matrix:
+![Complete User Walkthrough](assets/docs/step-guide-usage.svg)
+
+### Step 1: First-Time Setup & Biometric Shield
+1. **Launch the App**: When you open Abhi's Ledger for the first time, you are greeted by the interactive **Mascot Matrix** and setup screen.
+2. **Enter Your Name**: Personalize your ledger workspace.
+3. **Set Up Master Security**:
+   * Create a **6-Digit Master Security PIN** (hashed and secured via Android Hardware KeyStore).
+   * Toggle on **Biometric Authentication** (Fingerprint / Face ID) to unlock the app in $<100\text{ ms}$.
+4. **Choose Your Base Currency**: Select your currency from ₹ (INR), $ (USD), € (EUR), £ (GBP), ¥ (JPY), ₩ (KRW), ₿ (BTC), or custom symbols in **Settings**.
+
+---
+
+### Step 2: Adding Accounts & Native Contact Import
+1. Tap the **`+ Add Person`** button on the bottom navigation bar or dashboard.
+2. **Option A — 1-Tap Device Contact Import (Android)**:
+   * Tap the **Address Book** icon.
+   * Android's native hardware `ContentResolver` queries your contacts in **$<35\text{ ms}$**.
+   * Search by name or phone number with real-time relevance matching and select any contact to auto-populate their profile.
+3. **Option B — Manual Entry**:
+   * Type in the name, phone number, and optional relationship notes.
+4. Tap **Save Account**. Your new debtor/creditor profile is instantly initialized in the SQLite database.
+
+---
+
+### Step 3: Recording Deals & Credit Transactions
+1. Open an account profile and tap **`+ New Deal`** (or tap **`Quick Deal`** from the dashboard).
+2. **Choose the Transaction Direction**:
+   * **Given (Lend / Asset)**: Money you gave to the person (they owe you).
+   * **Taken (Borrow / Liability)**: Money you borrowed from the person (you owe them).
+3. **Fill Deal Parameters**:
+   * **Amount**: Enter the principal sum using the tactile virtual or system keyboard.
+   * **Date**: Defaults to today, or select any past date.
+   * **Due Date**: Select when the debt is scheduled to be settled.
+   * **Interest Rate (Optional)**: Choose between 0% interest or specify monthly/annual rates.
+   * **Remarks / Purpose**: Add tags like `Travel Split`, `Inventory Advance`, `Personal Loan`.
+4. Tap **Confirm Deal**. The app automatically schedules a native Android due-date alarm via `DebtReminderBroadcastReceiver`.
+
+---
+
+### Step 4: Tracking Repayments & Neural Trust Score
+1. **Record a Repayment**:
+   * Open the deal card and tap **Record Payment**.
+   * Input full or partial repayment amount.
+   * The app recalculates the remaining balance in real time and moves fully settled deals to the **Settled History** archive.
+2. **The Neural Trust Score (0–100 Engine)**:
+   * As transactions and settlements occur, the proprietary algorithmic engine analyzes **repayment velocity**, **due-date punctuality**, and **overdue duration**:
+     * 🛡️ **Elite Tier (90–100)**: Consistently settles on or before due date. High transaction reliability.
+     * 🟢 **Prime Tier (75–89)**: Reliable borrower with minimal lateness frequency.
+     * ⚠️ **High Risk Tier (25–74)**: Prolonged overdue balances, partial payments, irregular velocity.
+     * 💀 **Critical Alert (0–24)**: Severely delinquent. The system actively warns against further lending.
+
+---
+
+### Step 5: Dynamic UPI QR Code Settlement & WhatsApp Slips
+1. Open any outstanding deal with an Indian UPI contact.
+2. Tap the **UPI / QR Code** button.
+3. **Dynamic QR Generation**:
+   * The system automatically generates a compliant dynamic UPI QR code encoded with:
+     * Recipient UPI ID (`vpa`)
+     * Payee Name
+     * Exact Remaining Debt Balance (`am`)
+     * Transaction Note (`tn`)
+4. **Instant Payment**:
+   * The other person scans the screen with **Google Pay, PhonePe, Paytm, CRED, or BHIM**. The amount is auto-locked so neither party makes a typo.
+5. **1-Tap WhatsApp Debt Slip**:
+   * Tap **Share to WhatsApp** to generate a pre-formatted, polite debt summary breakdown ready to send in 1 tap.
+
+---
+
+### Step 6: Exporting Professional PDF & Excel Statements
+1. Inside any profile, tap **Export Statement**.
+2. **Branded Light-Paper PDF Statement**:
+   * Engineered with clean typography, account summary headers, total interest, and vector circle status badges (`● Paid`, `● Overdue`, `● Pending`) that print cleanly without ink-heavy dark backgrounds.
+3. **Multi-Sheet Excel Workbook (`.xlsx`)**:
+   * Formatted using `ExcelJS` with auto-calculated formula cells, summary headers, deal logs, and repayment history tables.
+4. Save directly to Android device storage via the **Storage Access Framework (SAF)** or share instantly via Android Sharesheet.
+
+---
+
+### Step 7: Customizing Themes, Launcher Icons & Typography
+1. Open **Settings** (Gear icon on top-right):
+2. **Dynamic Launcher Icons (Android Native)**:
+   * Select from **10 Custom Cyberpunk Themes**: *Emerald, Violet, Blue, Rose, Amber, Platinum, Tokyo, Crimson, Aurora, Carbon*.
+   * Uses Android `<activity-alias>` and `PackageManager.DONT_KILL_APP` to dynamically switch your home screen app icon instantly without killing the app.
+3. **Typography Studio**:
+   * Select from 4 hand-picked typefaces:
+     * `Inter` (Fintech High-Legibility Sans)
+     * `JetBrains Mono` (Cyberpunk Developer Terminal)
+     * `Special Elite` (Classic Typewriter Ledger)
+     * `Comic Neue` (Casual Friendly)
+   * Real-time preview specimen card displaying your active currency symbol.
+
+---
+
+### Step 8: Military-Grade Hardware Encrypted Backups
+1. Open **Settings** → **Backup & Security**.
+2. Tap **Create Encrypted Backup**:
+   * The app generates an AES-256-GCM encrypted `.ledger` container protected by Android Hardware KeyStore.
+   * No plain text data leaves the device.
+3. **Restore**:
+   * To restore on a new phone or after a wipe, tap **Restore Backup**, pick your `.ledger` file, and enter your master secret. Your entire SQLite database is reconstructed in milliseconds.
+
+---
+
+## 📲 Step-by-Step APK Download & Installation Guide
+
+![1-Tap Direct APK Installation Flow](assets/docs/step-download-apk.svg)
+
+Abhi's Ledger is an independent, sovereign Android application distributed outside Google Play Store to protect your data privacy. We have made installing and updating as seamless as an app store:
+
+---
+
+### Method A: 1-Tap Direct In-App Upgrade (Existing Users)
+
+If you already have Abhi's Ledger installed on your device:
+1. **Background Discovery**:
+   * The native Android `AppUpdateBroadcastReceiver` checks [`public/version.json`](https://raw.githubusercontent.com/Abhi10112006/Ledger-/main/public/version.json) every 12 hours and on device reboot.
+2. **System Tray Notification**:
+   * A system notification appears in your status bar:  
+     `⚡ Ledger Update: v3.5 Available — Tap to install directly!`
+3. **1-Tap Direct Install**:
+   * Tap the notification or open the app to see the bottom update banner.
+   * Tap **`⚡ 1-Tap Direct Install`**.
+   * The app streams the APK in the background with a live progress bar.
+   * Android's native package installer dialog pops up immediately:  
+     *"Do you want to install an update to this application?"*
+   * Tap **Install** — your database, accounts, and active deals are **100% preserved**!
+
+---
+
+### Method B: Fresh Install from GitHub Releases (New Users)
+
+#### Step 1: Download the Latest APK
+Download the verified APK directly from the official repository release:
+
+👉 **[Download Latest APK (v3.5.0)](https://github.com/Abhi10112006/Ledger-/releases/latest/download/app-release.apk)**  
+*(Alternative: Browse all historical releases at [GitHub Releases](https://github.com/Abhi10112006/Ledger-/releases))*
+
+#### Step 2: Open the Downloaded APK
+* When the download completes, tap the notification in your browser or open your device **Files / Downloads** app and tap **`app-release.apk`**.
+
+#### Step 3: Allow Installation from This Source (First-Time Android Sideload)
+Android protects against unauthorized APK installations. If prompted:
+1. Tap **Settings** on the prompt dialog (*"For your security, your phone is not allowed to install unknown apps from this source"*).
+2. Toggle **ON** **"Allow from this source"** for your browser (Chrome/Firefox/Brave) or File Manager.
+3. Tap the **Back** button.
+4. Tap **Install**.
+
+#### Step 4: Launch & Lock
+* Tap **Open**. Enter your name, set your 6-digit Master PIN and Fingerprint, and start tracking your wealth with zero cloud surveillance!
+
+---
+
+## 🚀 How to Publish Releases (For Maintainers)
+
+When you make improvements and want all existing users to automatically receive the update:
+1. **Increment Version**:
+   * Bump `"version"` in [`public/version.json`](public/version.json) (e.g. `"3.5.0"` → `"3.6.0"`).
+   * Update `"changelog"` in [`public/version.json`](public/version.json).
+   * Bump `APP_VERSION` in [`utils/version.ts`](utils/version.ts).
+   * Increment `versionCode` (e.g. `4` → `5`) and `versionName` in [`android/app/build.gradle`](android/app/build.gradle).
+2. **Build Release APK**:
+   ```bash
+   npm run build
+   npx cap sync android
+   cd android && .\gradlew.bat assembleRelease
+   ```
+3. **Publish on GitHub**:
+   * Create a new Release tagged `v3.6.0` on [GitHub Releases](https://github.com/Abhi10112006/Ledger-/releases).
+   * Attach the compiled file named **`app-release.apk`**.
+   * Hit **Publish**.
+4. **Done!** Every user's device will detect the new version within 12 hours, receive a system tray notification, and upgrade in 1 tap!
+
+---
+
+## 🏗️ System Architecture & Native Plugins
 
 ```mermaid
 graph TD
     subgraph Hardware_Layer [Native Android Hardware Acceleration Layer]
+        NAU[NativeAppUpdatePlugin<br/>In-flight APK Stream &amp; FileProvider Intent]
+        AUR[AppUpdateBroadcastReceiver<br/>AlarmManager Periodic Check &amp; System Notifications]
         NC[NativeContactsPlugin<br/>Fast ContentResolver Cursor &lt;35ms]
         NB[NativeBackupPlugin<br/>AES-256-GCM + Android SAF]
-        NTI[NativeThemeIconPlugin<br/>8 Dynamic Activity-Alias Icons]
-        NTP[NativeTypographyPlugin<br/>Subpixel Antialiasing & HW Layer]
-        NBM[Capacitor Native Biometrics<br/>Fingerprint & FaceID Gate]
-        NBH[Universal LIFO Stack<br/>Hardware Back Handler]
+        NTI[NativeThemeIconPlugin<br/>10 Dynamic Activity-Alias Icons]
+        NSP[NativeSecurityPlugin<br/>Hardware Android KeyStore PIN Wrapper]
+        NTP[NativeTypographyPlugin<br/>Subpixel Antialiasing &amp; HW Layers]
+        NBM[Capacitor Native Biometrics<br/>Fingerprint &amp; FaceID Gate]
     end
 
     subgraph Bridge_Layer [Zero-Copy Serialization IPC Bridge]
-        CAP[Capacitor 8 IPC Bridge]
+        CAP[Capacitor 8.0 IPC Bridge]
     end
 
     subgraph Storage_Layer [Dual-Engine Hybrid Persistence]
@@ -72,165 +269,68 @@ graph TD
         IDB[Browser IndexedDB Engine<br/>Web/PWA Fallback Layer]
     end
 
-    subgraph Presentation_Layer [React 18 & Cyberpunk Presentation Engine]
-        UI[Neon Glassmorphism Interface<br/>Sticky Balance Headers & OLED Theme]
-        NTS[Neural Trust Scoring Engine<br/>Repayment Velocity & Consistency]
+    subgraph Presentation_Layer [React 18 &amp; Cyberpunk Presentation Engine]
+        UI[Neon Glassmorphism Interface<br/>Sticky Balance Headers &amp; OLED Theme]
+        NTS[Neural Trust Scoring Engine<br/>Repayment Velocity &amp; Consistency]
         UPI[Dynamic UPI QR Protocol<br/>GPay, PhonePe, Paytm, Cred]
-        EXP[Statement Document Engines<br/>PDF AutoTable & ExcelJS Workbooks]
-        VKB[Tactile Virtual Matrix Keyboard<br/>Smart Incognito Alpha/Numeric Modes]
+        EXP[Statement Document Engines<br/>PDF AutoTable &amp; ExcelJS Workbooks]
+        UPB[UpdateBanner Studio<br/>1-Tap In-App Live Progress Bar]
     end
 
     Hardware_Layer --> CAP
+    AUR -.-> NAU
     CAP --> Presentation_Layer
     Presentation_Layer --> Storage_Layer
 ```
 
 ---
 
-## ⚡ Core Arsenal & Feature Suite
+## 🛠️ Developer Installation & Compilation
 
-### 1. 🧠 The Neural Trust Engine
-Stop guessing whether a peer or client is good for repayment. The proprietary algorithmic trust engine continuously scores profiles on an integrity scale of **0 to 100**:
-*   **🛡️ Elite Tier (90–100):** Consistently settles on or before due date. High transaction reliability.
-*   **🟢 Prime Tier (75–89):** Reliable borrower with minimal lateness frequency.
-*   **⚠️ High Risk Tier (25–74):** Prolonged overdue balances, partial payments, irregular velocity.
-*   **💀 Critical Alert (0–24):** Severely delinquent. System actively warns against further lending.
+To build and run Abhi's Ledger locally on your workstation:
 
-### 2. 💳 Dynamic UPI Settlement Protocol
-Settle debts in seconds without copy-pasting bank accounts or UPI IDs:
-*   **Instant Dynamic QR Generation:** Generates real-time, zero-error UPI QR codes embedding the exact balance, payee name, and payment note.
-*   **Universal App Compatibility:** Works seamlessly with **Google Pay, PhonePe, Paytm, BHIM, Cred, and Navi**.
-*   **Shareable Digital Debt Slips:** Renders crisp, branded WhatsApp debt summary cards ready to dispatch with one click.
-
-### 3. 🔒 Biometric Security Shield & Cryptographic PIN
-*   **Hardware Biometrics:** Native Android BiometricPrompt integration unlocks your financial vault with Fingerprint or Face ID.
-*   **Salted Hardware PIN Fallback:** 6-digit cryptographic PIN verification backed by salted SHA-256 hashing.
-*   **Auto-Lock System:** Automatic session termination when switching apps or locking the device.
-
-### 4. 🛡️ Military-Grade Encrypted Backups
-*   **AES-256-GCM Authenticated Encryption:** Backups are shielded using industry-standard Galois/Counter Mode authenticated encryption.
-*   **Storage Access Framework (SAF):** Full native Android SAF integration writes `.ledger` backup files directly to user-designated local folders or external drives without granting the app invasive broad filesystem permissions.
-*   **Zero Cloud Leakage:** No server uploads, no sync telemetry. Your financial records never leave your control.
-
-### 5. 👥 Sub-35ms Native Contacts Engine
-*   **Optimized Cursor Projection:** Custom Android plugin queries `ContactsContract.CommonDataKinds.Phone` using high-speed projection cursors in under $35\text{ ms}$.
-*   **Cyberpunk Glass Picker:** Browse your address book with instant search, avatar resolution, and frictionless account creation.
-
-### 6. 🎨 8 Dynamic Launcher Themes (Live Icon Swapping)
-*   **Zero-Restart Theme Engine:** Switch between 8 themes (**Amber, Aurora, Blue, Carbon, Emerald, Rose, Tokyo, Violet**) with instantaneous Android `<activity-alias>` dynamic icon updates via `DONT_KILL_APP` flag.
-
-### 7. 📄 Pixel-Perfect PDF & Excel Statement Generator
-*   **Professional PDF Statements:** Clean, print-ready account statements formatted with the signature "L" emblem, transaction chronologies, overdue markers, and settlement summaries.
-*   **Multi-Sheet Excel Workbooks:** Formatted `.xlsx` accounting spreadsheets generated on-device with calculated totals, deal dates, and interest breakdowns using `ExcelJS`.
-
-### 8. ⌨️ Tactile Virtual Matrix Keyboard & Multi-Language
-*   **Custom In-App Virtual Keyboard:** Complete keyboard isolation prevents external keyboard learning, autocorrect leaks, or keylogging.
-*   **Haptic Engine:** Tactile touch feedback and sound cues on every numerical entry.
-*   **10+ Global Languages:** Fully localized in English, Hindi (हिंदी), Spanish (Español), French (Français), German (Deutsch), Russian (Русский), Japanese (日本語), Chinese (中文), Arabic (العربية), and Portuguese (Português).
-
----
-
-## 🛠️ Tech Stack & Specifications
-
-| Layer | Technologies |
-| :--- | :--- |
-| **Frontend Framework** | React 18.2, TypeScript 5.8, Vite 6.2 |
-| **Mobile Runtime** | Capacitor 8.0, Android SDK Platform 34/35, Gradle 8.11 / 9.4 |
-| **Styling & Effects** | Tailwind CSS 3.4, Framer Motion, Lucide Icons, Custom Fonts |
-| **Persistence** | SQLite Native (`@capacitor-community/sqlite`), IndexedDB (`idb`) |
-| **Cryptography & Security** | AES-256-GCM, Salted SHA-256, Android BiometricPrompt |
-| **Document Generators** | jsPDF, jsPDF-AutoTable, ExcelJS, HTML5 Canvas |
-| **Hardware Plugins** | Custom Java Native Plugins: Contacts, Backup SAF, Theme Icons, Typography |
-
----
-
-## 🚀 Quick Start Guide
-
-### 1. Web Local Run
+### 1. Clone & Install Dependencies
 ```bash
-# Clone the repository
 git clone https://github.com/Abhi10112006/Ledger-.git
 cd Ledger-
-
-# Install dependencies
 npm install
+```
 
-# Start Vite development server
+### 2. Run Web Development Server
+```bash
 npm run dev
 ```
-Visit `http://localhost:5173/` in your browser.
+Open [http://localhost:5173](http://localhost:5173) in your browser.
 
-### 2. Android Mobile Build
+### 3. Build & Compile Android APK
 ```bash
-# Build production web bundle
+# Build React web bundle
 npm run build
 
-# Sync assets and plugins to Android project
+# Sync assets to native Android project
 npx cap sync android
 
-# Open project in Android Studio
+# Open in Android Studio
 npx cap open android
 ```
-*For detailed setup instructions, including signing release APKs and configuring environment variables, read the **[Installation & Deployment Guide](INSTALLATION.md)**.*
+*(Or compile headless via Gradle: `cd android && .\gradlew.bat assembleDebug`)*
+
+For in-depth troubleshooting, keystore generation, and signing manuals, consult the **[Official Installation Guide](INSTALLATION.md)**.
 
 ---
 
-## 🗺️ Migration & Engineering Roadmap
+## 🛡️ Zero-Cloud Privacy Guarantee
 
-Abhi's Ledger is actively evolving along a 4-phase engineering roadmap:
-
-- [x] **Phase 1: Native Acceleration Baseline**
-  - Native Android Contacts cursor engine ($<35\text{ ms}$).
-  - Encrypted local backups using Android Storage Access Framework (SAF).
-  - High-fidelity PDF export engine with overdue day counter.
-- [x] **Phase 2: Mobile Security & Visual Engine**
-  - Native Biometric unlock (Fingerprint / Face ID).
-  - 8 Dynamic launcher icon activity-aliases without app reload.
-  - Hardware typography acceleration & Universal LIFO back stack.
-- [ ] **Phase 3: High-Performance Relational SQLite (In Progress)**
-  - Full relational Room/SQLite schema with normalized tables.
-  - Native `WorkManager` & `AlarmManager` for reboot-proof due date notifications.
-  - Android Keystore integration for hardware-bound encryption keys.
-- [ ] **Phase 4: Ecosystem & Platform Expansion**
-  - Android Home Screen Glance Quick Widgets.
-  - Jetpack Compose hybrid screens for 120 FPS infinite contact scrolling.
-  - P2P encrypted Bluetooth / WiFi Direct local offline device sync.
-
-*Track full technical details in [`MIGRATION_IMPLEMENTATION_PLAN.md`](MIGRATION_IMPLEMENTATION_PLAN.md).*
+Abhi's Ledger operates under a strict **Zero-Knowledge, Zero-Cloud Protocol**:
+1. **No External Databases**: There is no Firebase, Supabase, AWS, or central server collecting your financial profiles or transaction notes.
+2. **No Analytics or Trackers**: No Google Analytics, Mixpanel, Sentry, or advertising SDKs.
+3. **No Account Requirement**: No email, phone verification, or passwords stored on a web server.
+4. **Air-Gapped Operation**: Turn on Airplane Mode. Every single feature — from adding deals to computing Trust Scores and exporting PDFs — functions flawlessly offline.
 
 ---
 
-## 🔐 Zero-Cloud Privacy Guarantee
+## 📄 License & Intellectual Property
 
-1. **No External Servers:** Ledger operates without a backend database. All ledger entries, contact names, and notes reside solely within your device's encrypted storage.
-2. **Zero Telemetry or Analytics:** No third-party trackers, no crash loggers, no behavioral cookies.
-3. **Hardware Storage Access Framework (SAF):** Backups are written strictly where you choose; the app never asks for blanket device storage access.
-4. **Verifiable Source Code:** Inspect every line of code directly in this repository.
+Distributed under the **MIT License**. See [`LICENSE`](LICENSE) for full details.
 
----
-
-## 🤝 Contributing
-
-Contributions are welcome! If you'd like to improve the app or implement a roadmap item:
-1. Fork the Project (`https://github.com/Abhi10112006/Ledger-`)
-2. Create your Feature Branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your Changes (`git commit -m 'feat: Add AmazingFeature'`)
-4. Push to the Branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
-
----
-
-## 📄 License & Architect
-
-Distributed under the **MIT License**. See [`LICENSE`](LICENSE) for details.
-
-**Architect & Lead Developer:**  
-👤 **Priyanshu Kumar (Abhi10112006)**  
-📧 Contact: [abhiyaduvanshi@zohomail.in](mailto:abhiyaduvanshi@zohomail.in)  
-🌐 GitHub: [@Abhi10112006](https://github.com/Abhi10112006)
-
----
-
-<div align="center">
-<sub>Designed and engineered for financial sovereignty. Built with ⚡ in 2026.</sub>
-</div>
+Developed with 💎 by **Abhinav** ([@Abhi10112006](https://github.com/Abhi10112006)). Contributions, feature requests, and bug reports are welcome via [GitHub Issues](https://github.com/Abhi10112006/Ledger-/issues).

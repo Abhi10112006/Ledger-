@@ -56,13 +56,43 @@ export const BiometricLockScreen: React.FC<Props> = ({
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isShaking, setIsShaking] = useState(false);
   const [hasEnrolledPin, setHasEnrolledPin] = useState<boolean>(!!settings.securityPinHash);
+  const [bioCaps, setBioCaps] = useState<{
+    hasFingerprint: boolean;
+    hasFaceLock: boolean;
+    isAvailable: boolean;
+  }>({
+    hasFingerprint: true,
+    hasFaceLock: false,
+    isAvailable: true,
+  });
 
   const hasTriggeredInitialBio = useRef(false);
 
-  // ─── BIOMETRIC CAPABILITIES CHECK ───
+  // ─── BIOMETRIC CAPABILITIES & REAL HARDWARE DETECTION ───
   useEffect(() => {
     setHasEnrolledPin(!!settings.securityPinHash);
   }, [settings.securityPinHash]);
+
+  useEffect(() => {
+    let isMounted = true;
+    getBiometricCapabilities().then((caps) => {
+      if (isMounted) {
+        setBioCaps({
+          hasFingerprint: caps.hasFingerprint,
+          hasFaceLock: caps.hasFaceLock,
+          isAvailable: caps.isAvailable,
+        });
+
+        // If currently on facelock but device does not have real hardware face lock, fallback immediately
+        if (!caps.hasFaceLock && activeTab === 'facelock') {
+          setActiveTab(caps.hasFingerprint ? 'fingerprint' : 'pin');
+        }
+      }
+    });
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   // Auto-prompt on initial app launch if biometric mode is selected
   useEffect(() => {
@@ -71,11 +101,15 @@ export const BiometricLockScreen: React.FC<Props> = ({
 
     if (settings.preferredUnlockMode !== 'pin') {
       const timer = setTimeout(() => {
-        handleTriggerFingerprint();
+        if (bioCaps.hasFingerprint) {
+          handleTriggerFingerprint();
+        } else if (bioCaps.hasFaceLock) {
+          handleTriggerFaceLock();
+        }
       }, 350);
       return () => clearTimeout(timer);
     }
-  }, []);
+  }, [bioCaps]);
 
   // ─── 1. FINGERPRINT UNLOCK ACTION ───
   const handleTriggerFingerprint = async () => {
@@ -282,7 +316,7 @@ export const BiometricLockScreen: React.FC<Props> = ({
           <span>Biometric Security Gate</span>
         </div>
 
-        {/* ─── 3 UNLOCK TABS SELECTOR ─── */}
+        {/* ─── UNLOCK TABS SELECTOR (Class 2 Camera Face Lock is filtered out) ─── */}
         <div
           style={{
             display: 'flex',
@@ -299,9 +333,13 @@ export const BiometricLockScreen: React.FC<Props> = ({
           }}
         >
           {[
-            { id: 'fingerprint', label: 'Fingerprint', icon: Fingerprint },
-            { id: 'facelock', label: 'Face Lock', icon: ScanFace },
-            { id: 'pin', label: '6-Digit PIN', icon: KeyRound },
+            ...(bioCaps.hasFingerprint
+              ? [{ id: 'fingerprint' as UnlockTab, label: 'Fingerprint', icon: Fingerprint }]
+              : []),
+            ...(bioCaps.hasFaceLock
+              ? [{ id: 'facelock' as UnlockTab, label: 'Face Lock', icon: ScanFace }]
+              : []),
+            { id: 'pin' as UnlockTab, label: '6-Digit PIN', icon: KeyRound },
           ].map((tab) => {
             const isActive = activeTab === tab.id;
             const Icon = tab.icon;
@@ -858,8 +896,16 @@ export const BiometricLockScreen: React.FC<Props> = ({
           <button
             onClick={() => {
               haptic('light');
-              setActiveTab('fingerprint');
-              handleTriggerFingerprint();
+              const nextBio: UnlockTab = bioCaps.hasFingerprint
+                ? 'fingerprint'
+                : bioCaps.hasFaceLock
+                ? 'facelock'
+                : 'pin';
+              if (nextBio !== 'pin') {
+                setActiveTab(nextBio);
+                if (nextBio === 'fingerprint') handleTriggerFingerprint();
+                else handleTriggerFaceLock();
+              }
             }}
             style={{
               background: 'none',
@@ -873,8 +919,17 @@ export const BiometricLockScreen: React.FC<Props> = ({
               gap: 5,
             }}
           >
-            <Fingerprint size={14} style={{ color: activeTheme.hex }} />
-            <span>Use Fingerprint / Face</span>
+            {bioCaps.hasFaceLock && !bioCaps.hasFingerprint ? (
+              <>
+                <ScanFace size={14} style={{ color: activeTheme.hex }} />
+                <span>Use Face Lock</span>
+              </>
+            ) : (
+              <>
+                <Fingerprint size={14} style={{ color: activeTheme.hex }} />
+                <span>Use Fingerprint{bioCaps.hasFaceLock ? ' / Face' : ''}</span>
+              </>
+            )}
           </button>
         )}
       </div>

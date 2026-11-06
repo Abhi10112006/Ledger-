@@ -14,6 +14,7 @@ import PaymentModal from './components/PaymentModal';
 import EditDateModal from './components/EditDateModal';
 import DeleteModal from './components/DeleteModal';
 import TourOverlay from './components/TourOverlay';
+import TutorialSelectionModal from './components/TutorialSelectionModal';
 import WelcomeScreen from './components/WelcomeScreen';
 import SponsorModal from './components/SponsorModal';
 import AccountRow from './components/AccountRow';
@@ -97,6 +98,7 @@ const AppContent: React.FC = () => {
   const [isTypographyModalOpen, setIsTypographyModalOpen] = useState(false);
   const [isActiveDealsModalOpen, setIsActiveDealsModalOpen] = useState(false);
   const [isBackupModalOpen, setIsBackupModalOpen] = useState(false);
+  const [isTutorialModalOpen, setIsTutorialModalOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const [searchQuery, setSearchQuery] = useState('');
@@ -241,6 +243,8 @@ const AppContent: React.FC = () => {
   useBackHandler(isDashboardDealModalOpen, () => { setIsDashboardDealModalOpen(false); });
   useBackHandler(isProfileDealModalOpen, () => { setIsProfileDealModalOpen(false); });
   useBackHandler(isBackupModalOpen, () => { setIsBackupModalOpen(false); });
+  useBackHandler(isTutorialModalOpen, () => { setIsTutorialModalOpen(false); });
+  useBackHandler(tourStep >= 0, () => { handleCompleteTour(); });
   useBackHandler(isTypographyModalOpen, () => { handleCloseTypography(); });
   useBackHandler(isSettingsModalOpen, () => { handleCloseSettings(); });
   useBackHandler(isActiveDealsModalOpen, () => { setIsActiveDealsModalOpen(false); });
@@ -265,6 +269,8 @@ const AppContent: React.FC = () => {
     if (isProfileDealModalOpen) { setIsProfileDealModalOpen(false); return; }
 
     // 3. Full Screen / Main Modals
+    if (tourStep >= 0) { handleCompleteTour(); return; }
+    if (isTutorialModalOpen) { setIsTutorialModalOpen(false); return; }
     if (isBackupModalOpen) { setIsBackupModalOpen(false); return; }
     if (isSettingsModalOpen) { setIsSettingsModalOpen(false); return; }
     if (isTypographyModalOpen) { setIsTypographyModalOpen(false); return; }
@@ -722,7 +728,7 @@ const AppContent: React.FC = () => {
           <div>
             <Navbar
               settings={settings} activeTheme={activeTheme} tourStep={tourStep} setTourStep={setTourStep}
-              onOpenTutorialSelection={() => setTourStep(0)}
+              onOpenTutorialSelection={() => openModal(setIsTutorialModalOpen)}
               setIsSettingsModalOpen={(v) => v ? handleOpenSettings(isMobileMenuOpen) : setIsSettingsModalOpen(false)}
               handleExport={() => openModal(setIsBackupModalOpen)} onLogout={handleLogout}
               onOpenTypographyModal={() => handleOpenTypography(isMobileMenuOpen ? 'menu' : null)}
@@ -821,7 +827,7 @@ const AppContent: React.FC = () => {
                   )}
                 </div>
 
-                <div className="mt-2" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--app-content-gap, 8px)' }}>
+                <div id="tour-contacts-list" className="mt-2" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--app-content-gap, 8px)' }}>
                   <AnimatePresence>
                     {accounts.length > 0 ? accounts.map((account, index) => (
                       <AccountRow key={account.id} account={account} settings={settings} activeTheme={activeTheme} onClick={() => navigateToProfile(account.id)} index={index} />
@@ -942,6 +948,14 @@ const AppContent: React.FC = () => {
 
           <SponsorModal isOpen={isAdOpen} onClose={closeAd} activeTheme={activeTheme} ad={currentAd} onBackup={() => openModal(setIsBackupModalOpen)} />
           <TourOverlay tourStep={tourStep} setTourStep={setTourStep} completeTour={handleCompleteTour} activeTheme={activeTheme} />
+
+          <TutorialSelectionModal
+            isOpen={isTutorialModalOpen}
+            onClose={() => setIsTutorialModalOpen(false)}
+            onSelectInteractive={() => setTourStep(0)}
+            activeTheme={activeTheme}
+            settings={settings}
+          />
 
           <BackupModal
             isOpen={isBackupModalOpen}

@@ -178,6 +178,19 @@
                 <action android:name="com.abhisledger.app.ACTION_CHECK_UPDATE" />
             </intent-filter>
         </receiver>
+
+        <!-- Native Debt & Settlement Reminder Receiver (Phase 3.2 Exact Alarms & Reboot Recovery) -->
+        <receiver
+            android:name=".DebtReminderBroadcastReceiver"
+            android:enabled="true"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+                <action android:name="android.intent.action.QUICKBOOT_POWERON" />
+                <action android:name="com.abhisledger.app.ACTION_SHOW_REMINDER" />
+            </intent-filter>
+        </receiver>
     </application>
 
     <!-- Core -->

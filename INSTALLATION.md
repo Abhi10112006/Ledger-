@@ -2,7 +2,7 @@
 
 > **Official Installation & Developer Setup Manual**  
 > *Target Environments:* Web (Browser / PWA), Android (Capacitor 8 / Native Hybrid)  
-> *Version:* `3.0.0` (Modern Fintech & Native Overhaul)
+> *Version:* `3.5.0` (Fintech Pro & Direct In-App Updates)
 
 ---
 
@@ -208,19 +208,25 @@ android/app/build/outputs/apk/release/app-release-unsigned.apk
 
 ## 6. Native Plugins & Hardware Permissions
 
-Abhi's Ledger integrates 5 specialized custom native Android plugins located in `android/app/src/main/java/com/abhisledger/app/`:
+Abhi's Ledger integrates 7 specialized custom native Android plugins and background receivers located in `android/app/src/main/java/com/abhisledger/app/`:
 
-1. **`NativeContactsPlugin.java`**:
+1. **`NativeAppUpdatePlugin.java` & `AppUpdateBroadcastReceiver.java`**:
+   - Streams APK updates directly in-flight with live percentage progress reporting and notification drawer updates.
+   - Automatically triggers Android native package installer prompt (`Intent.ACTION_VIEW` with `FileProvider` URI).
+   - Listens to `AlarmManager` repeating alarms every 12 hours and `BOOT_COMPLETED` to check for updates and alert via system notifications.
+2. **`NativeContactsPlugin.java`**:
    - Queries the device `ContentResolver` for contact display name, phone numbers, and avatars in $<35\text{ ms}$.
    - Requires runtime permission: `android.permission.READ_CONTACTS`.
-2. **`NativeBackupPlugin.java`**:
+3. **`NativeBackupPlugin.java`**:
    - Implements hardware-backed **AES-256-GCM** encryption and integrates with Android's **Storage Access Framework (SAF)** to write encrypted `.ledger` files directly to user-chosen storage without invasive storage permissions.
-3. **`NativeThemeIconPlugin.java`**:
-   - Dynamically toggles 8 launcher `<activity-alias>` targets (Amber, Aurora, Blue, Carbon, Emerald, Rose, Tokyo, Violet) via `PackageManager.setComponentEnabledSetting` with `DONT_KILL_APP` flag.
-4. **`NativeTypographyPlugin.java`**:
+4. **`NativeThemeIconPlugin.java`**:
+   - Dynamically toggles 10 launcher `<activity-alias>` targets via `PackageManager.setComponentEnabledSetting` with `DONT_KILL_APP` flag.
+5. **`NativeSecurityPlugin.java`**:
+   - Provides hardware Android KeyStore backing for the 6-digit Master PIN and cryptographic verification.
+6. **`NativeTypographyPlugin.java`**:
    - Enforces WebView hardware acceleration layers and subpixel font antialiasing flags.
-5. **Biometric Authentication (`@capgo/capacitor-native-biometric`)**:
-   - Hooks into Android `BiometricPrompt` API for Fingerprint and Face Unlock with a fallback 6-digit salted SHA-256 PIN screen.
+7. **Biometric Authentication (`@capgo/capacitor-native-biometric`)**:
+   - Hooks into Android `BiometricPrompt` API for Fingerprint and Face Unlock with a fallback 6-digit salted PIN screen.
 
 All required permissions are declared in [`android/app/src/main/AndroidManifest.xml`](file:///C:/Users/abhin/Downloads/ledger/android/app/src/main/AndroidManifest.xml).
 

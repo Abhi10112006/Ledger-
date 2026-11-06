@@ -75,7 +75,7 @@ public class AppUpdateBroadcastReceiver extends BroadcastReceiver {
         try {
             URL url = new URL(VERSION_URL);
             conn = (HttpURLConnection) url.openConnection();
-            conn.setRequestProperty("User-Agent", "AbhisLedger-AppUpdate/3.0");
+            conn.setRequestProperty("User-Agent", "AbhisLedger-AppUpdate/3.5");
             conn.setConnectTimeout(10000);
             conn.setReadTimeout(15000);
 

@@ -12,7 +12,7 @@ import {
   saveSettingsToDB,
   migrateLegacyData
 } from '../utils/db';
-import { scheduleDebtReminder, cancelDebtReminder } from '../utils/notifications';
+import { scheduleDebtReminder, cancelDebtReminder, syncAllDebtReminders } from '../utils/notifications';
 
 // Legacy keys for one-time migration only
 const STORAGE_KEY_LEGACY = 'abhi_ledger_session';
@@ -41,7 +41,9 @@ const DEFAULT_SETTINGS: AppSettings = {
   useBiometricLock: false,
   securityPinHash: '',
   preferredUnlockMode: 'any',
-  securityLockTimeout: 0
+  securityLockTimeout: 0,
+  enableReminders: true,
+  enableUpdateNotifications: true
 };
 
 export type SortOption = 'name' | 'exposure' | 'trust' | 'recent';
@@ -137,6 +139,9 @@ export const useLedger = (tourStep: number, searchQuery: string = '') => {
         );
 
         setTransactions(dbTxs);
+        if (dbTxs && dbTxs.length > 0) {
+          syncAllDebtReminders(dbTxs, dbSettings?.currency || '₹');
+        }
         if (wasLoggedIn && !isLoggedOut) {
           setIsLoggedIn(true);
         } else if (dbTxs.length === 0) {
@@ -220,7 +225,7 @@ export const useLedger = (tourStep: number, searchQuery: string = '') => {
     setTransactions(prev => [newTx, ...prev]);
     // Persist to DB
     saveTransaction(newTx);
-    scheduleDebtReminder(newTx.id, newTx.friendName, newTx.principalAmount, settings.currency, newTx.returnDate);
+    scheduleDebtReminder(newTx.id, newTx.friendName, newTx.principalAmount, settings.currency, newTx.returnDate, newTx.friendPhone);
   };
 
   const addPayment = (activeTxId: string | null, amount: number, date: string) => {
@@ -322,6 +327,16 @@ export const useLedger = (tourStep: number, searchQuery: string = '') => {
       // Bulk persist the modified ones
       if (txToSave.length > 0) {
         bulkSaveTransactions(txToSave);
+        txToSave.forEach(updatedTx => {
+          if (updatedTx.isCompleted) {
+            cancelDebtReminder(updatedTx.id);
+          } else {
+            const pendingBal = getTotalPayable(updatedTx) - updatedTx.paidAmount;
+            if (pendingBal > 0) {
+              scheduleDebtReminder(updatedTx.id, updatedTx.friendName, pendingBal, settings.currency, updatedTx.returnDate, updatedTx.friendPhone);
+            }
+          }
+        });
       }
 
       return newTransactions;
@@ -339,7 +354,7 @@ export const useLedger = (tourStep: number, searchQuery: string = '') => {
         };
         saveTransaction(updatedTx);
         if (!updatedTx.isCompleted) {
-          scheduleDebtReminder(updatedTx.id, updatedTx.friendName, getTotalPayable(updatedTx) - updatedTx.paidAmount, settings.currency, updatedTx.returnDate);
+          scheduleDebtReminder(updatedTx.id, updatedTx.friendName, getTotalPayable(updatedTx) - updatedTx.paidAmount, settings.currency, updatedTx.returnDate, updatedTx.friendPhone);
         }
         return updatedTx;
       }
@@ -368,7 +383,7 @@ export const useLedger = (tourStep: number, searchQuery: string = '') => {
         if (isCompleted) {
           cancelDebtReminder(updatedTx.id);
         } else {
-          scheduleDebtReminder(updatedTx.id, updatedTx.friendName, getTotalPayable(updatedTx) - updatedTx.paidAmount, settings.currency, updatedTx.returnDate);
+          scheduleDebtReminder(updatedTx.id, updatedTx.friendName, getTotalPayable(updatedTx) - updatedTx.paidAmount, settings.currency, updatedTx.returnDate, updatedTx.friendPhone);
         }
         return updatedTx;
       }
@@ -475,6 +490,7 @@ export const useLedger = (tourStep: number, searchQuery: string = '') => {
         setSettings(prev => ({ ...prev, ...newSettings }));
         await saveSettingsToDB(newSettings);
       }
+      syncAllDebtReminders(sanitized, newSettings?.currency || '₹');
     }
   }, []);
 
