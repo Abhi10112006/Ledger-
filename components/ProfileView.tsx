@@ -311,7 +311,7 @@ const ProfileView: React.FC<Props> = ({
 
         haptic('success');
         window.dispatchEvent(new CustomEvent('abhi-ledger-toast', {
-          detail: { message: "Reminder set for 9:00 AM on due date", type: 'success' }
+          detail: { message: "Payment reminder scheduled for due date", type: 'success' }
         }));
       } else {
         window.dispatchEvent(new CustomEvent('abhi-ledger-toast', {
@@ -431,10 +431,10 @@ const ProfileView: React.FC<Props> = ({
           {/* HISTORY LIST */}
           <motion.div variants={containerVariants} className="space-y-3">
             <AnimatePresence mode="popLayout">
-              {historyItems.map((item) => {
+              {historyItems.map((item, idx) => {
                 const itemKey = `${item.id}-${item.repId || 'main'}`;
                 return (
-                  <motion.div key={itemKey} variants={itemVariants}>
+                  <motion.div key={itemKey} variants={itemVariants} id={idx === 0 ? 'tour-history-item' : undefined}>
                     <HistoryItem
                       item={item}
                       isActive={activeItemKey === itemKey}
@@ -488,6 +488,7 @@ const ProfileView: React.FC<Props> = ({
           </motion.button>
 
           <motion.button
+            id="tour-repayment-button"
             variants={itemVariants}
             whileTap={{ scale: 0.96 }}
             onClick={() => { haptic('medium'); onReceive(null); }}

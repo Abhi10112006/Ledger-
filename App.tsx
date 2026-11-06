@@ -157,6 +157,8 @@ const AppContent: React.FC = () => {
     setIsTypographyModalOpen(false);
     setIsActiveDealsModalOpen(false);
     setIsBackupModalOpen(false);
+    setBackupOriginMenu(false);
+    setTutorialOriginMenu(false);
     setIsMobileMenuOpen(false);
     setActiveRepaymentId(null);
     closeAd();
@@ -185,6 +187,8 @@ const AppContent: React.FC = () => {
   const [profileOriginModal, setProfileOriginModal] = useState<'active-deals' | 'search' | null>(null);
   const [typographyOrigin, setTypographyOrigin] = useState<'settings' | 'menu' | null>(null);
   const [settingsOriginMenu, setSettingsOriginMenu] = useState(false);
+  const [backupOriginMenu, setBackupOriginMenu] = useState(false);
+  const [tutorialOriginMenu, setTutorialOriginMenu] = useState(false);
 
   const navigateToProfile = (profileId: string, origin: 'active-deals' | 'search' | null = null) => {
     setProfileOriginModal(origin);
@@ -227,6 +231,32 @@ const AppContent: React.FC = () => {
     }
   }, [settingsOriginMenu]);
 
+  const handleOpenBackup = (fromMenu = false) => {
+    setBackupOriginMenu(fromMenu);
+    setIsBackupModalOpen(true);
+  };
+
+  const handleCloseBackup = useCallback(() => {
+    setIsBackupModalOpen(false);
+    if (backupOriginMenu) {
+      setBackupOriginMenu(false);
+      setIsMobileMenuOpen(true);
+    }
+  }, [backupOriginMenu]);
+
+  const handleOpenTutorial = (fromMenu = false) => {
+    setTutorialOriginMenu(fromMenu);
+    setIsTutorialModalOpen(true);
+  };
+
+  const handleCloseTutorial = useCallback(() => {
+    setIsTutorialModalOpen(false);
+    if (tutorialOriginMenu) {
+      setTutorialOriginMenu(false);
+      setIsMobileMenuOpen(true);
+    }
+  }, [tutorialOriginMenu]);
+
   const handleBackAction = useCallback(() => {
     handleCloseProfile();
   }, [handleCloseProfile]);
@@ -242,8 +272,8 @@ const AppContent: React.FC = () => {
   useBackHandler(isPaymentModalOpen, () => { setIsPaymentModalOpen(false); });
   useBackHandler(isDashboardDealModalOpen, () => { setIsDashboardDealModalOpen(false); });
   useBackHandler(isProfileDealModalOpen, () => { setIsProfileDealModalOpen(false); });
-  useBackHandler(isBackupModalOpen, () => { setIsBackupModalOpen(false); });
-  useBackHandler(isTutorialModalOpen, () => { setIsTutorialModalOpen(false); });
+  useBackHandler(isBackupModalOpen, () => { handleCloseBackup(); });
+  useBackHandler(isTutorialModalOpen, () => { handleCloseTutorial(); });
   useBackHandler(tourStep >= 0, () => { handleCompleteTour(); });
   useBackHandler(isTypographyModalOpen, () => { handleCloseTypography(); });
   useBackHandler(isSettingsModalOpen, () => { handleCloseSettings(); });
@@ -270,8 +300,8 @@ const AppContent: React.FC = () => {
 
     // 3. Full Screen / Main Modals
     if (tourStep >= 0) { handleCompleteTour(); return; }
-    if (isTutorialModalOpen) { setIsTutorialModalOpen(false); return; }
-    if (isBackupModalOpen) { setIsBackupModalOpen(false); return; }
+    if (isTutorialModalOpen) { handleCloseTutorial(); return; }
+    if (isBackupModalOpen) { handleCloseBackup(); return; }
     if (isSettingsModalOpen) { setIsSettingsModalOpen(false); return; }
     if (isTypographyModalOpen) { setIsTypographyModalOpen(false); return; }
 
@@ -497,34 +527,40 @@ const AppContent: React.FC = () => {
     return () => clearTimeout(timer);
   }, [isLoggedIn, checkEligibility]);
 
-  // Tour Automation Effect
+  // Tour Automation Effect - accurately synchronizes UI state with each interactive tour step
   useEffect(() => {
     if (tourStep === -1) return;
     const isMobile = window.innerWidth < 768;
 
-    if (tourStep <= 3) {
+    // Steps 0..4: Main Dashboard (Intro, Stats, Search, Contacts, Floating Plus Button)
+    if (tourStep <= 4) {
       setIsMobileMenuOpen(false);
       setIsSettingsModalOpen(false);
       setSelectedProfileId(null);
     }
-    else if (tourStep === 4 || tourStep === 5) {
-      if (isMobile) setIsMobileMenuOpen(true);
-      setIsSettingsModalOpen(false);
-    }
-    else if (tourStep >= 6 && tourStep <= 9) {
+    // Steps 5..7: Inside Contact Profile (Timeline, UPI QR code, Record Repayments)
+    else if (tourStep >= 5 && tourStep <= 7) {
       setIsMobileMenuOpen(false);
-      setIsSettingsModalOpen(true);
-    }
-    else if (tourStep === 10) {
       setIsSettingsModalOpen(false);
-      setSelectedProfileId(null);
-    }
-    else if (tourStep === 11) {
       setSelectedProfileId('SIM-PROFILE');
     }
-    else if (tourStep === 12) {
+    // Step 8: Top Menu Toggle Button (on Dashboard)
+    else if (tourStep === 8) {
       setSelectedProfileId(null);
+      setIsMobileMenuOpen(false);
+      setIsSettingsModalOpen(false);
+    }
+    // Steps 9..11: Inside Menu Drawer (Settings, Typography, Backup Vault)
+    else if (tourStep >= 9 && tourStep <= 11) {
+      setSelectedProfileId(null);
+      setIsSettingsModalOpen(false);
       if (isMobile) setIsMobileMenuOpen(true);
+    }
+    // Steps 12..13: Biometrics & Security, Final Celebration
+    else if (tourStep >= 12) {
+      setSelectedProfileId(null);
+      setIsMobileMenuOpen(false);
+      setIsSettingsModalOpen(false);
     }
   }, [tourStep]);
 
@@ -728,9 +764,9 @@ const AppContent: React.FC = () => {
           <div>
             <Navbar
               settings={settings} activeTheme={activeTheme} tourStep={tourStep} setTourStep={setTourStep}
-              onOpenTutorialSelection={() => openModal(setIsTutorialModalOpen)}
+              onOpenTutorialSelection={(fromMenu) => handleOpenTutorial(fromMenu ?? isMobileMenuOpen)}
               setIsSettingsModalOpen={(v) => v ? handleOpenSettings(isMobileMenuOpen) : setIsSettingsModalOpen(false)}
-              handleExport={() => openModal(setIsBackupModalOpen)} onLogout={handleLogout}
+              handleExport={(fromMenu) => handleOpenBackup(fromMenu ?? isMobileMenuOpen)} onLogout={handleLogout}
               onOpenTypographyModal={() => handleOpenTypography(isMobileMenuOpen ? 'menu' : null)}
               isMobileMenuOpen={isMobileMenuOpen} setIsMobileMenuOpen={(v) => v ? openModal(setIsMobileMenuOpen) : setIsMobileMenuOpen(false)}
               updateSetting={updateSetting}
@@ -946,24 +982,31 @@ const AppContent: React.FC = () => {
             )}
           </AnimatePresence>
 
-          <SponsorModal isOpen={isAdOpen} onClose={closeAd} activeTheme={activeTheme} ad={currentAd} onBackup={() => openModal(setIsBackupModalOpen)} />
+          <SponsorModal isOpen={isAdOpen} onClose={closeAd} activeTheme={activeTheme} ad={currentAd} onBackup={() => handleOpenBackup(false)} />
           <TourOverlay tourStep={tourStep} setTourStep={setTourStep} completeTour={handleCompleteTour} activeTheme={activeTheme} />
 
           <TutorialSelectionModal
             isOpen={isTutorialModalOpen}
-            onClose={() => setIsTutorialModalOpen(false)}
-            onSelectInteractive={() => setTourStep(0)}
+            onClose={handleCloseTutorial}
+            onSelectInteractive={() => {
+              setTutorialOriginMenu(false);
+              setIsMobileMenuOpen(false);
+              setTourStep(0);
+            }}
             activeTheme={activeTheme}
             settings={settings}
           />
 
           <BackupModal
             isOpen={isBackupModalOpen}
-            onClose={closeModal}
+            onClose={handleCloseBackup}
             transactions={transactions}
             settings={settings}
             activeTheme={activeTheme}
-            onRestoreSuccess={restoreBackupData}
+            onRestoreSuccess={(restored, restoredSettings) => {
+              setBackupOriginMenu(false);
+              restoreBackupData(restored, restoredSettings);
+            }}
           />
 
           <SettingsModal

@@ -52,6 +52,7 @@ const WelcomeScreen: React.FC<Props> = ({
   const [restoreError, setRestoreError] = useState<string | null>(null);
   const [justSavedName, setJustSavedName] = useState(false);
   const [celebrateCount, setCelebrateCount] = useState(0);
+  const [cardBounceY, setCardBounceY] = useState(0);
 
   const accentColor = activeTheme?.hex || '#10b981';
 
@@ -296,8 +297,8 @@ const WelcomeScreen: React.FC<Props> = ({
           </span>
         </motion.div>
 
-        {/* --- 3D INTERACTIVE MASCOT WITH ANIMATED TRICKS --- */}
-        <div className="w-full my-1 flex justify-center">
+        {/* --- 3D INTERACTIVE MASCOT WITH ANIMATED TRICKS & RIGID BODY BOUNCE PHYSICS --- */}
+        <div className="w-full my-1 flex justify-center overflow-visible">
           <Mascot3D
             mood={mascotMood}
             userName={inputName || cleanDisplayName}
@@ -307,11 +308,20 @@ const WelcomeScreen: React.FC<Props> = ({
             isRestoring={isRestoring}
             hasCustomName={hasCustomName}
             onTap={() => haptic('selection')}
+            onPhysicsBounce={(intensity) => {
+              setCardBounceY(Math.min(5, intensity * 0.75));
+              setTimeout(() => setCardBounceY(0), 160);
+            }}
           />
         </div>
 
-        {/* --- DYNAMIC HEADER --- */}
-        <div className="text-center mt-3 mb-4 w-full">
+        {/* --- DYNAMIC HEADER & FORM (REACTS PHYSICALLY TO MASCOT BOUNCE) --- */}
+        <motion.div
+          animate={{ y: cardBounceY }}
+          transition={{ type: 'spring', stiffness: 350, damping: 20 }}
+          className="w-full flex flex-col items-center"
+        >
+          <div className="text-center mt-2 mb-4 w-full">
           <AnimatePresence mode="wait">
             {hasCustomName && !isEditingName ? (
               <motion.div
@@ -710,6 +720,7 @@ const WelcomeScreen: React.FC<Props> = ({
         >
           <ShieldCheck size={13} style={{ opacity: 0.6, color: accentColor }} />
           <span>Zero Cloud · 100% Offline · AES-256 Encrypted</span>
+        </motion.div>
         </motion.div>
       </motion.div>
     </div>

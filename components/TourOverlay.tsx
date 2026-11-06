@@ -1,8 +1,8 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import {
   Sparkles, TrendingUp, PlusCircle, Settings, Search, Users,
-  ArrowRight, ArrowLeft, X, CheckCircle2, ShieldCheck, HelpCircle,
-  Lightbulb, QrCode, FileText
+  ArrowRight, ArrowLeft, X, CheckCircle2, ShieldCheck,
+  Lightbulb, QrCode, FileText, Eye, Type, Download, ArrowDownLeft
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useHaptics } from '../hooks/useHaptics';
@@ -47,32 +47,32 @@ export const TourOverlay: React.FC<Props> = ({ tourStep, setTourStep, completeTo
     {
       id: 'tour-intro',
       title: 'Welcome to Ledger',
-      desc: 'Ledger is your simple, private app to track money lent to or borrowed from friends, family, and colleagues.',
-      tip: '100% offline — your data stays strictly on your phone, completely private.',
+      desc: 'Ledger is your simple, private app to track loans given and borrowed, record repayments, calculate interest, and stay on top of personal finances.',
+      tip: '100% offline & private — your financial records remain strictly on your device with zero cloud tracking.',
       icon: <Sparkles size={24} style={{ color: activeTheme?.hex || '#10B981' }} />,
       targetId: null,
     },
     {
       id: 'tour-stats',
       title: 'Your Money at a Glance',
-      desc: 'See total money pending to collect, how much you have already recovered, and active loans in real-time.',
-      tip: 'Tap the Active card to see which loans are due soon.',
+      desc: 'View your total balance pending to collect, total recovered funds, and active loan counts updated in real time.',
+      tip: 'Tap the Active card anytime to see upcoming and overdue loans.',
       icon: <TrendingUp size={24} style={{ color: '#30D158' }} />,
       targetId: 'tour-stats',
     },
     {
       id: 'tour-search',
       title: 'Instant Search',
-      desc: 'Quickly find any contact or loan record by typing their name or phone number.',
-      tip: 'Search filters all names, phone numbers, and notes instantly as you type.',
+      desc: 'Instantly find any contact or transaction entry by typing their name or phone number.',
+      tip: 'Filters your entire ledger dynamically as you type with zero lag.',
       icon: <Search size={24} style={{ color: '#0A84FF' }} />,
       targetId: 'tour-search',
     },
     {
       id: 'tour-contacts',
-      title: 'Contacts & Histories',
-      desc: 'Every friend has a dedicated page showing their complete loan timeline, partial repayments, and trust score.',
-      tip: 'Tap any friend to view their ledger, record repayments, or generate UPI requests.',
+      title: 'Smart Contact Cards',
+      desc: 'Each contact has a dedicated card displaying their total outstanding balance, repayment status, and trust score.',
+      tip: 'Tap any contact card to view their complete transaction history, timeline, and payment tools.',
       icon: <Users size={24} style={{ color: '#BF5AF2' }} />,
       targetId: 'tour-account-row',
       fallbackTargetId: 'tour-contacts-list',
@@ -80,25 +80,84 @@ export const TourOverlay: React.FC<Props> = ({ tourStep, setTourStep, completeTo
     {
       id: 'tour-add-profile',
       title: 'Record a New Loan',
-      desc: 'Whenever you lend money, tap this green Plus (+) button. Enter the friend’s name, amount, date, and optional return date.',
-      tip: 'You can pick friends directly from your phone contacts or type a new name.',
+      desc: 'Whenever you lend money, tap this floating Plus (+) button. Pick a friend from contacts or enter a name, set the amount, date, return deadline, and optional interest.',
+      tip: 'Supports daily, monthly, and yearly interest calculations with automatic timeline tracking.',
       icon: <PlusCircle size={24} style={{ color: activeTheme?.hex || '#10B981' }} />,
       targetId: 'tour-add-profile',
     },
     {
-      id: 'tour-menu',
-      title: 'Menu, Settings & Backups',
-      desc: 'Open the menu anytime to change theme colors, enable Biometric Lock (Fingerprint/Face ID), or save encrypted backups.',
-      tip: 'Back up your ledger regularly to phone storage with the Backup & Vault option.',
+      id: 'tour-profile-stats',
+      title: 'Contact Profile & Timeline',
+      desc: 'Inside a friend’s profile, explore their complete financial statement, loan records, overdue alerts, and repayment progress.',
+      tip: 'Tap any loan card to view details, update the return date, or share a formal receipt.',
+      icon: <FileText size={24} style={{ color: '#0A84FF' }} />,
+      targetId: 'tour-profile-stats',
+      fallbackTargetId: 'tour-history-item',
+    },
+    {
+      id: 'tour-upi-button',
+      title: 'Instant UPI QR Request',
+      desc: 'Request repayments in seconds! Tap this QR button to generate an instant UPI QR code with the exact pending amount pre-filled.',
+      tip: 'Friends can scan it using GPay, PhonePe, Paytm, or any UPI app to transfer funds directly.',
+      icon: <QrCode size={24} style={{ color: '#FF453A' }} />,
+      targetId: 'tour-upi-button',
+    },
+    {
+      id: 'tour-repayment-button',
+      title: 'Record Repayments',
+      desc: 'When someone repays you (partially or in full), tap "Receive" to log the payment. Outstanding balance and progress update automatically.',
+      tip: 'You can instantly generate and share an itemized payment receipt over WhatsApp or SMS.',
+      icon: <ArrowDownLeft size={24} style={{ color: '#30D158' }} />,
+      targetId: 'tour-repayment-button',
+    },
+    {
+      id: 'tour-menu-button',
+      title: 'App Navigation Menu',
+      desc: 'Tap this top menu button to open app preferences, security controls, backup vault, and personalization options.',
+      tip: 'On larger screens or tablets, these options are always accessible in the left navigation sidebar.',
       icon: <Settings size={24} style={{ color: '#FF9F0A' }} />,
       targetId: 'tour-menu-button',
-      fallbackTargetId: 'tour-settings',
+    },
+    {
+      id: 'tour-settings',
+      title: 'Settings & OLED Appearance',
+      desc: 'Customize your currency symbol, default interest rates, accent color themes, and true pitch-black OLED mode for maximum battery savings.',
+      tip: 'Fine-tune interface blurs, smooth animations, and layout spacing.',
+      icon: <Eye size={24} style={{ color: '#64D2FF' }} />,
+      targetId: 'tour-settings',
+      fallbackTargetId: 'tour-settings-desktop',
+    },
+    {
+      id: 'tour-typography',
+      title: 'Typography & Styles',
+      desc: 'Switch between stylish font faces including SF Pro / Inter, JetBrains Mono, Comic Neue, and Special Elite.',
+      tip: 'Instantly transforms the entire look and feel of the app.',
+      icon: <Type size={24} style={{ color: '#A78BFA' }} />,
+      targetId: 'tour-typography',
+      fallbackTargetId: 'tour-typography-desktop',
+    },
+    {
+      id: 'tour-backup',
+      title: 'Encrypted Backup & Vault',
+      desc: 'Export offline encrypted JSON backups to your phone storage, or generate clean Excel dossier sheets for your records.',
+      tip: 'Since Ledger is 100% offline, keeping occasional backups ensures your data is always safe.',
+      icon: <Download size={24} style={{ color: '#10B981' }} />,
+      targetId: 'tour-backup',
+      fallbackTargetId: 'tour-backup-desktop',
+    },
+    {
+      id: 'tour-security',
+      title: 'Biometric Lock & Security',
+      desc: 'Keep your personal financial records completely confidential. You can enable App Lock in Settings to require Fingerprint, Face ID, or PIN authentication.',
+      tip: 'Includes instant auto-lock when switching apps or minimizing.',
+      icon: <ShieldCheck size={26} style={{ color: '#30D158' }} />,
+      targetId: null,
     },
     {
       id: 'tour-done',
       title: "You're All Set!",
-      desc: 'You now know all the key parts of Ledger. Start recording loans and tracking repayments with complete peace of mind.',
-      tip: 'You can restart this tour anytime from Menu > Help & Tutorial.',
+      desc: 'You now know all the key features of Ledger. Start recording loans and tracking repayments with complete peace of mind.',
+      tip: 'You can restart this walkthrough anytime from Menu > Help & Tutorial.',
       icon: <CheckCircle2 size={26} style={{ color: activeTheme?.hex || '#10B981' }} />,
       targetId: null,
     },
@@ -106,12 +165,27 @@ export const TourOverlay: React.FC<Props> = ({ tourStep, setTourStep, completeTo
 
   const currentStep = tourStep >= 0 && tourStep < steps.length ? steps[tourStep] : null;
 
-  // Locate target and calculate spotlight position
+  // Locate target and calculate spotlight position with retry mechanism for animating elements
   const updateSpotlight = useCallback(() => {
     if (!currentStep) return;
 
-    if (currentStep.targetId) {
-      let targetEl = document.getElementById(currentStep.targetId);
+    if (!currentStep.targetId) {
+      setHasTarget(false);
+      setSpotlightStyle({
+        top: '50%',
+        left: '50%',
+        width: 0,
+        height: 0,
+        opacity: 0,
+      });
+      return;
+    }
+
+    let attempts = 0;
+    const maxAttempts = 15;
+
+    const tryLocate = () => {
+      let targetEl = document.getElementById(currentStep.targetId!);
       if (!targetEl && currentStep.fallbackTargetId) {
         targetEl = document.getElementById(currentStep.fallbackTargetId);
       }
@@ -125,6 +199,14 @@ export const TourOverlay: React.FC<Props> = ({ tourStep, setTourStep, completeTo
         } catch {}
 
         const rect = targetEl.getBoundingClientRect();
+
+        // If element is still zero-sized due to opening animation, retry
+        if ((rect.width === 0 || rect.height === 0) && attempts < maxAttempts) {
+          attempts++;
+          setTimeout(tryLocate, 60);
+          return;
+        }
+
         const padding = 8;
         const spotlightTop = Math.max(0, rect.top - padding);
         const spotlightLeft = Math.max(6, rect.left - padding);
@@ -170,8 +252,11 @@ export const TourOverlay: React.FC<Props> = ({ tourStep, setTourStep, completeTo
           isTopHalf,
         });
         setHasTarget(true);
+      } else if (attempts < maxAttempts) {
+        attempts++;
+        setTimeout(tryLocate, 60);
       } else {
-        // Target element not found - fallback to centered card without failing
+        // Target element not found after retries - fallback to centered card
         setHasTarget(false);
         setSpotlightStyle({
           top: '50%',
@@ -181,16 +266,9 @@ export const TourOverlay: React.FC<Props> = ({ tourStep, setTourStep, completeTo
           opacity: 0,
         });
       }
-    } else {
-      setHasTarget(false);
-      setSpotlightStyle({
-        top: '50%',
-        left: '50%',
-        width: 0,
-        height: 0,
-        opacity: 0,
-      });
-    }
+    };
+
+    tryLocate();
   }, [currentStep]);
 
   useEffect(() => {
@@ -255,7 +333,7 @@ export const TourOverlay: React.FC<Props> = ({ tourStep, setTourStep, completeTo
         }}
       />
 
-      {/* FULLSCREEN / CENTERED CARDS (Intro or Celebration step, or target fallback) */}
+      {/* FULLSCREEN / CENTERED CARDS (Intro, Security, Celebration step, or target fallback) */}
       {!hasTarget && (
         <div
           style={{
@@ -279,7 +357,7 @@ export const TourOverlay: React.FC<Props> = ({ tourStep, setTourStep, completeTo
             transition={{ type: 'spring', damping: 26, stiffness: 320 }}
             style={{
               width: '100%',
-              maxWidth: 380,
+              maxWidth: 400,
               background: '#1C1C1E',
               border: '0.5px solid rgba(255, 255, 255, 0.16)',
               borderRadius: 28,
@@ -462,6 +540,22 @@ export const TourOverlay: React.FC<Props> = ({ tourStep, setTourStep, completeTo
                 </button>
               )}
 
+              {/* Progress Dots */}
+              <div style={{ display: 'flex', gap: 4 }}>
+                {steps.map((_, idx) => (
+                  <div
+                    key={idx}
+                    style={{
+                      width: idx === tourStep ? 12 : 4,
+                      height: 4,
+                      borderRadius: 2,
+                      background: idx === tourStep ? (activeTheme?.hex || '#FFFFFF') : 'rgba(255, 255, 255, 0.2)',
+                      transition: 'all 0.25s ease',
+                    }}
+                  />
+                ))}
+              </div>
+
               <button
                 type="button"
                 onClick={handleNext}
@@ -512,8 +606,8 @@ export const TourOverlay: React.FC<Props> = ({ tourStep, setTourStep, completeTo
             transition={{ duration: 0.22 }}
             style={{
               width: '100%',
-              maxWidth: 360,
-              background: 'rgba(28, 28, 30, 0.96)',
+              maxWidth: 380,
+              background: 'rgba(28, 28, 30, 0.97)',
               backdropFilter: 'blur(24px)',
               WebkitBackdropFilter: 'blur(24px)',
               border: '0.5px solid rgba(255, 255, 255, 0.16)',
@@ -670,14 +764,14 @@ export const TourOverlay: React.FC<Props> = ({ tourStep, setTourStep, completeTo
               )}
 
               {/* Step indicator dots */}
-              <div style={{ display: 'flex', gap: 5 }}>
+              <div style={{ display: 'flex', gap: 4 }}>
                 {steps.map((_, idx) => (
                   <div
                     key={idx}
                     style={{
-                      width: idx === tourStep ? 14 : 5,
-                      height: 5,
-                      borderRadius: 3,
+                      width: idx === tourStep ? 12 : 4,
+                      height: 4,
+                      borderRadius: 2,
                       background: idx === tourStep ? (activeTheme?.hex || '#FFFFFF') : 'rgba(255, 255, 255, 0.2)',
                       transition: 'all 0.25s ease',
                     }}

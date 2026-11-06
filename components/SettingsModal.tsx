@@ -10,7 +10,7 @@ import { APP_VERSION, checkForUpdate, VersionInfo } from '../utils/version';
 import { SetPinModal } from './SetPinModal';
 import { useBackHandler } from '../utils/backHandler';
 import { getBiometricCapabilities } from '../hooks/useBiometrics';
-import { triggerTestReminderNotification, requestNotificationPermissions } from '../utils/notifications';
+import { requestNotificationPermissions } from '../utils/notifications';
 
 interface Props {
   isOpen: boolean;
@@ -243,51 +243,7 @@ const SettingsModal: React.FC<Props> = ({
     }
   };
 
-  const [isTestingReminder, setIsTestingReminder] = useState(false);
-
-  const handleTestReminder = async () => {
-    setIsTestingReminder(true);
-    haptic('selection');
-    try {
-      const res = await triggerTestReminderNotification(
-        'Vikram Sharma',
-        '9876543210',
-        25000,
-        settings.currency || '₹'
-      );
-      if (res.success) {
-        haptic('success');
-        window.dispatchEvent(
-          new CustomEvent('abhi-ledger-toast', {
-            detail: { message: 'Test reminder notification posted!', type: 'success' },
-          })
-        );
-      } else if (res.reason === 'permission_denied') {
-        haptic('warning');
-        window.dispatchEvent(
-          new CustomEvent('abhi-ledger-toast', {
-            detail: { message: 'Notification permission not granted. Please allow notifications.', type: 'warning' },
-          })
-        );
-      } else {
-        window.dispatchEvent(
-          new CustomEvent('abhi-ledger-toast', {
-            detail: { message: res.error || 'Failed to send test reminder', type: 'error' },
-          })
-        );
-      }
-    } catch (e: any) {
-      window.dispatchEvent(
-        new CustomEvent('abhi-ledger-toast', {
-          detail: { message: e?.message || 'Error triggering reminder', type: 'error' },
-        })
-      );
-    } finally {
-      setIsTestingReminder(false);
-    }
-  };
-
-  useEffect(() => {
+    useEffect(() => {
     if (tourStep) {
       if (tourStep >= 6 && tourStep <= 8) setActiveTab('visual');
       else if (tourStep === 9) setActiveTab('layout');
@@ -804,7 +760,7 @@ const SettingsModal: React.FC<Props> = ({
                           </div>
                         </div>
 
-                        {/* 3. HARDWARE DUE REMINDERS & NOTIFICATIONS */}
+                        {/* 3. DUE REMINDERS & NOTIFICATIONS */}
                         <div>
                           <SectionLabel>Reminders & Alerts</SectionLabel>
                           <div
@@ -815,102 +771,48 @@ const SettingsModal: React.FC<Props> = ({
                               margin: '0 16px',
                               padding: '14px 16px',
                               display: 'flex',
-                              flexDirection: 'column',
-                              gap: 14,
+                              alignItems: 'center',
+                              justifyContent: 'space-between',
                             }}
                           >
-                            {/* Main Toggle */}
-                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-                                <div
-                                  style={{
-                                    width: 38,
-                                    height: 38,
-                                    borderRadius: 12,
-                                    background: `${activeTheme.hex}22`,
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    color: activeTheme.hex,
-                                    flexShrink: 0,
-                                  }}
-                                >
-                                  <Bell size={20} />
-                                </div>
-                                <div>
-                                  <div style={{ fontSize: 15, fontWeight: 600, color: '#FFFFFF', letterSpacing: '-0.01em' }}>
-                                    Automated Debt Reminders
-                                  </div>
-                                  <div style={{ fontSize: 12, color: 'rgba(235, 235, 245, 0.45)', marginTop: 2 }}>
-                                    Multi-stage alarms (-4d, -2d, -1d, Day 0, overdue)
-                                  </div>
-                                </div>
-                              </div>
-
-                              <Toggle
-                                on={settings.enableReminders !== false}
-                                onToggle={async () => {
-                                  haptic('selection');
-                                  const nextVal = settings.enableReminders === false ? true : false;
-                                  if (nextVal) {
-                                    await requestNotificationPermissions();
-                                  }
-                                  updateSetting('enableReminders', nextVal);
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+                              <div
+                                style={{
+                                  width: 38,
+                                  height: 38,
+                                  borderRadius: 12,
+                                  background: `${activeTheme.hex}22`,
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  color: activeTheme.hex,
+                                  flexShrink: 0,
                                 }}
-                                color={activeTheme.hex}
-                              />
-                            </div>
-
-                            {/* Schedule info pill */}
-                            <div
-                              style={{
-                                background: 'rgba(255, 255, 255, 0.03)',
-                                borderRadius: 14,
-                                padding: '12px 14px',
-                                border: '0.5px solid rgba(255, 255, 255, 0.06)',
-                                display: 'flex',
-                                flexDirection: 'column',
-                                gap: 8,
-                              }}
-                            >
-                              <div style={{ fontSize: 11, fontWeight: 700, color: activeTheme.hex, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                                Native Alarm Schedule
+                              >
+                                <Bell size={20} />
                               </div>
-                              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, fontSize: 11.5, color: 'rgba(235, 235, 245, 0.7)' }}>
-                                <div>• 4 Days Before (10 AM)</div>
-                                <div>• 2 Days Before (10 AM)</div>
-                                <div>• 1 Day Before (10 AM)</div>
-                                <div>• Due Date (9 AM & 6 PM)</div>
-                                <div style={{ gridColumn: 'span 2', color: '#f59e0b' }}>• Overdue: Every 2 days (+2d, +4d, +6d, ..., +30d)</div>
-                              </div>
-                              <div style={{ fontSize: 11, color: 'rgba(235, 235, 245, 0.4)', marginTop: 2 }}>
-                                Exact alarms survive device reboots. Automatically cleared upon settlement.
+                              <div>
+                                <div style={{ fontSize: 15, fontWeight: 600, color: '#FFFFFF', letterSpacing: '-0.01em' }}>
+                                  Payment Reminders
+                                </div>
+                                <div style={{ fontSize: 12, color: 'rgba(235, 235, 245, 0.45)', marginTop: 2 }}>
+                                  Notify when payments are due or overdue
+                                </div>
                               </div>
                             </div>
 
-                            {/* Action: Send Test Notification */}
-                            <motion.button
-                              whileTap={{ scale: 0.97 }}
-                              disabled={isTestingReminder}
-                              onClick={handleTestReminder}
-                              style={{
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                gap: 8,
-                                height: 38,
-                                borderRadius: 12,
-                                background: `${activeTheme.hex}20`,
-                                border: `1px solid ${activeTheme.hex}40`,
-                                color: activeTheme.hex,
-                                fontSize: 12.5,
-                                fontWeight: 600,
-                                cursor: 'pointer',
+                            <Toggle
+                              on={settings.enableReminders !== false}
+                              onToggle={async () => {
+                                haptic('selection');
+                                const nextVal = settings.enableReminders === false ? true : false;
+                                if (nextVal) {
+                                  await requestNotificationPermissions();
+                                }
+                                updateSetting('enableReminders', nextVal);
                               }}
-                            >
-                              <Bell size={15} />
-                              <span>{isTestingReminder ? 'Firing Alert...' : 'Send Test Heads-Up Reminder'}</span>
-                            </motion.button>
+                              color={activeTheme.hex}
+                            />
                           </div>
                         </div>
 

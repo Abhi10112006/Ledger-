@@ -17,9 +17,9 @@ interface Props {
   activeTheme: any;
   tourStep: number;
   setTourStep: (step: number) => void;
-  onOpenTutorialSelection: () => void;
+  onOpenTutorialSelection: (fromMenu?: boolean) => void;
   setIsSettingsModalOpen: (isOpen: boolean) => void;
-  handleExport: () => void;
+  handleExport: (fromMenu?: boolean) => void;
   onLogout: () => void;
   onOpenTypographyModal: () => void;
   isMobileMenuOpen: boolean;
@@ -345,6 +345,7 @@ const Navbar: React.FC<Props> = ({
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                     {/* Settings Row */}
                     <motion.button
+                      id="tour-settings"
                       whileTap={{ scale: 0.98 }}
                       onClick={() => {
                         haptic('light');
@@ -392,6 +393,7 @@ const Navbar: React.FC<Props> = ({
 
                     {/* Typography Row */}
                     <motion.button
+                      id="tour-typography"
                       whileTap={{ scale: 0.98 }}
                       onClick={() => {
                         haptic('light');
@@ -494,11 +496,12 @@ const Navbar: React.FC<Props> = ({
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                     {/* Backup Data */}
                     <motion.button
+                      id="tour-backup"
                       whileTap={{ scale: 0.98 }}
                       onClick={() => {
                         haptic('light');
                         setIsMobileMenuOpen(false);
-                        handleExport();
+                        handleExport(true);
                       }}
                       style={{
                         background: cardBg,
@@ -545,7 +548,7 @@ const Navbar: React.FC<Props> = ({
                       onClick={() => {
                         haptic('light');
                         setIsMobileMenuOpen(false);
-                        onOpenTutorialSelection();
+                        onOpenTutorialSelection(true);
                       }}
                       style={{
                         background: cardBg,
@@ -857,10 +860,10 @@ const Navbar: React.FC<Props> = ({
         {/* Nav items */}
         <div className="flex flex-col items-center gap-2 w-full">
           {[
-            { icon: Settings, label: 'Settings', id: 'tour-settings', onClick: () => setIsSettingsModalOpen(true), color: '#F59E0B' },
-            { icon: Type, label: 'Fonts', id: 'tour-typography', onClick: onOpenTypographyModal, color: '#A78BFA' },
-            { icon: HelpCircle, label: 'Help', onClick: onOpenTutorialSelection, color: '#0A84FF' },
-            { icon: Download, label: 'Backup', id: 'tour-backup', onClick: handleExport, color: '#10B981' },
+            { icon: Settings, label: 'Settings', id: 'tour-settings-desktop', onClick: () => setIsSettingsModalOpen(true), color: '#F59E0B' },
+            { icon: Type, label: 'Fonts', id: 'tour-typography-desktop', onClick: onOpenTypographyModal, color: '#A78BFA' },
+            { icon: HelpCircle, label: 'Help', onClick: () => onOpenTutorialSelection(false), color: '#0A84FF' },
+            { icon: Download, label: 'Backup', id: 'tour-backup-desktop', onClick: () => handleExport(false), color: '#10B981' },
           ].map((item) => (
             <motion.button
               key={item.label}

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import * as CANNON from 'cannon-es';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useHaptics } from '../hooks/useHaptics';
 
@@ -26,6 +27,7 @@ interface Mascot3DProps {
   celebrateTrigger?: number;
   isRestoring?: boolean;
   hasCustomName?: boolean;
+  onPhysicsBounce?: (intensity: number) => void;
 }
 
 interface FloatingParticle {
@@ -47,6 +49,7 @@ export const Mascot3D: React.FC<Mascot3DProps> = ({
   celebrateTrigger = 0,
   isRestoring = false,
   hasCustomName = false,
+  onPhysicsBounce,
 }) => {
   const haptic = useHaptics();
 
@@ -57,6 +60,15 @@ export const Mascot3D: React.FC<Mascot3DProps> = ({
   // Loading & Readiness state
   const [isLoaded, setIsLoaded] = useState(false);
 
+  // Real-time Shadow projection state for DOM UI
+  const [domShadow, setDomShadow] = useState({
+    x: 0,
+    blur: 20,
+    opacity: 0.45,
+    scaleX: 1,
+    offsetY: 8,
+  });
+
   // Trick & Interaction States
   const [currentTrick, setCurrentTrick] = useState<MascotTrick>('idle');
   const [trickSpeech, setTrickSpeech] = useState<string | null>(null);
@@ -65,8 +77,9 @@ export const Mascot3D: React.FC<Mascot3DProps> = ({
 
   // Drag physics states
   const isDraggingRef = useRef(false);
-  const dragPosRef = useRef({ x: 0, y: 0 });
-  const dragVelRef = useRef({ x: 0, y: 0 });
+  const dragStartPosRef = useRef({ x: 0, y: 0 });
+  const dragStartTimeRef = useRef(0);
+  const recentPointerMovesRef = useRef<{ x: number; y: number; time: number }[]>([]);
 
   // Animation Refs
   const trickTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -94,6 +107,16 @@ export const Mascot3D: React.FC<Mascot3DProps> = ({
   const modelRootRef = useRef<THREE.Group | null>(null);
   const shadowMeshRef = useRef<THREE.Mesh | null>(null);
   const shadowMatRef = useRef<THREE.MeshBasicMaterial | null>(null);
+  const shockwaveMeshRef = useRef<THREE.Mesh | null>(null);
+  const shockwaveMatRef = useRef<THREE.MeshBasicMaterial | null>(null);
+  const thrusterParticlesRef = useRef<THREE.Points | null>(null);
+  const thrusterLightRef = useRef<THREE.PointLight | null>(null);
+
+  // Cannon-ES Physics References
+  const worldRef = useRef<CANNON.World | null>(null);
+  const mascotBodyRef = useRef<CANNON.Body | null>(null);
+  const isFallingRef = useRef(false);
+  const bounceShockwaveAnimRef = useRef(0); // 0 to 1
 
   // Time of Day determination for intelligent greetings
   const timeGreeting = useMemo(() => {
@@ -332,7 +355,7 @@ export const Mascot3D: React.FC<Mascot3DProps> = ({
     }, 3800);
   };
 
-  // External celebration trigger (e.g. when user saves name or completes action)
+  // External celebration trigger
   useEffect(() => {
     if (celebrateTrigger > 0) {
       if (trickTimeoutRef.current) clearTimeout(trickTimeoutRef.current);
@@ -362,7 +385,7 @@ export const Mascot3D: React.FC<Mascot3DProps> = ({
 
   // React to mood changes (typing, asking, welcome, idle)
   useEffect(() => {
-    if (currentTrick !== 'idle') return; // Don't interrupt an active user trick
+    if (currentTrick !== 'idle') return;
 
     if (mood === 'typing') {
       crossfadeToAction('EVE_ScanIdle_Loop', true, 0.35);
@@ -383,29 +406,103 @@ export const Mascot3D: React.FC<Mascot3DProps> = ({
     return () => clearInterval(idleInterval);
   }, []);
 
-  // Pointer tracking
+  // Pointer & Drag / Swipe handling
+  const handlePointerDown = (e: React.PointerEvent) => {
+    if (!containerRef.current) return;
+    (e.target as HTMLElement).setPointerCapture(e.pointerId);
+    isDraggingRef.current = true;
+    dragStartTimeRef.current = performance.now();
+    dragStartPosRef.current = { x: e.clientX, y: e.clientY };
+    recentPointerMovesRef.current = [{ x: e.clientX, y: e.clientY, time: performance.now() }];
+  };
+
   const handlePointerMove = (e: React.PointerEvent) => {
     if (!containerRef.current) return;
     const rect = containerRef.current.getBoundingClientRect();
     const centerX = rect.left + rect.width / 2;
     const centerY = rect.top + rect.height / 2;
 
-    if (isDraggingRef.current) {
-      dragPosRef.current = {
-        x: Math.max(-0.6, Math.min(0.6, (e.clientX - centerX) * 0.005)),
-        y: Math.max(-0.4, Math.min(0.4, -(e.clientY - centerY) * 0.005)),
-      };
-    }
-
     targetPointerRef.current = {
       x: Math.max(-1, Math.min(1, (e.clientX - centerX) / (rect.width / 2))),
       y: Math.max(-1, Math.min(1, (e.clientY - centerY) / (rect.height / 2))),
     };
+
+    if (isDraggingRef.current && mascotBodyRef.current) {
+      const now = performance.now();
+      recentPointerMovesRef.current.push({ x: e.clientX, y: e.clientY, time: now });
+      if (recentPointerMovesRef.current.length > 8) {
+        recentPointerMovesRef.current.shift();
+      }
+
+      // Convert 2D client coordinates to 3D world space coordinates
+      // With camera at Z=3.8 and FOV 36:
+      const worldTargetX = ((e.clientX - centerX) / (rect.width / 2)) * 1.35;
+      const worldTargetY = -((e.clientY - centerY) / (rect.height / 2)) * 1.15;
+
+      const body = mascotBodyRef.current;
+      // Spring follow while being dragged
+      body.velocity.x = (worldTargetX - body.position.x) * 22;
+      body.velocity.y = (worldTargetY - body.position.y) * 22;
+      body.velocity.z = (0 - body.position.z) * 15;
+    }
   };
 
-  const handlePointerLeave = () => {
-    targetPointerRef.current = { x: 0, y: 0 };
+  const handlePointerUp = (e: React.PointerEvent) => {
+    if (!isDraggingRef.current) return;
     isDraggingRef.current = false;
+    const now = performance.now();
+    const duration = now - dragStartTimeRef.current;
+    const dx = e.clientX - dragStartPosRef.current.x;
+    const dy = e.clientY - dragStartPosRef.current.y;
+    const dist = Math.hypot(dx, dy);
+
+    // Calculate release velocity vector from recent pointer moves
+    const recent = recentPointerMovesRef.current;
+    let velX = 0;
+    let velY = 0;
+    if (recent.length >= 2) {
+      const oldest = recent[0];
+      const newest = recent[recent.length - 1];
+      const dt = Math.max(0.016, (newest.time - oldest.time) / 1000);
+      velX = (newest.x - oldest.x) / dt / 180;
+      velY = (newest.y - oldest.y) / dt / 180;
+    }
+
+    if (mascotBodyRef.current) {
+      const body = mascotBodyRef.current;
+
+      // Detect downward flick / swipe (user swiping her down)
+      if (velY > 2.0 || (dy > 45 && duration < 320)) {
+        // SWIPED DOWN: Free fall, slam onto card floor, bounce and spring recover!
+        isFallingRef.current = true;
+        body.velocity.set(velX * 1.5, Math.min(-7.5, -velY * 2.5), 0);
+        body.angularVelocity.z = -velX * 4;
+
+        haptic('heavy');
+        const fallQuotes = [
+          'Whoaaaa! Free-falling! Downward G-force! 📉💫',
+          'Mayday! Brace for impact on the login card! 💥',
+          'Gravity test in progress! Hold onto your coins! 🛸',
+        ];
+        setTrickSpeech(fallQuotes[Math.floor(Math.random() * fallQuotes.length)]);
+        crossfadeToAction('EVE_BrakeFast', false, 0.15);
+
+        setTimeout(() => {
+          if (currentTrickRef.current === 'idle') {
+            setTrickSpeech(null);
+            returnToStateLoop();
+          }
+        }, 3200);
+      } else if (Math.abs(velX) > 2.0 || Math.abs(dx) > 50) {
+        // SWIPED SIDEWAYS: Ricochet off invisible walls
+        body.velocity.set(velX * 2.2, -velY * 1.5, 0);
+        body.angularVelocity.z = -velX * 3.5;
+        haptic('medium');
+      } else if (dist < 12 && duration < 300) {
+        // Clean tap!
+        handleMascotTap();
+      }
+    }
   };
 
   const handleMascotTap = () => {
@@ -478,7 +575,7 @@ export const Mascot3D: React.FC<Mascot3DProps> = ({
       evening: [
         `Good evening! Ready to balance today's ledger? ${timeGreeting.icon}`,
         'Evening! All transactions resting securely in encrypted SQLite. 🌙',
-        'Tap on me to see some flight maneuvers and fun tricks! 🎩',
+        'Swipe me down to see me bounce, or tap me for cool maneuvers! 🎩',
       ],
       night: [
         `Burning the midnight oil? Your private vault never sleeps. ${timeGreeting.icon}`,
@@ -492,20 +589,21 @@ export const Mascot3D: React.FC<Mascot3DProps> = ({
   };
 
   // =========================================================================
-  // REAL THREE.JS 3D SCENE LOADING EVE.GLB WITH PIXAR LIGHTING & SPRING PHYSICS
+  // REAL CANNON-ES RIGID BODY SIMULATION & THREE.JS PIXAR SCENE
   // =========================================================================
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    const width = 290;
-    const height = 290;
+    // Enhanced wide canvas dimensions to ensure EVE NEVER cuts off on sides!
+    const width = 360;
+    const height = 310;
 
     // 1. Scene, Camera, Renderer
     const scene = new THREE.Scene();
-    const camera = new THREE.PerspectiveCamera(38, width / height, 0.1, 50);
-    // Positioned for optimal portrait framing of EVE
-    camera.position.set(0, 0.15, 3.25);
+    const camera = new THREE.PerspectiveCamera(36, width / height, 0.1, 50);
+    // Camera positioned with wider framing so arms/banking never clip
+    camera.position.set(0, 0.18, 3.8);
 
     const renderer = new THREE.WebGLRenderer({
       canvas,
@@ -519,17 +617,17 @@ export const Mascot3D: React.FC<Mascot3DProps> = ({
     renderer.toneMappingExposure = 1.35;
 
     // 2. Pixar Studio Lighting Rig
-    const ambientLight = new THREE.AmbientLight(0xffffff, 1.25);
+    const ambientLight = new THREE.AmbientLight(0xffffff, 1.3);
     scene.add(ambientLight);
 
     // Warm Sun Key Light
-    const keyLight = new THREE.DirectionalLight(0xfffaed, 3.0);
-    keyLight.position.set(3.0, 4.0, 3.5);
+    const keyLight = new THREE.DirectionalLight(0xfffaed, 3.2);
+    keyLight.position.set(3.2, 4.2, 3.5);
     scene.add(keyLight);
 
     // Cool Sky Fill Light
     const fillLight = new THREE.DirectionalLight(0x94a3b8, 1.6);
-    fillLight.position.set(-3.0, -0.8, 2.5);
+    fillLight.position.set(-3.2, -0.8, 2.5);
     scene.add(fillLight);
 
     // Electric Pixar Rim Backlight (Tinted by active theme)
@@ -542,7 +640,13 @@ export const Mascot3D: React.FC<Mascot3DProps> = ({
     frontAccentLight.position.set(0, -0.8, 2.4);
     scene.add(frontAccentLight);
 
-    // 3. Realistic Pixar Soft Ground Contact Shadow
+    // Thruster Jet Light (Flares up during anti-gravity thrust)
+    const thrusterLight = new THREE.PointLight(new THREE.Color(accentColor), 0, 4);
+    thrusterLight.position.set(0, -0.6, 0);
+    scene.add(thrusterLight);
+    thrusterLightRef.current = thrusterLight;
+
+    // 3. Realistic Ground Contact Shadow Plane inside 3D Scene
     const shadowCanvas = document.createElement('canvas');
     shadowCanvas.width = 128;
     shadowCanvas.height = 128;
@@ -556,7 +660,7 @@ export const Mascot3D: React.FC<Mascot3DProps> = ({
       sCtx.fillRect(0, 0, 128, 128);
     }
     const shadowTexture = new THREE.CanvasTexture(shadowCanvas);
-    const shadowGeo = new THREE.PlaneGeometry(2.4, 2.4);
+    const shadowGeo = new THREE.PlaneGeometry(2.6, 2.6);
     const shadowMat = new THREE.MeshBasicMaterial({
       map: shadowTexture,
       transparent: true,
@@ -565,50 +669,184 @@ export const Mascot3D: React.FC<Mascot3DProps> = ({
     });
     const shadowMesh = new THREE.Mesh(shadowGeo, shadowMat);
     shadowMesh.rotation.x = -Math.PI / 2;
-    shadowMesh.position.set(0, -1.18, 0);
+    shadowMesh.position.set(0, -0.92, 0);
     scene.add(shadowMesh);
     shadowMeshRef.current = shadowMesh;
     shadowMatRef.current = shadowMat;
 
-    // 4. Model Root Group
+    // 4. Elastic Contact Impact Shockwave Ring
+    const shockwaveGeo = new THREE.RingGeometry(0.1, 0.22, 32);
+    const shockwaveMat = new THREE.MeshBasicMaterial({
+      color: new THREE.Color(accentColor),
+      transparent: true,
+      opacity: 0,
+      side: THREE.DoubleSide,
+      depthWrite: false,
+    });
+    const shockwaveMesh = new THREE.Mesh(shockwaveGeo, shockwaveMat);
+    shockwaveMesh.rotation.x = -Math.PI / 2;
+    shockwaveMesh.position.set(0, -0.91, 0);
+    scene.add(shockwaveMesh);
+    shockwaveMeshRef.current = shockwaveMesh;
+    shockwaveMatRef.current = shockwaveMat;
+
+    // 5. Thruster Plasma Jet Particles System
+    const particleCount = 24;
+    const particleGeo = new THREE.BufferGeometry();
+    const particlePositions = new Float32Array(particleCount * 3);
+    for (let i = 0; i < particleCount; i++) {
+      particlePositions[i * 3 + 0] = (Math.random() - 0.5) * 0.2;
+      particlePositions[i * 3 + 1] = -0.5 - Math.random() * 0.4;
+      particlePositions[i * 3 + 2] = (Math.random() - 0.5) * 0.2;
+    }
+    particleGeo.setAttribute('position', new THREE.BufferAttribute(particlePositions, 3));
+    const particleMat = new THREE.PointsMaterial({
+      color: new THREE.Color(accentColor),
+      size: 0.045,
+      transparent: true,
+      opacity: 0,
+      blending: THREE.AdditiveBlending,
+    });
+    const thrusterParticles = new THREE.Points(particleGeo, particleMat);
+    scene.add(thrusterParticles);
+    thrusterParticlesRef.current = thrusterParticles;
+
+    // 6. Model Root Group
     const modelRoot = new THREE.Group();
     scene.add(modelRoot);
     modelRootRef.current = modelRoot;
 
-    // 5. Load official Pixar EVE GLB Model
+    // =========================================================================
+    // CANNON-ES REAL RIGID BODY PHYSICS INITIALIZATION
+    // =========================================================================
+    const world = new CANNON.World();
+    world.gravity.set(0, -22, 0); // Fast, punchy cartoon gravity
+    world.broadphase = new CANNON.NaiveBroadphase();
+    if ('iterations' in world.solver) {
+      (world.solver as CANNON.GSSolver).iterations = 10;
+    }
+    worldRef.current = world;
+
+    const mascotPhysicsMat = new CANNON.Material('mascot');
+    const groundPhysicsMat = new CANNON.Material('ground');
+    const wallPhysicsMat = new CANNON.Material('wall');
+
+    // Bouncy collision contact
+    const mascotGroundContact = new CANNON.ContactMaterial(mascotPhysicsMat, groundPhysicsMat, {
+      restitution: 0.65, // Satisfying elastic rebound bounce!
+      friction: 0.15,
+    });
+    world.addContactMaterial(mascotGroundContact);
+
+    const mascotWallContact = new CANNON.ContactMaterial(mascotPhysicsMat, wallPhysicsMat, {
+      restitution: 0.75, // Bouncy invisible side borders
+      friction: 0.05,
+    });
+    world.addContactMaterial(mascotWallContact);
+
+    // Floor Boundary (representing top surface of Login Card UI)
+    const groundBody = new CANNON.Body({ mass: 0, material: groundPhysicsMat });
+    groundBody.addShape(new CANNON.Plane());
+    groundBody.quaternion.setFromAxisAngle(new CANNON.Vec3(1, 0, 0), -Math.PI / 2);
+    groundBody.position.set(0, -0.92, 0);
+    world.addBody(groundBody);
+
+    // Left & Right Wall Boundaries
+    const leftWall = new CANNON.Body({ mass: 0, material: wallPhysicsMat });
+    leftWall.addShape(new CANNON.Plane());
+    leftWall.quaternion.setFromAxisAngle(new CANNON.Vec3(0, 1, 0), Math.PI / 2);
+    leftWall.position.set(-1.45, 0, 0);
+    world.addBody(leftWall);
+
+    const rightWall = new CANNON.Body({ mass: 0, material: wallPhysicsMat });
+    rightWall.addShape(new CANNON.Plane());
+    rightWall.quaternion.setFromAxisAngle(new CANNON.Vec3(0, 1, 0), -Math.PI / 2);
+    rightWall.position.set(1.45, 0, 0);
+    world.addBody(rightWall);
+
+    // Ceiling Boundary
+    const ceiling = new CANNON.Body({ mass: 0, material: wallPhysicsMat });
+    ceiling.addShape(new CANNON.Plane());
+    ceiling.quaternion.setFromAxisAngle(new CANNON.Vec3(1, 0, 0), Math.PI / 2);
+    ceiling.position.set(0, 1.55, 0);
+    world.addBody(ceiling);
+
+    // Mascot Rigid Body
+    const mascotSphere = new CANNON.Sphere(0.46);
+    const mascotBody = new CANNON.Body({
+      mass: 1.8,
+      shape: mascotSphere,
+      material: mascotPhysicsMat,
+      linearDamping: 0.08,
+      angularDamping: 0.35,
+    });
+    mascotBody.position.set(0, 0, 0);
+    world.addBody(mascotBody);
+    mascotBodyRef.current = mascotBody;
+
+    // Collision listener for impact haptics, shockwaves, and speech
+    mascotBody.addEventListener('collide', (e: any) => {
+      let impactSpeed = 4.0;
+      if (e.contact) {
+        impactSpeed = Math.abs(e.contact.getImpactVelocityAlongNormal());
+      }
+
+      if (impactSpeed > 1.8) {
+        haptic('heavy');
+        bounceShockwaveAnimRef.current = 1.0;
+        if (onPhysicsBounce) {
+          onPhysicsBounce(impactSpeed);
+        }
+
+        const bounceQuotes = [
+          'Boiiing! Elastic collision test passed! 🏀✨',
+          'Oof! Soft landing! Anti-gravity thrusters firing! ⚡',
+          'Spring physics engaged! Re-centering altitude! 🚀',
+        ];
+        setTrickSpeech(bounceQuotes[Math.floor(Math.random() * bounceQuotes.length)]);
+
+        setTimeout(() => {
+          if (currentTrickRef.current === 'idle') {
+            setTrickSpeech(null);
+            returnToStateLoop();
+          }
+        }, 3200);
+      } else if (impactSpeed > 0.7) {
+        haptic('medium');
+      }
+    });
+
+    // 7. Load official Pixar EVE GLB Model
     const loader = new GLTFLoader();
     loader.load(
       '/models/EVE.glb',
       (gltf) => {
         const model = gltf.scene;
 
-        // Scale & position EVE for ideal portrait balance
-        // Height of model is ~1.34; scale 1.48 makes height ~1.98
-        model.scale.setScalar(1.48);
-        model.position.set(0, -0.98, 0);
+        // Scale tuned to 1.36 for zero clipping on all sides during wide arm animations
+        model.scale.setScalar(1.36);
+        // Position relative to modelRoot center of mass
+        model.position.set(0, -0.65, 0);
         modelRoot.add(model);
 
         // Enhance materials with Pixar enamel finish & radiant eye glow
         model.traverse((child) => {
           if ((child as THREE.Mesh).isMesh) {
             const mesh = child as THREE.SkinnedMesh;
-            mesh.frustumCulled = false; // Prevents clipping during acrobatic animations
+            mesh.frustumCulled = false;
 
             const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
             materials.forEach((mat) => {
               if (mat instanceof THREE.MeshStandardMaterial) {
                 if (mat.name === 'mat_0' || mat.name === 'mat_1' || mat.name === 'mat_6') {
-                  // Smooth pearlescent white ceramic chassis
                   mat.color.setHex(0xfafafa);
                   mat.roughness = 0.16;
                   mat.metalness = 0.05;
                 } else if (mat.name === 'EVE_Head_COMN') {
-                  // High-gloss dark face visor
                   mat.roughness = 0.1;
                   mat.metalness = 0.15;
                 } else if (mat.name === 'EVE_Eye_COMN') {
-                  // Bioluminescent OLED eye display
-                  mat.toneMapped = false; // Vivid glowing eyes
+                  mat.toneMapped = false;
                   mat.emissive = new THREE.Color(accentColorRef.current);
                   mat.emissiveIntensity = 2.8;
                   eyeMatRef.current = mat;
@@ -618,11 +856,9 @@ export const Mascot3D: React.FC<Mascot3DProps> = ({
           }
         });
 
-        // Store bones
         const headBone = model.getObjectByName('bone_002');
         headBoneRef.current = headBone || null;
 
-        // Setup AnimationMixer
         const mixer = new THREE.AnimationMixer(model);
         mixerRef.current = mixer;
 
@@ -632,7 +868,6 @@ export const Mascot3D: React.FC<Mascot3DProps> = ({
         });
         actionsRef.current = actionsMap;
 
-        // Start with default idle animation
         const initialClipName =
           moodRef.current === 'typing'
             ? 'EVE_ScanIdle_Loop'
@@ -676,18 +911,109 @@ export const Mascot3D: React.FC<Mascot3DProps> = ({
       const activeColor = new THREE.Color(accentColorRef.current);
       if (eyeMatRef.current) {
         eyeMatRef.current.emissive.copy(activeColor);
-        // Subtle bioluminescent breathing pulse on eyes
         eyeMatRef.current.emissiveIntensity = 2.8 + Math.sin(elapsedTime * 3.0) * 0.4;
       }
       rimLight.color.copy(activeColor);
       frontAccentLight.color.copy(activeColor);
+      if (shockwaveMatRef.current) shockwaveMatRef.current.color.copy(activeColor);
+      if (thrusterLightRef.current) thrusterLightRef.current.color.copy(activeColor);
 
-      // Update skeletal animation mixer
+      // 1. Step Cannon-ES Physics World
+      if (worldRef.current && mascotBodyRef.current) {
+        const body = mascotBodyRef.current;
+
+        if (!isDraggingRef.current) {
+          // Anti-Gravity Thruster Spring Recovery to Equilibrium
+          const hoverTargetY = Math.sin(elapsedTime * 2.2) * 0.045;
+          const hoverTargetX = 0;
+
+          // Spring forces
+          const kSpringY = 38;
+          const kDampY = 9.5;
+          const kSpringX = 18;
+          const kDampX = 6.5;
+
+          const fAntiGrav = -body.mass * world.gravity.y;
+          const fSpringY = -kSpringY * (body.position.y - hoverTargetY) - kDampY * body.velocity.y;
+          const fSpringX = -kSpringX * (body.position.x - hoverTargetX) - kDampX * body.velocity.x;
+
+          // Apply thruster lift force
+          body.applyForce(new CANNON.Vec3(fSpringX, fAntiGrav + fSpringY, 0));
+
+          // Upright torque restoring spring
+          body.angularVelocity.z += (-body.quaternion.z * 18 - body.angularVelocity.z * 7) * dt;
+          body.angularVelocity.x += (-body.quaternion.x * 18 - body.angularVelocity.x * 7) * dt;
+          body.angularVelocity.y += (-body.quaternion.y * 18 - body.angularVelocity.y * 7) * dt;
+        }
+
+        worldRef.current.step(1 / 60, dt, 3);
+
+        // Sync Three.js Model Group with Cannon Body
+        if (modelRootRef.current) {
+          modelRootRef.current.position.set(body.position.x, body.position.y, body.position.z);
+          modelRootRef.current.quaternion.set(
+            body.quaternion.x,
+            body.quaternion.y,
+            body.quaternion.z,
+            body.quaternion.w
+          );
+        }
+
+        // 2. Thruster Jet Particle Exhaust Effect
+        const upwardThrust = Math.max(0, -body.velocity.y * 0.15 + (body.position.y < -0.2 ? 0.6 : 0.1));
+        if (thrusterLightRef.current) {
+          thrusterLightRef.current.position.set(body.position.x, body.position.y - 0.45, body.position.z);
+          thrusterLightRef.current.intensity = upwardThrust * 3.5;
+        }
+
+        if (thrusterParticlesRef.current) {
+          thrusterParticlesRef.current.position.set(body.position.x, body.position.y, body.position.z);
+          const mat = thrusterParticlesRef.current.material as THREE.PointsMaterial;
+          mat.opacity = Math.min(0.9, upwardThrust * 1.2);
+        }
+
+        // 3. Ground Contact Shadow in 3D Scene
+        if (shadowMeshRef.current && shadowMatRef.current) {
+          const altitude = body.position.y - (-0.92);
+          const shadowScale = Math.max(0.6, 1 + altitude * 0.35);
+          shadowMeshRef.current.position.x = body.position.x * 0.85;
+          shadowMeshRef.current.scale.setScalar(shadowScale);
+          shadowMatRef.current.opacity = Math.max(0.12, Math.min(0.85, 0.7 - altitude * 0.4));
+        }
+
+        // 4. Update Physically Accurate Soft Shadow onto DOM UI
+        const alt = body.position.y - (-0.92); // distance to bottom card
+        const domBlur = Math.max(4, 8 + alt * 18);
+        const domOpacity = Math.max(0.12, Math.min(0.78, 0.7 - alt * 0.35));
+        const domX = body.position.x * 40;
+        const domOffsetY = Math.max(2, 10 - alt * 6);
+        const domScale = Math.max(0.75, 1.05 - alt * 0.15);
+
+        setDomShadow({
+          x: domX,
+          blur: domBlur,
+          opacity: domOpacity,
+          scaleX: domScale,
+          offsetY: domOffsetY,
+        });
+
+        // 5. Contact Impact Shockwave Ring Animation
+        if (bounceShockwaveAnimRef.current > 0 && shockwaveMeshRef.current && shockwaveMatRef.current) {
+          bounceShockwaveAnimRef.current = Math.max(0, bounceShockwaveAnimRef.current - dt * 2.5);
+          const progress = 1 - bounceShockwaveAnimRef.current;
+          const s = 0.3 + progress * 2.4;
+          shockwaveMeshRef.current.position.x = body.position.x;
+          shockwaveMeshRef.current.scale.set(s, s, s);
+          shockwaveMatRef.current.opacity = Math.sin(bounceShockwaveAnimRef.current * Math.PI) * 0.85;
+        }
+      }
+
+      // 6. Update Skeletal Animation Mixer
       if (mixerRef.current) {
         mixerRef.current.update(dt);
       }
 
-      // 1. Damped Spring Pointer Tracking for Head
+      // 7. Damped Spring Pointer Tracking for Head Gaze
       const targetX = targetPointerRef.current.x * 0.45;
       const targetY = targetPointerRef.current.y * 0.35;
 
@@ -698,37 +1024,11 @@ export const Mascot3D: React.FC<Mascot3DProps> = ({
       headRotY += headVelX * dt;
       headRotX += headVelY * dt;
 
-      // Layer procedural spring look-at ON TOP of skeletal animations!
+      // Additive layer on top of skeletal animation
       if (headBoneRef.current) {
-        headBoneRef.current.rotation.y += headRotY * 0.7; // Yaw
-        headBoneRef.current.rotation.x += headRotX * 0.45; // Pitch
-        headBoneRef.current.rotation.z += headRotY * -0.15; // Inquisitive tilt
-      }
-
-      // 2. Physics Drag & Spring-Damper Recovery
-      if (!isDraggingRef.current) {
-        const kDrag = 32;
-        const dDrag = 7.5;
-        dragVelRef.current.x += (-dragPosRef.current.x * kDrag - dragVelRef.current.x * dDrag) * dt;
-        dragVelRef.current.y += (-dragPosRef.current.y * kDrag - dragVelRef.current.y * dDrag) * dt;
-        dragPosRef.current.x += dragVelRef.current.x * dt;
-        dragPosRef.current.y += dragVelRef.current.y * dt;
-      }
-
-      // 3. Gentle Zero-G Floating Hover & Bank Roll
-      const hover = Math.sin(elapsedTime * 2.2) * 0.045;
-      if (modelRootRef.current) {
-        modelRootRef.current.position.y = hover + dragPosRef.current.y;
-        modelRootRef.current.position.x = dragPosRef.current.x;
-        // Natural aerodynamic banking when moved sideways
-        modelRootRef.current.rotation.z = -dragPosRef.current.x * 0.4;
-      }
-
-      // 4. Contact Shadow Sync
-      if (shadowMeshRef.current && shadowMatRef.current) {
-        const elev = hover + dragPosRef.current.y;
-        shadowMeshRef.current.scale.setScalar(1 + elev * 0.25);
-        shadowMatRef.current.opacity = Math.max(0.12, 0.6 - elev * 0.25);
+        headBoneRef.current.rotation.y += headRotY * 0.7;
+        headBoneRef.current.rotation.x += headRotX * 0.45;
+        headBoneRef.current.rotation.z += headRotY * -0.15;
       }
 
       renderer.render(scene, camera);
@@ -742,16 +1042,22 @@ export const Mascot3D: React.FC<Mascot3DProps> = ({
       shadowGeo.dispose();
       shadowMat.dispose();
       shadowTexture.dispose();
+      shockwaveGeo.dispose();
+      shockwaveMat.dispose();
+      particleGeo.dispose();
+      particleMat.dispose();
     };
   }, []);
 
   return (
     <div
       ref={containerRef}
+      onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
-      onPointerLeave={handlePointerLeave}
+      onPointerUp={handlePointerUp}
+      onPointerCancel={handlePointerUp}
       className={`relative flex flex-col items-center justify-center select-none ${className}`}
-      style={{ perspective: 1200 }}
+      style={{ perspective: 1200, touchAction: 'none' }}
     >
       {/* --- FLOATING BURST PARTICLES --- */}
       <AnimatePresence>
@@ -852,22 +1158,10 @@ export const Mascot3D: React.FC<Mascot3DProps> = ({
         />
       </motion.div>
 
-      {/* --- REAL THREE.JS 3D CANVAS (TOUCH & DRAG INTERACTION) --- */}
-      <motion.div
-        drag
-        dragConstraints={{ left: -30, right: 30, top: -20, bottom: 20 }}
-        dragElastic={0.35}
-        onDragStart={() => {
-          isDraggingRef.current = true;
-        }}
-        onDragEnd={() => {
-          isDraggingRef.current = false;
-        }}
-        whileHover={{ scale: 1.03 }}
-        whileTap={{ scale: 0.95 }}
-        onClick={handleMascotTap}
-        className="relative flex items-center justify-center cursor-pointer select-none"
-        style={{ width: 290, height: 290 }}
+      {/* --- REAL THREE.JS 3D CANVAS WITH CANNON RIGID BODY PHYSICS --- */}
+      <div
+        className="relative flex items-center justify-center cursor-grab active:cursor-grabbing select-none overflow-visible"
+        style={{ width: 360, height: 310 }}
       >
         {/* Subtle glowing loading placeholder while GLB model loads */}
         {!isLoaded && (
@@ -882,13 +1176,36 @@ export const Mascot3D: React.FC<Mascot3DProps> = ({
         <canvas
           ref={canvasRef}
           style={{
-            width: 290,
-            height: 290,
+            width: 360,
+            height: 310,
             display: 'block',
             outline: 'none',
           }}
         />
-      </motion.div>
+      </div>
+
+      {/* --- PHYSICALLY ACCURATE SOFT SHADOW CAST DIRECTLY ONTO LOGIN FORM UI --- */}
+      <div
+        className="pointer-events-none w-full flex justify-center"
+        style={{
+          height: 12,
+          marginTop: -16,
+          zIndex: 5,
+        }}
+      >
+        <div
+          style={{
+            width: 160,
+            height: 12,
+            borderRadius: '50%',
+            background: 'radial-gradient(ellipse at center, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.3) 45%, rgba(0,0,0,0) 80%)',
+            transform: `translateX(${domShadow.x}px) scaleX(${domShadow.scaleX}) translateY(${domShadow.offsetY}px)`,
+            filter: `blur(${domShadow.blur}px)`,
+            opacity: domShadow.opacity,
+            transition: 'filter 0.05s ease-out, opacity 0.05s ease-out, transform 0.05s ease-out',
+          }}
+        />
+      </div>
     </div>
   );
 };

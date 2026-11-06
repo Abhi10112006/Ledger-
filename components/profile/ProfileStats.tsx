@@ -104,15 +104,18 @@ const ProfileStats: React.FC<Props> = ({ account, settings, activeTheme, nextDue
       {/* Balance + UPI row */}
       <div style={{ display: 'flex', gap: 10, marginBottom: 12, padding: '0 4px' }}>
         {/* Main balance card */}
-        <div style={{
-          flex: 1,
-          background: 'var(--app-card-bg, #1C1C1E)',
-          borderRadius: 'var(--app-radius, 16px)',
-          padding: '14px 16px',
-          border: '0.5px solid var(--app-card-border, rgba(255,255,255,0.06))',
-          backdropFilter: 'blur(var(--app-glass-blur, 16px))',
-          WebkitBackdropFilter: 'blur(var(--app-glass-blur, 16px))',
-        }}>
+        <div
+          id="tour-profile-stats"
+          style={{
+            flex: 1,
+            background: 'var(--app-card-bg, #1C1C1E)',
+            borderRadius: 'var(--app-radius, 16px)',
+            padding: '14px 16px',
+            border: '0.5px solid var(--app-card-border, rgba(255,255,255,0.06))',
+            backdropFilter: 'blur(var(--app-glass-blur, 16px))',
+            WebkitBackdropFilter: 'blur(var(--app-glass-blur, 16px))',
+          }}
+        >
           <p style={{ fontSize: 11, fontWeight: 500, color: 'rgba(235,235,245,0.4)', marginBottom: 6 }}>
             To Collect
           </p>
@@ -127,8 +130,8 @@ const ProfileStats: React.FC<Props> = ({ account, settings, activeTheme, nextDue
           </p>
         </div>
 
-        {/* UPI button (INR only) */}
-        {settings.currency === '₹' && onOpenUPI && (
+        {/* UPI button (INR or during simulated tour) */}
+        {(settings.currency === '₹' || account.id === 'SIM-PROFILE') && onOpenUPI && (
           <motion.button
             id="tour-upi-button"
             whileTap={{ scale: 0.92 }}

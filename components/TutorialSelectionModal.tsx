@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React from 'react';
 import {
-  X, Compass, BookOpen, ChevronRight, CheckCircle2,
-  PlusCircle, RefreshCw, QrCode, ShieldCheck, Sparkles, ChevronDown
+  X, Compass, CheckCircle2, Sparkles, Shield,
+  TrendingUp, Search, Users, PlusCircle, QrCode, RefreshCw, Palette, Type, Lock
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useHaptics } from '../hooks/useHaptics';
@@ -14,31 +14,17 @@ interface Props {
   settings?: any;
 }
 
-const FAQ_ITEMS = [
-  {
-    icon: <PlusCircle size={20} color="#10B981" />,
-    title: 'How to Record a New Loan',
-    summary: 'Tap the green Plus (+) button to start.',
-    detail: 'Tap the green Plus (+) button at the bottom of the screen. Enter your friend’s name (or select them from your phone contacts), type the amount, pick the date, and optionally add a return date or interest rate. Tap "Save Deal" to record it.',
-  },
-  {
-    icon: <RefreshCw size={20} color="#3B82F6" />,
-    title: 'How to Record Repayments',
-    summary: 'Partial or full payments are easy.',
-    detail: 'When a friend pays you back, tap their name on the home screen to open their profile. Then tap "Record Repayment", enter the amount they paid, and save. The balance and progress bar update automatically.',
-  },
-  {
-    icon: <QrCode size={20} color="#EC4899" />,
-    title: 'How to Request Money with UPI QR',
-    summary: 'Show an instant payment QR code.',
-    detail: 'Open any friend’s profile and tap the "UPI QR" button. If you configured your UPI ID in Settings, you can enter the amount to collect. A dynamic QR code will appear that your friend can scan with any UPI app (GPay, PhonePe, Paytm) to pay you directly.',
-  },
-  {
-    icon: <ShieldCheck size={20} color="#8B5CF6" />,
-    title: 'How Backups & Privacy Work',
-    summary: '100% offline and encrypted.',
-    detail: 'Your data is stored strictly on your phone — not on any cloud server. To make a backup, open Menu > Backup & Vault, and tap "Back Up Now". This saves an encrypted file to your phone storage so you can safely restore your accounts anytime or move them to a new device.',
-  },
+const TOUR_FEATURES = [
+  { icon: TrendingUp, label: 'Money at a Glance', desc: 'Real-time pending exposure & recovery stats', color: '#30D158' },
+  { icon: Search, label: 'Instant Search', desc: 'Find any contact or note as you type', color: '#0A84FF' },
+  { icon: Users, label: 'Smart Profiles', desc: 'Individual client statements & trust score', color: '#BF5AF2' },
+  { icon: PlusCircle, label: 'Record New Loans', desc: 'Add loans with custom interest & due dates', color: '#10B981' },
+  { icon: QrCode, label: 'Instant UPI QR', desc: 'Fast dynamic payment requests for GPay & PhonePe', color: '#FF453A' },
+  { icon: RefreshCw, label: 'Record Repayments', desc: 'Log partial/full returns with digital receipts', color: '#30D158' },
+  { icon: Palette, label: 'Themes & OLED Mode', desc: 'Vibrant accent colors & pure battery-saving black', color: '#64D2FF' },
+  { icon: Type, label: 'Custom Fonts', desc: 'Inter, JetBrains Mono, Comic Neue, Special Elite', color: '#A78BFA' },
+  { icon: Shield, label: 'Offline Backup & Vault', desc: 'Encrypted JSON & Excel dossier export to phone', color: '#10B981' },
+  { icon: Lock, label: 'Biometrics & App Lock', desc: 'Protect financial privacy with Fingerprint/Face ID', color: '#FF9F0A' },
 ];
 
 const TutorialSelectionModal: React.FC<Props> = ({
@@ -48,8 +34,6 @@ const TutorialSelectionModal: React.FC<Props> = ({
   activeTheme,
   settings,
 }) => {
-  const [activeTab, setActiveTab] = useState<'tour' | 'guide'>('tour');
-  const [expandedFaq, setExpandedFaq] = useState<number | null>(0);
   const haptic = useHaptics();
 
   if (!isOpen) return null;
@@ -83,7 +67,7 @@ const TutorialSelectionModal: React.FC<Props> = ({
           style={{
             position: 'absolute',
             inset: 0,
-            background: 'rgba(0, 0, 0, 0.72)',
+            background: 'rgba(0, 0, 0, 0.75)',
             backdropFilter: 'blur(16px)',
             WebkitBackdropFilter: 'blur(16px)',
           }}
@@ -98,7 +82,7 @@ const TutorialSelectionModal: React.FC<Props> = ({
           style={{
             position: 'relative',
             width: '100%',
-            maxWidth: 500,
+            maxWidth: 520,
             maxHeight: '92vh',
             background: sheetBg,
             borderTopLeftRadius: 28,
@@ -121,7 +105,7 @@ const TutorialSelectionModal: React.FC<Props> = ({
               left: '50%',
               transform: 'translateX(-50%)',
               width: '80%',
-              height: 160,
+              height: 180,
               background: `radial-gradient(ellipse at top center, ${activeTheme?.hex || '#10B981'}25 0%, transparent 70%)`,
               pointerEvents: 'none',
               zIndex: 0,
@@ -165,7 +149,7 @@ const TutorialSelectionModal: React.FC<Props> = ({
                   letterSpacing: '-0.01em',
                 }}
               >
-                Learn how Ledger works and manage loans with ease
+                Interactive feature walkthrough & screen guide
               </p>
             </div>
 
@@ -193,264 +177,174 @@ const TutorialSelectionModal: React.FC<Props> = ({
             </motion.button>
           </div>
 
-          {/* iOS Segmented Control */}
-          <div style={{ padding: '0 22px 16px', position: 'relative', zIndex: 1 }}>
+          {/* Main Content */}
+          <div style={{ padding: '0 22px', display: 'flex', flexDirection: 'column', gap: 14, position: 'relative', zIndex: 1 }}>
+            {/* Hero Card */}
             <div
               style={{
-                display: 'flex',
-                background: 'rgba(120, 120, 128, 0.16)',
-                borderRadius: 12,
-                padding: 3,
-                gap: 4,
+                background: cardBg,
+                border: cardBorder,
+                borderRadius: 22,
+                padding: '20px',
+                position: 'relative',
+                overflow: 'hidden',
               }}
             >
-              <button
-                type="button"
-                onClick={() => {
-                  haptic('selection');
-                  setActiveTab('tour');
-                }}
-                style={{
-                  flex: 1,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: 6,
-                  padding: '8px 12px',
-                  borderRadius: 9,
-                  border: 'none',
-                  background: activeTab === 'tour' ? 'rgba(255, 255, 255, 0.18)' : 'transparent',
-                  color: activeTab === 'tour' ? '#FFFFFF' : 'rgba(235, 235, 245, 0.6)',
-                  fontSize: 13,
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                  transition: 'all 0.2s ease',
-                  boxShadow: activeTab === 'tour' ? '0 2px 8px rgba(0,0,0,0.3)' : 'none',
-                }}
-              >
-                <Compass size={15} />
-                <span>Interactive Tour</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => {
-                  haptic('selection');
-                  setActiveTab('guide');
-                }}
-                style={{
-                  flex: 1,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: 6,
-                  padding: '8px 12px',
-                  borderRadius: 9,
-                  border: 'none',
-                  background: activeTab === 'guide' ? 'rgba(255, 255, 255, 0.18)' : 'transparent',
-                  color: activeTab === 'guide' ? '#FFFFFF' : 'rgba(235, 235, 245, 0.6)',
-                  fontSize: 13,
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                  transition: 'all 0.2s ease',
-                  boxShadow: activeTab === 'guide' ? '0 2px 8px rgba(0,0,0,0.3)' : 'none',
-                }}
-              >
-                <BookOpen size={15} />
-                <span>Easy Guide</span>
-              </button>
-            </div>
-          </div>
-
-          {/* TAB 1: INTERACTIVE TOUR */}
-          {activeTab === 'tour' && (
-            <div style={{ padding: '0 22px', display: 'flex', flexDirection: 'column', gap: 14, position: 'relative', zIndex: 1 }}>
-              {/* Hero Banner Card */}
-              <div
-                style={{
-                  background: cardBg,
-                  border: cardBorder,
-                  borderRadius: 20,
-                  padding: '20px 20px',
-                  position: 'relative',
-                  overflow: 'hidden',
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'flex-start', gap: 14, marginBottom: 14 }}>
-                  <div
-                    style={{
-                      width: 46,
-                      height: 46,
-                      borderRadius: 14,
-                      background: `linear-gradient(135deg, ${activeTheme?.hex || '#10B981'}30 0%, ${activeTheme?.hex || '#10B981'}10 100%)`,
-                      border: `1px solid ${activeTheme?.hex || '#10B981'}40`,
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      color: activeTheme?.hex || '#10B981',
-                      flexShrink: 0,
-                    }}
-                  >
-                    <Sparkles size={24} />
-                  </div>
-                  <div>
-                    <h3 style={{ margin: 0, fontSize: 17, fontWeight: 700, color: '#FFFFFF', letterSpacing: '-0.01em' }}>
-                      Guided Screen Walkthrough
-                    </h3>
-                    <p style={{ margin: '4px 0 0', fontSize: 13, color: 'rgba(235, 235, 245, 0.6)', lineHeight: 1.4 }}>
-                      Take a quick 1-minute visual tour around your screen to see where every feature lives.
-                    </p>
-                  </div>
-                </div>
-
-                {/* Feature Bullet Points */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 8, margin: '14px 0 18px' }}>
-                  {[
-                    'Live dashboard with total money to collect & recovery stats',
-                    'Fast contact search by name or phone number',
-                    'Adding new loans with return dates & optional interest',
-                    'Viewing friend profiles & recording partial payments',
-                    'Customizing themes, OLED black mode & biometric lock',
-                  ].map((item, i) => (
-                    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <CheckCircle2 size={14} style={{ color: activeTheme?.hex || '#10B981', flexShrink: 0 }} />
-                      <span style={{ fontSize: 12.5, color: 'rgba(235, 235, 245, 0.75)' }}>{item}</span>
-                    </div>
-                  ))}
-                </div>
-
-                {/* Primary Action Button */}
-                <motion.button
-                  whileTap={{ scale: 0.98 }}
-                  onClick={() => {
-                    haptic('medium');
-                    onClose();
-                    setTimeout(() => {
-                      onSelectInteractive();
-                    }, 250);
-                  }}
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 14, marginBottom: 12 }}>
+                <div
                   style={{
-                    width: '100%',
+                    width: 46,
                     height: 46,
                     borderRadius: 14,
-                    background: activeTheme?.hex || '#10B981',
-                    color: '#000000',
-                    border: 'none',
-                    fontSize: 15,
-                    fontWeight: 700,
-                    letterSpacing: '-0.01em',
+                    background: `linear-gradient(135deg, ${activeTheme?.hex || '#10B981'}30 0%, ${activeTheme?.hex || '#10B981'}10 100%)`,
+                    border: `1px solid ${activeTheme?.hex || '#10B981'}40`,
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    gap: 8,
-                    cursor: 'pointer',
-                    boxShadow: `0 6px 20px -3px ${activeTheme?.hex || '#10B981'}60`,
+                    color: activeTheme?.hex || '#10B981',
+                    flexShrink: 0,
                   }}
                 >
-                  <Compass size={18} />
-                  <span>Start Interactive Tour</span>
-                </motion.button>
-              </div>
-            </div>
-          )}
-
-          {/* TAB 2: EASY GUIDE & FAQ */}
-          {activeTab === 'guide' && (
-            <div style={{ padding: '0 22px', display: 'flex', flexDirection: 'column', gap: 10, position: 'relative', zIndex: 1 }}>
-              {FAQ_ITEMS.map((item, idx) => {
-                const isExpanded = expandedFaq === idx;
-                return (
-                  <motion.div
-                    key={idx}
-                    initial={false}
-                    style={{
-                      background: cardBg,
-                      border: cardBorder,
-                      borderRadius: 18,
-                      overflow: 'hidden',
-                      transition: 'border-color 0.2s',
-                    }}
-                  >
-                    <div
-                      onClick={() => {
-                        haptic('selection');
-                        setExpandedFaq(isExpanded ? null : idx);
-                      }}
+                  <Sparkles size={24} />
+                </div>
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span
                       style={{
-                        padding: '14px 16px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        gap: 12,
-                        cursor: 'pointer',
+                        fontSize: 10.5,
+                        fontWeight: 700,
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.04em',
+                        color: activeTheme?.hex || '#10B981',
+                        background: `${activeTheme?.hex || '#10B981'}18`,
+                        padding: '2px 8px',
+                        borderRadius: 6,
                       }}
                     >
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                      14 Interactive Steps
+                    </span>
+                  </div>
+                  <h3 style={{ margin: '4px 0 0', fontSize: 17, fontWeight: 700, color: '#FFFFFF', letterSpacing: '-0.01em' }}>
+                    Interactive Screen Walkthrough
+                  </h3>
+                  <p style={{ margin: '4px 0 0', fontSize: 13, color: 'rgba(235, 235, 245, 0.6)', lineHeight: 1.4 }}>
+                    Take a visual hands-on tour that spotlights every function on your screen with actionable tips.
+                  </p>
+                </div>
+              </div>
+
+              {/* Start Interactive Tour CTA Button */}
+              <motion.button
+                whileTap={{ scale: 0.98 }}
+                onClick={() => {
+                  haptic('medium');
+                  onClose();
+                  setTimeout(() => {
+                    onSelectInteractive();
+                  }, 250);
+                }}
+                style={{
+                  width: '100%',
+                  height: 48,
+                  borderRadius: 14,
+                  background: activeTheme?.hex || '#10B981',
+                  color: '#000000',
+                  border: 'none',
+                  fontSize: 15,
+                  fontWeight: 700,
+                  letterSpacing: '-0.01em',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 8,
+                  cursor: 'pointer',
+                  boxShadow: `0 6px 20px -3px ${activeTheme?.hex || '#10B981'}60`,
+                  marginTop: 6,
+                }}
+              >
+                <Compass size={18} />
+                <span>Start Interactive Tour</span>
+              </motion.button>
+            </div>
+
+            {/* Feature Tour Grid / Roadmap */}
+            <div>
+              <div
+                style={{
+                  fontSize: 11,
+                  fontWeight: 600,
+                  color: 'rgba(235, 235, 245, 0.4)',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.06em',
+                  padding: '4px 8px 10px',
+                }}
+              >
+                What You'll Explore In The Tour
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8 }}>
+                {TOUR_FEATURES.map((item, idx) => {
+                  const Icon = item.icon;
+                  return (
+                    <div
+                      key={idx}
+                      style={{
+                        background: cardBg,
+                        border: cardBorder,
+                        borderRadius: 16,
+                        padding: '12px',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: 6,
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                         <div
                           style={{
-                            width: 36,
-                            height: 36,
-                            borderRadius: 10,
+                            width: 28,
+                            height: 28,
+                            borderRadius: 8,
                             background: 'rgba(255, 255, 255, 0.08)',
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
+                            color: item.color,
                             flexShrink: 0,
                           }}
                         >
-                          {item.icon}
+                          <Icon size={15} />
                         </div>
-                        <div>
-                          <div style={{ fontSize: 14.5, fontWeight: 600, color: '#FFFFFF', letterSpacing: '-0.01em' }}>
-                            {item.title}
-                          </div>
-                          <div style={{ fontSize: 12, color: 'rgba(235, 235, 245, 0.5)', marginTop: 2 }}>
-                            {item.summary}
-                          </div>
-                        </div>
+                        <span style={{ fontSize: 13, fontWeight: 600, color: '#FFFFFF', letterSpacing: '-0.01em' }}>
+                          {item.label}
+                        </span>
                       </div>
-
-                      <div
-                        style={{
-                          transform: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)',
-                          transition: 'transform 0.2s ease',
-                          color: 'rgba(235, 235, 245, 0.5)',
-                        }}
-                      >
-                        <ChevronDown size={17} />
-                      </div>
+                      <p style={{ margin: 0, fontSize: 11.5, color: 'rgba(235, 235, 245, 0.5)', lineHeight: 1.35 }}>
+                        {item.desc}
+                      </p>
                     </div>
-
-                    <AnimatePresence>
-                      {isExpanded && (
-                        <motion.div
-                          initial={{ opacity: 0, height: 0 }}
-                          animate={{ opacity: 1, height: 'auto' }}
-                          exit={{ opacity: 0, height: 0 }}
-                          transition={{ duration: 0.2 }}
-                          style={{
-                            padding: '0 16px 14px',
-                            borderTop: '0.5px solid rgba(255, 255, 255, 0.06)',
-                          }}
-                        >
-                          <p
-                            style={{
-                              margin: '10px 0 0',
-                              fontSize: 13,
-                              lineHeight: 1.5,
-                              color: 'rgba(235, 235, 245, 0.75)',
-                            }}
-                          >
-                            {item.detail}
-                          </p>
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
-                  </motion.div>
-                );
-              })}
+                  );
+                })}
+              </div>
             </div>
-          )}
+
+            {/* Privacy & Safe Guarantee Card */}
+            <div
+              style={{
+                background: 'rgba(16, 185, 129, 0.08)',
+                border: '0.5px solid rgba(16, 185, 129, 0.2)',
+                borderRadius: 16,
+                padding: '12px 16px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 12,
+              }}
+            >
+              <CheckCircle2 size={18} style={{ color: '#10B981', flexShrink: 0 }} />
+              <div style={{ fontSize: 12, color: 'rgba(235, 235, 245, 0.75)', lineHeight: 1.4 }}>
+                <strong style={{ color: '#FFFFFF' }}>100% Offline & Non-Destructive:</strong> All guided steps use safe simulation and never alter or overwrite your existing accounts.
+              </div>
+            </div>
+          </div>
         </motion.div>
       </div>
     </AnimatePresence>
