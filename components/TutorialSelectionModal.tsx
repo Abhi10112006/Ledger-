@@ -238,10 +238,7 @@ const TutorialSelectionModal: React.FC<Props> = ({
                 whileTap={{ scale: 0.98 }}
                 onClick={() => {
                   haptic('medium');
-                  onClose();
-                  setTimeout(() => {
-                    onSelectInteractive();
-                  }, 250);
+                  onSelectInteractive();
                 }}
                 style={{
                   width: '100%',

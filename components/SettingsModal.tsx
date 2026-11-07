@@ -243,10 +243,9 @@ const SettingsModal: React.FC<Props> = ({
     }
   };
 
-    useEffect(() => {
-    if (tourStep) {
-      if (tourStep >= 6 && tourStep <= 8) setActiveTab('visual');
-      else if (tourStep === 9) setActiveTab('layout');
+  useEffect(() => {
+    if (tourStep === 12) {
+      setActiveTab('general');
     }
   }, [tourStep]);
 
@@ -578,6 +577,7 @@ const SettingsModal: React.FC<Props> = ({
                         <div>
                           <SectionLabel>Security & Biometrics</SectionLabel>
                           <div
+                            id="tour-security-section"
                             style={{
                               background: cardBg,
                               border: cardBorder,

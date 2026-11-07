@@ -147,11 +147,11 @@ export const TourOverlay: React.FC<Props> = ({ tourStep, setTourStep, completeTo
     },
     {
       id: 'tour-security',
-      title: 'Biometric Lock & Security',
+      title: 'Biometric Security & Privacy',
       desc: 'Keep your personal financial records completely confidential. You can enable App Lock in Settings to require Fingerprint, Face ID, or PIN authentication.',
-      tip: 'Includes instant auto-lock when switching apps or minimizing.',
+      tip: 'Configure your auto-lock timeout and preferred unlock method right here in Settings.',
       icon: <ShieldCheck size={26} style={{ color: '#30D158' }} />,
-      targetId: null,
+      targetId: 'tour-security-section',
     },
     {
       id: 'tour-done',
@@ -194,14 +194,14 @@ export const TourOverlay: React.FC<Props> = ({ tourStep, setTourStep, completeTo
         try {
           const computedStyle = window.getComputedStyle(targetEl);
           if (computedStyle.position !== 'fixed' && computedStyle.position !== 'absolute') {
-            targetEl.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
+            targetEl.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
           }
         } catch {}
 
         const rect = targetEl.getBoundingClientRect();
 
-        // If element is still zero-sized due to opening animation, retry
-        if ((rect.width === 0 || rect.height === 0) && attempts < maxAttempts) {
+        // If element is still zero-sized or offscreen due to opening bottom sheet animation, retry
+        if ((rect.width === 0 || rect.height === 0 || rect.top >= window.innerHeight - 40) && attempts < maxAttempts) {
           attempts++;
           setTimeout(tryLocate, 60);
           return;
@@ -310,16 +310,21 @@ export const TourOverlay: React.FC<Props> = ({ tourStep, setTourStep, completeTo
   };
 
   return (
-    <div
-      style={{
-        position: 'fixed',
-        inset: 0,
-        zIndex: 9999,
-        overflow: 'hidden',
-        pointerEvents: 'none',
-        fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Text", Inter, sans-serif',
-      }}
-    >
+    <AnimatePresence>
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        transition={{ duration: 0.25 }}
+        style={{
+          position: 'fixed',
+          inset: 0,
+          zIndex: 9999,
+          overflow: 'hidden',
+          pointerEvents: 'none',
+          fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Text", Inter, sans-serif',
+        }}
+      >
       {/* SPOTLIGHT CUTOUT HOLE */}
       <div
         style={{
@@ -806,7 +811,8 @@ export const TourOverlay: React.FC<Props> = ({ tourStep, setTourStep, completeTo
           </motion.div>
         </div>
       )}
-    </div>
+      </motion.div>
+    </AnimatePresence>
   );
 };
 

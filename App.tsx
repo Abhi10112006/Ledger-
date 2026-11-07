@@ -556,8 +556,14 @@ const AppContent: React.FC = () => {
       setIsSettingsModalOpen(false);
       if (isMobile) setIsMobileMenuOpen(true);
     }
-    // Steps 12..13: Biometrics & Security, Final Celebration
-    else if (tourStep >= 12) {
+    // Step 12 (Step 13 in tour): Open Settings modal -> Biometric Security & Privacy
+    else if (tourStep === 12) {
+      setSelectedProfileId(null);
+      setIsMobileMenuOpen(false);
+      setIsSettingsModalOpen(true);
+    }
+    // Step 13 (Step 14 in tour): Final celebration step -> smoothly return to Homepage
+    else if (tourStep >= 13) {
       setSelectedProfileId(null);
       setIsMobileMenuOpen(false);
       setIsSettingsModalOpen(false);
@@ -990,8 +996,13 @@ const AppContent: React.FC = () => {
             onClose={handleCloseTutorial}
             onSelectInteractive={() => {
               setTutorialOriginMenu(false);
+              setIsTutorialModalOpen(false);
               setIsMobileMenuOpen(false);
-              setTourStep(0);
+              setIsSettingsModalOpen(false);
+              setSelectedProfileId(null);
+              setTimeout(() => {
+                setTourStep(0);
+              }, 320);
             }}
             activeTheme={activeTheme}
             settings={settings}
