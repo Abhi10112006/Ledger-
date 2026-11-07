@@ -20,6 +20,8 @@ import java.io.FileOutputStream;
 import java.io.InputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -139,33 +141,59 @@ public class NativeAppUpdatePlugin extends Plugin {
                     destinationFile.delete();
                 }
 
-                // Follow redirects (GitHub Releases redirect to AWS S3 CDN)
-                String currentUrl = apkUrl;
-                int responseCode = -1;
-                for (int redirectCount = 0; redirectCount < 8; redirectCount++) {
-                    URL u = new URL(currentUrl);
-                    conn = (HttpURLConnection) u.openConnection();
-                    conn.setInstanceFollowRedirects(true);
-                    conn.setRequestProperty("User-Agent", "AbhisLedger-AppUpdate/4.0");
-                    conn.setConnectTimeout(25000);
-                    conn.setReadTimeout(35000);
-
-                    responseCode = conn.getResponseCode();
-                    if (responseCode == HttpURLConnection.HTTP_MOVED_TEMP
-                        || responseCode == HttpURLConnection.HTTP_MOVED_PERM
-                        || responseCode == 307
-                        || responseCode == 308) {
-                        String location = conn.getHeaderField("Location");
-                        conn.disconnect();
-                        if (location != null && !location.isEmpty()) {
-                            currentUrl = location;
-                            continue;
-                        }
+                // Build candidate URLs to handle naming variations (app_release.apk vs app-release.apk, tag 4.0.0 vs v4.0.0)
+                List<String> candidates = new ArrayList<>();
+                if (apkUrl != null && !apkUrl.isEmpty()) {
+                    candidates.add(apkUrl);
+                    if (apkUrl.contains("app-release.apk")) {
+                        candidates.add(apkUrl.replace("app-release.apk", "app_release.apk"));
+                    } else if (apkUrl.contains("app_release.apk")) {
+                        candidates.add(apkUrl.replace("app_release.apk", "app-release.apk"));
                     }
-                    break;
+                }
+                candidates.add("https://github.com/Abhi10112006/Ledger-/releases/latest/download/app_release.apk");
+                candidates.add("https://github.com/Abhi10112006/Ledger-/releases/latest/download/app-release.apk");
+                candidates.add("https://github.com/Abhi10112006/Ledger-/releases/download/" + version + "/app_release.apk");
+                candidates.add("https://github.com/Abhi10112006/Ledger-/releases/download/v" + version + "/app_release.apk");
+                candidates.add("https://github.com/Abhi10112006/Ledger-/releases/download/" + version + "/app-release.apk");
+                candidates.add("https://github.com/Abhi10112006/Ledger-/releases/download/v" + version + "/app-release.apk");
+
+                int responseCode = -1;
+                for (String testUrl : candidates) {
+                    String currentUrl = testUrl;
+                    if (conn != null) {
+                        try { conn.disconnect(); } catch (Exception ignored) {}
+                        conn = null;
+                    }
+                    for (int redirectCount = 0; redirectCount < 8; redirectCount++) {
+                        URL u = new URL(currentUrl);
+                        conn = (HttpURLConnection) u.openConnection();
+                        conn.setInstanceFollowRedirects(true);
+                        conn.setRequestProperty("User-Agent", "AbhisLedger-AppUpdate/4.0");
+                        conn.setConnectTimeout(20000);
+                        conn.setReadTimeout(30000);
+
+                        responseCode = conn.getResponseCode();
+                        if (responseCode == HttpURLConnection.HTTP_MOVED_TEMP
+                            || responseCode == HttpURLConnection.HTTP_MOVED_PERM
+                            || responseCode == 307
+                            || responseCode == 308) {
+                            String location = conn.getHeaderField("Location");
+                            conn.disconnect();
+                            if (location != null && !location.isEmpty()) {
+                                currentUrl = location;
+                                continue;
+                            }
+                        }
+                        break;
+                    }
+
+                    if (responseCode == HttpURLConnection.HTTP_OK) {
+                        break;
+                    }
                 }
 
-                if (responseCode != HttpURLConnection.HTTP_OK) {
+                if (conn == null || responseCode != HttpURLConnection.HTTP_OK) {
                     throw new Exception("Server responded with HTTP " + responseCode + " when downloading APK");
                 }
 

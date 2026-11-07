@@ -15,7 +15,7 @@
 <br/>
 
 <p align="center">
-  <a href="https://github.com/Abhi10112006/Ledger-/releases/latest/download/app-release.apk">
+  <a href="https://github.com/Abhi10112006/Ledger-/releases/latest/download/app_release.apk">
     <img src="https://img.shields.io/badge/⚡_DOWNLOAD_APK-v4.0.0_(Direct)-0A84FF?style=for-the-badge&logo=android&logoColor=white" height="40" alt="Download APK" />
   </a>
   &nbsp;&nbsp;
@@ -30,7 +30,7 @@
 
 <br/>
 
-**[📦 Direct APK Download](https://github.com/Abhi10112006/Ledger-/releases/latest/download/app-release.apk)** • **[🌐 Web PWA](https://ledger69.vercel.app/)** • **[📖 Step-by-Step App Guide](#-step-by-step-guide-how-to-use-abhis-ledger)** • **[📲 1-Tap APK Install Guide](#-step-by-step-apk-download--installation-guide)** • **[🛠️ Installation Manual](INSTALLATION.md)**
+**[📦 Direct APK Download](https://github.com/Abhi10112006/Ledger-/releases/latest/download/app_release.apk)** • **[🌐 Web PWA](https://ledger69.vercel.app/)** • **[📖 Step-by-Step App Guide](#-step-by-step-guide-how-to-use-abhis-ledger)** • **[📲 1-Tap APK Install Guide](#-step-by-step-apk-download--installation-guide)** • **[🛠️ Installation Manual](INSTALLATION.md)**
 
 ---
 
@@ -205,7 +205,7 @@ If you already have Abhi's Ledger installed on your device:
 #### Step 1: Download the Latest APK
 Download the verified APK directly from the official repository release:
 
-👉 **[Download Latest APK (v4.0.0)](https://github.com/Abhi10112006/Ledger-/releases/latest/download/app-release.apk)**  
+👉 **[Download Latest APK (v4.0.0)](https://github.com/Abhi10112006/Ledger-/releases/latest/download/app_release.apk)**  
 *(Alternative: Browse all historical releases at [GitHub Releases](https://github.com/Abhi10112006/Ledger-/releases))*
 
 #### Step 2: Open the Downloaded APK

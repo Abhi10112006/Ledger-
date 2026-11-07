@@ -181,8 +181,8 @@ export const fetchRemoteVersion = async (): Promise<VersionInfo | null> => {
 
     const data: VersionInfo = await response.json();
     // Default apkUrl to direct release asset if not specified
-    if (!data.apkUrl && data.version) {
-      data.apkUrl = `https://github.com/Abhi10112006/Ledger-/releases/download/v${data.version}/app-release.apk`;
+    if (!data.apkUrl) {
+      data.apkUrl = `https://github.com/Abhi10112006/Ledger-/releases/latest/download/app_release.apk`;
     }
     return data;
   } catch {

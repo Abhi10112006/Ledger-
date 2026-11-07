@@ -60,7 +60,7 @@ const UpdateBanner: React.FC<Props> = ({ updateInfo, activeTheme, settings, onDi
     updateInfo.apkUrl ||
     (updateInfo.downloadUrl && updateInfo.downloadUrl.endsWith('.apk')
       ? updateInfo.downloadUrl
-      : `https://github.com/Abhi10112006/Ledger-/releases/download/v${updateInfo.version}/app-release.apk`);
+      : `https://github.com/Abhi10112006/Ledger-/releases/latest/download/app_release.apk`);
 
   const handle1TapInstall = async () => {
     haptic('medium');

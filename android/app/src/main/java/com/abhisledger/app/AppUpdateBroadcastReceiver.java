@@ -95,7 +95,7 @@ public class AppUpdateBroadcastReceiver extends BroadcastReceiver {
             String downloadUrl = json.optString("downloadUrl", "https://github.com/Abhi10112006/Ledger-/releases/latest");
             String apkUrl = json.optString("apkUrl", "");
             if (apkUrl.isEmpty()) {
-                apkUrl = "https://github.com/Abhi10112006/Ledger-/releases/download/v" + remoteVersion + "/app-release.apk";
+                apkUrl = "https://github.com/Abhi10112006/Ledger-/releases/latest/download/app_release.apk";
             }
 
             PackageManager pm = context.getPackageManager();
