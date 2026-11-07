@@ -59,6 +59,22 @@ const WelcomeScreen: React.FC<Props> = ({
   const [cardBounceY, setCardBounceY] = useState(0);
   const [isLaunching, setIsLaunching] = useState(false);
 
+  // Choreographed multi-stage haptics during cinematic launch sequence
+  useEffect(() => {
+    if (!isLaunching) return;
+    haptic('selection');
+    const t1 = setTimeout(() => haptic('light'), 140);
+    const t2 = setTimeout(() => haptic('heavy'), 240);
+    const t3 = setTimeout(() => haptic('medium'), 550);
+    const t4 = setTimeout(() => haptic('success'), 900);
+    return () => {
+      clearTimeout(t1);
+      clearTimeout(t2);
+      clearTimeout(t3);
+      clearTimeout(t4);
+    };
+  }, [isLaunching]);
+
   const accentColor = activeTheme?.hex || '#10b981';
 
   // Synchronize inputName if settings.userName updates externally (e.g. from backup restore)
@@ -260,9 +276,8 @@ const WelcomeScreen: React.FC<Props> = ({
         initial={{ opacity: 0, y: 18 }}
         animate={{
           opacity: isLaunching ? 0 : 1,
-          y: isLaunching ? -14 : 0,
-          scale: isLaunching ? 0.96 : 1,
-          filter: isLaunching ? 'blur(6px)' : 'blur(0px)',
+          y: isLaunching ? -18 : 0,
+          scale: isLaunching ? 0.94 : 1,
         }}
         transition={{
           duration: isLaunching ? 0.65 : 0.6,
@@ -732,6 +747,144 @@ const WelcomeScreen: React.FC<Props> = ({
         </motion.div>
         </motion.div>
       </motion.div>
+
+      {/* --- CINEMATIC VAULT WARP OVERLAY (DURING LAUNCH) --- */}
+      <AnimatePresence>
+        {isLaunching && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 pointer-events-none z-50 flex flex-col items-center justify-center overflow-hidden"
+          >
+            {/* Anamorphic Horizontal Laser Light Flare */}
+            <motion.div
+              initial={{ scaleX: 0, opacity: 0 }}
+              animate={{
+                scaleX: [0, 1.8, 3.5],
+                opacity: [0, 1, 0],
+              }}
+              transition={{ duration: 0.9, times: [0, 0.35, 1], ease: 'easeOut' }}
+              style={{
+                position: 'absolute',
+                top: '42%',
+                width: '100vw',
+                height: 4,
+                background: `linear-gradient(90deg, transparent 0%, ${accentColor} 25%, #ffffff 50%, ${accentColor} 75%, transparent 100%)`,
+                boxShadow: `0 0 35px 8px ${accentColor}`,
+                willChange: 'transform, opacity',
+              }}
+            />
+
+            {/* Radial Hyperspace Energy Bloom */}
+            <motion.div
+              initial={{ scale: 0.2, opacity: 0 }}
+              animate={{
+                scale: [0.2, 1.5, 3.0],
+                opacity: [0, 0.75, 0],
+              }}
+              transition={{ duration: 0.95, times: [0, 0.35, 1], ease: [0.16, 1, 0.3, 1] }}
+              style={{
+                position: 'absolute',
+                top: '32%',
+                width: '75vw',
+                height: '75vw',
+                borderRadius: '50%',
+                background: `radial-gradient(circle, ${accentColor}45 0%, ${accentColor}12 40%, transparent 68%)`,
+                willChange: 'transform, opacity',
+              }}
+            />
+
+            {/* Radiant Sonic Shockwave Ring */}
+            <motion.div
+              initial={{ scale: 0.1, opacity: 0 }}
+              animate={{
+                scale: [0.1, 2.0, 3.8],
+                opacity: [0, 0.7, 0],
+              }}
+              transition={{ duration: 0.8, delay: 0.24, ease: 'easeOut' }}
+              style={{
+                position: 'absolute',
+                top: '38%',
+                width: '40vw',
+                height: '40vw',
+                borderRadius: '50%',
+                border: `2px solid ${accentColor}`,
+                boxShadow: `0 0 20px ${accentColor}`,
+                willChange: 'transform, opacity',
+              }}
+            />
+
+            {/* High-Tech Cinematic HUD Directive Badge */}
+            <motion.div
+              initial={{ opacity: 0, y: 30, scale: 0.9 }}
+              animate={{
+                opacity: [0, 1, 1, 0],
+                y: [30, 0, -6, -26],
+                scale: [0.9, 1, 1, 0.96],
+              }}
+              transition={{ duration: 0.95, times: [0, 0.25, 0.75, 1] }}
+              className="flex flex-col items-center gap-1.5 relative z-10 px-5 py-2.5 rounded-2xl"
+              style={{
+                background: 'rgba(6, 8, 14, 0.88)',
+                border: `1px solid ${accentColor}55`,
+                boxShadow: `0 0 30px ${accentColor}30`,
+                willChange: 'transform, opacity',
+              }}
+            >
+              <div className="flex items-center gap-2">
+                <span className="relative flex h-2 w-2">
+                  <span
+                    className="animate-ping absolute inline-flex h-full w-full rounded-full opacity-75"
+                    style={{ backgroundColor: accentColor }}
+                  />
+                  <span
+                    className="relative inline-flex rounded-full h-2 w-2"
+                    style={{ backgroundColor: accentColor }}
+                  />
+                </span>
+                <span
+                  style={{
+                    fontFamily: 'monospace',
+                    fontSize: 11,
+                    letterSpacing: '0.18em',
+                    textTransform: 'uppercase',
+                    color: '#ffffff',
+                    fontWeight: 700,
+                  }}
+                >
+                  VAULT WARP VELOCITY ENGAGED
+                </span>
+              </div>
+              <span
+                style={{
+                  fontSize: 12.5,
+                  fontWeight: 500,
+                  color: 'rgba(255, 255, 255, 0.85)',
+                  letterSpacing: '-0.01em',
+                }}
+              >
+                Entering Encrypted Ledger Vault...
+              </span>
+            </motion.div>
+
+            {/* Final Cinematic Light Flash into Dashboard */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{
+                opacity: [0, 0, 0.9, 1],
+              }}
+              transition={{ duration: 0.95, times: [0, 0.65, 0.88, 1] }}
+              style={{
+                position: 'absolute',
+                inset: 0,
+                background: `radial-gradient(ellipse at center, ${accentColor}30 0%, #040507 80%)`,
+                willChange: 'opacity',
+              }}
+            />
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };

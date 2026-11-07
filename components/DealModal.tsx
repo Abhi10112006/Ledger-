@@ -7,6 +7,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useVirtualKeyboard } from '../hooks/useVirtualKeyboard';
 import { useKeyboard } from '../contexts/KeyboardContext';
 import { useBackHandler } from '../utils/backHandler';
+import { normalizePhoneNumber } from '../utils/phoneUtils';
 
 interface Props {
   isOpen: boolean;
@@ -151,10 +152,12 @@ const DealModal: React.FC<Props> = ({
     let finalStartDate = startDate;
     if (startTime) finalStartDate = `${startDate}T${startTime}`;
 
+    const cleanPhone = friendPhone ? (normalizePhoneNumber(friendPhone, currency).e164 || friendPhone.trim()) : undefined;
+
     onSave({
       friendName,
       profileId: selectedProfileId || undefined,
-      friendPhone,
+      friendPhone: cleanPhone,
       amount: parseFloat(amount),
       startDate: finalStartDate,
       returnDate: returnDate || new Date(Date.now() + 604800000).toISOString(),

@@ -31,6 +31,7 @@ interface Mascot3DProps {
   onPhysicsBounce?: (intensity: number) => void;
   isLaunching?: boolean;
   onLaunchComplete?: () => void;
+  isDeveloperCredit?: boolean;
 }
 
 interface FloatingParticle {
@@ -55,6 +56,7 @@ export const Mascot3D: React.FC<Mascot3DProps> = ({
   onPhysicsBounce,
   isLaunching = false,
   onLaunchComplete,
+  isDeveloperCredit = false,
 }) => {
   const haptic = useHaptics();
 
@@ -111,10 +113,14 @@ export const Mascot3D: React.FC<Mascot3DProps> = ({
   const shockwaveMatRef = useRef<THREE.MeshBasicMaterial | null>(null);
   const thrusterParticlesRef = useRef<THREE.Points | null>(null);
   const thrusterLightRef = useRef<THREE.PointLight | null>(null);
+  const warpLinesRef = useRef<THREE.LineSegments | null>(null);
+  const warpMatRef = useRef<THREE.LineBasicMaterial | null>(null);
+  const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
 
   // Cannon-ES Physics References
   const worldRef = useRef<CANNON.World | null>(null);
   const mascotBodyRef = useRef<CANNON.Body | null>(null);
+  const ceilingBodyRef = useRef<CANNON.Body | null>(null);
   const bounceShockwaveAnimRef = useRef(0);
   const isPhysicsReadyRef = useRef(false);
   const loadTimeRef = useRef(0);
@@ -122,6 +128,7 @@ export const Mascot3D: React.FC<Mascot3DProps> = ({
   // Launch Sequence Refs
   const isLaunchingRef = useRef(false);
   isLaunchingRef.current = isLaunching;
+  const launchStartTimeRef = useRef<number>(0);
 
   // Speech & Timer Refs (Guaranteed no-stuck speech)
   const lastSpeechSetTimeRef = useRef<number>(0);
@@ -261,16 +268,13 @@ export const Mascot3D: React.FC<Mascot3DProps> = ({
     }
   };
 
-  // Return to appropriate background looping state based on mood
+  // Return to appropriate background looping state based on mood (calm, poised Pixar hover)
   const returnToStateLoop = () => {
     const m = moodRef.current;
     if (m === 'typing') {
       crossfadeToAction('EVE_ScanIdle_Loop', true, 0.35);
-    } else if (m === 'celebrate') {
-      crossfadeToAction('EVE_MultiPlayer_Win_Idle', true, 0.35);
-    } else if (m === 'welcome') {
-      crossfadeToAction('EVE_Idle_Active_Loop', true, 0.35);
     } else {
+      // Default to serene, beautiful upright hover loop
       crossfadeToAction('EVE_Idle_Loop01', true, 0.35);
     }
   };
@@ -422,39 +426,44 @@ export const Mascot3D: React.FC<Mascot3DProps> = ({
       setTrickSpeechTracked(celebrationQuotes[Math.floor(Math.random() * celebrationQuotes.length)], 4000);
 
       crossfadeToAction('EVE_MultiPlayer_Win_Start', false, 0.25, () => {
-        crossfadeToAction('EVE_MultiPlayer_Win_Idle', true, 0.3);
+        returnToStateLoop();
       });
 
-      scheduleResetToIdle(4000);
+      scheduleResetToIdle(3500);
     }
   }, [celebrateTrigger]);
 
-  // "Launch into Vault" exit sequence
+  // "Launch into Vault" Cinematic Exit Sequence
   useEffect(() => {
     if (!isLaunching) return;
 
-    // 1. Play the supersonic boost animation
-    crossfadeToAction('EVE_FlyForwardBoost_Start', false, 0.15);
+    launchStartTimeRef.current = performance.now();
+    isDraggingRef.current = true; // disable hover spring
 
-    // 2. 350ms delay: thrusters ignite with maximum intensity and apply launch boost
-    const thrusterTimer = setTimeout(() => {
-      if (mascotBodyRef.current) {
-        const body = mascotBodyRef.current;
-        isDraggingRef.current = true; // disable hover spring
-        body.velocity.set(0, 14, 0);
-        body.angularVelocity.set(0, 0, 0);
-      }
-      haptic('heavy');
+    // Disable ceiling boundary so EVE can streak into the cosmos/vault
+    if (ceilingBodyRef.current) {
+      ceilingBodyRef.current.collisionResponse = false;
+    }
+
+    // Step 1: Boost Start animation cleanly blends into high-speed Boost Loop
+    crossfadeToAction('EVE_FlyForwardBoost_Start', false, 0.12, () => {
+      crossfadeToAction('EVE_FlyForwardBoost_Loop', true, 0.2);
+    });
+
+    // Step 2 (240ms): Thruster plasma ignition shockwave & heavy haptic pop
+    const ignitionTimer = setTimeout(() => {
+      bounceShockwaveAnimRef.current = 1.0;
       spawnParticles('star');
-    }, 350);
+      haptic('heavy');
+    }, 240);
 
-    // 3. 950ms total: signal launch completion to transition to dashboard
+    // Step 3 (950ms): Vault breach complete, handover to dashboard
     const completeTimer = setTimeout(() => {
       if (onLaunchComplete) onLaunchComplete();
     }, 950);
 
     return () => {
-      clearTimeout(thrusterTimer);
+      clearTimeout(ignitionTimer);
       clearTimeout(completeTimer);
     };
   }, [isLaunching]);
@@ -629,6 +638,17 @@ export const Mascot3D: React.FC<Mascot3DProps> = ({
   // INTELLIGENT DIALOGUE ENGINE (Scenario-Aware & Dynamically Rotating)
   // =========================================================================
   const getSpeechText = () => {
+    if (isDeveloperCredit) {
+      if (trickSpeech) return trickSpeech;
+      const devQuotes = [
+        'Directive: Presenting the Creator, Abhinav Yaduwanshi! 👨‍💻✨',
+        'Built with Pixar-grade 3D, AES-256 encryption & zero subscriptions! 💎',
+        'Scanning Architect ID: ABHI_1289... Verified Mastermind! 🚀',
+        'Tap me for zero-G tricks & celebratory high-fives with Abhi! 🎉',
+        '100% offline, zero cloud leaks. Designed with immense craftsmanship! 🛡️',
+      ];
+      return devQuotes[idleThoughtIndex % devQuotes.length];
+    }
     if (isLaunching) {
       return 'Thrusters engaged! Launching into your encrypted vault! 🚀✨';
     }
@@ -716,6 +736,7 @@ export const Mascot3D: React.FC<Mascot3DProps> = ({
     const scene = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera(36, width / height, 0.1, 50);
     camera.position.set(0, 0.18, 3.8);
+    cameraRef.current = camera;
 
     const renderer = new THREE.WebGLRenderer({
       canvas,
@@ -828,6 +849,34 @@ export const Mascot3D: React.FC<Mascot3DProps> = ({
     scene.add(thrusterParticles);
     thrusterParticlesRef.current = thrusterParticles;
 
+    // 6b. Hyperdrive Supersonic Warp Speed Lines
+    const warpLineCount = 48;
+    const warpPositions = new Float32Array(warpLineCount * 6);
+    for (let i = 0; i < warpLineCount; i++) {
+      const x = (Math.random() - 0.5) * 3.4;
+      const z = (Math.random() - 0.5) * 1.8;
+      const y = (Math.random() - 0.5) * 4.0;
+      const len = 0.5 + Math.random() * 0.9;
+      warpPositions[i * 6 + 0] = x;
+      warpPositions[i * 6 + 1] = y;
+      warpPositions[i * 6 + 2] = z;
+      warpPositions[i * 6 + 3] = x;
+      warpPositions[i * 6 + 4] = y - len;
+      warpPositions[i * 6 + 5] = z;
+    }
+    const warpGeo = new THREE.BufferGeometry();
+    warpGeo.setAttribute('position', new THREE.BufferAttribute(warpPositions, 3));
+    const warpMat = new THREE.LineBasicMaterial({
+      color: new THREE.Color(accentColorRef.current),
+      transparent: true,
+      opacity: 0,
+      blending: THREE.AdditiveBlending,
+    });
+    const warpLines = new THREE.LineSegments(warpGeo, warpMat);
+    scene.add(warpLines);
+    warpLinesRef.current = warpLines;
+    warpMatRef.current = warpMat;
+
     // 7. Model Root Group
     const modelRoot = new THREE.Group();
     scene.add(modelRoot);
@@ -887,6 +936,7 @@ export const Mascot3D: React.FC<Mascot3DProps> = ({
     ceiling.quaternion.setFromAxisAngle(new CANNON.Vec3(1, 0, 0), Math.PI / 2);
     ceiling.position.set(0, 1.25, 0);
     world.addBody(ceiling);
+    ceilingBodyRef.current = ceiling;
 
     // Mascot Rigid Body
     const mascotSphere = new CANNON.Sphere(0.44);
@@ -1017,8 +1067,6 @@ export const Mascot3D: React.FC<Mascot3DProps> = ({
         const initialClipName =
           moodRef.current === 'typing'
             ? 'EVE_ScanIdle_Loop'
-            : moodRef.current === 'welcome'
-            ? 'EVE_Idle_Active_Loop'
             : 'EVE_Idle_Loop01';
 
         const startAction = actionsMap[initialClipName] || actionsMap['EVE_Idle_Loop01'];
@@ -1063,16 +1111,65 @@ export const Mascot3D: React.FC<Mascot3DProps> = ({
       const dt = Math.min(clock.getDelta(), 0.05);
       const elapsedTime = clock.getElapsedTime();
 
-      // Theme color sync
+      const launchElapsed =
+        isLaunchingRef.current && launchStartTimeRef.current > 0
+          ? performance.now() - launchStartTimeRef.current
+          : 0;
+
+      // Theme color sync & dynamic eye overcharge during launch
       const activeColor = new THREE.Color(accentColorRef.current);
       if (eyeMatRef.current) {
-        eyeMatRef.current.emissive.copy(activeColor);
-        eyeMatRef.current.emissiveIntensity = 2.8 + Math.sin(elapsedTime * 3.0) * 0.4;
+        if (isLaunchingRef.current) {
+          const chargeRatio = Math.min(1, launchElapsed / 360);
+          eyeMatRef.current.emissive.copy(activeColor);
+          eyeMatRef.current.emissiveIntensity = 3.2 + chargeRatio * 7.5;
+        } else {
+          eyeMatRef.current.emissive.copy(activeColor);
+          eyeMatRef.current.emissiveIntensity = 2.8 + Math.sin(elapsedTime * 3.0) * 0.4;
+        }
       }
       rimLight.color.copy(activeColor);
       frontAccentLight.color.copy(activeColor);
       if (shockwaveMatRef.current) shockwaveMatRef.current.color.copy(activeColor);
       if (thrusterLightRef.current) thrusterLightRef.current.color.copy(activeColor);
+
+      // Camera Handheld Rumble & Cinematic Tracking during launch (without costly matrix recompilations)
+      if (cameraRef.current) {
+        const cam = cameraRef.current;
+        if (isLaunchingRef.current) {
+          const flightTime = Math.min(1, Math.max(0, (launchElapsed - 220) / 700));
+          const shake = (Math.random() - 0.5) * 0.02 * (1 - flightTime * 0.7);
+          cam.position.set(shake, 0.18 + shake * 0.5, 3.8);
+          cam.lookAt(0, Math.min(2.8, flightTime * 3.0), 0);
+        } else {
+          cam.position.set(0, 0.18, 3.8);
+          cam.lookAt(0, 0.18, 0);
+        }
+      }
+
+      // Supersonic Warp Lines Animation
+      if (warpLinesRef.current && warpMatRef.current) {
+        if (isLaunchingRef.current && launchElapsed > 220) {
+          warpMatRef.current.opacity = Math.min(0.92, (launchElapsed - 220) / 180);
+          warpMatRef.current.color.copy(activeColor);
+          const posAttr = warpLinesRef.current.geometry.attributes.position as THREE.BufferAttribute;
+          const arr = posAttr.array as Float32Array;
+          const speed = 22.0 * dt;
+          for (let i = 0; i < warpLineCount; i++) {
+            arr[i * 6 + 1] -= speed;
+            arr[i * 6 + 4] -= speed;
+            if (arr[i * 6 + 1] < -2.4) {
+              const resetY = 2.6 + Math.random() * 1.5;
+              const len = 0.5 + Math.random() * 0.9;
+              arr[i * 6 + 1] = resetY;
+              arr[i * 6 + 4] = resetY - len;
+            }
+          }
+          posAttr.needsUpdate = true;
+        } else {
+          warpMatRef.current.opacity = 0;
+        }
+      }
 
       // 1. Step Cannon-ES Physics World
       if (worldRef.current && mascotBodyRef.current) {
@@ -1091,18 +1188,39 @@ export const Mascot3D: React.FC<Mascot3DProps> = ({
           return;
         }
 
-        // Hard clamp position inside visible frustum so EVE never escapes the box
+        const hoverTargetY = Math.sin(elapsedTime * 2.2) * 0.045;
+        const hoverTargetX = 0;
+
+        // Startup stabilization: anchor peacefully at hover height for the first 650ms after load (no flying/jerking!)
+        const timeSinceReady = performance.now() - loadTimeRef.current;
+        if (timeSinceReady < 650 && !isLaunchingRef.current) {
+          body.position.set(0, hoverTargetY, 0);
+          body.velocity.set(0, 0, 0);
+          body.angularVelocity.set(0, 0, 0);
+        }
+
+        // Hard clamp position inside visible frustum so EVE never escapes the box horizontally,
+        // and allow vertical freedom during launch so she streaks into the vault!
         body.position.x = THREE.MathUtils.clamp(body.position.x, -1.12, 1.12);
-        body.position.y = THREE.MathUtils.clamp(body.position.y, -0.88, 1.2);
+        body.position.y = THREE.MathUtils.clamp(body.position.y, -0.88, isLaunchingRef.current ? 5.5 : 1.2);
         body.position.z = 0;
         body.velocity.z = 0;
         body.angularVelocity.x = 0;
         body.angularVelocity.y = 0;
 
-        if (!isDraggingRef.current) {
-          const hoverTargetY = Math.sin(elapsedTime * 2.2) * 0.045;
-          const hoverTargetX = 0;
-
+        // Continuous Smooth Rocket Acceleration on Launch vs Stable Anti-Gravity Spring
+        if (isLaunchingRef.current) {
+          if (launchElapsed < 220) {
+            body.velocity.y = -0.32;
+            body.velocity.x = 0;
+          } else {
+            const flightRatio = Math.min(1, (launchElapsed - 220) / 450);
+            const rocketThrust = 18.0 + flightRatio * 24.0;
+            body.velocity.y += rocketThrust * dt;
+            body.velocity.x *= 0.92;
+            body.angularVelocity.z = 0;
+          }
+        } else if (!isDraggingRef.current && timeSinceReady >= 650) {
           const kSpringY = 38;
           const kDampY = 10.5;
           const kSpringX = 20;
@@ -1145,9 +1263,11 @@ export const Mascot3D: React.FC<Mascot3DProps> = ({
         if (modelRootRef.current) {
           modelRootRef.current.position.set(body.position.x, body.position.y, 0);
 
-          // Combine Cannon Z-roll with smooth 3D pointer gaze
+          // Combine Cannon Z-roll with smooth 3D pointer gaze and supersonic aerodynamic tilt
           physicsRollQuat.set(0, 0, body.quaternion.z, body.quaternion.w).normalize();
-          gazeTiltEuler.set(gazePitch, gazeYaw, -gazeYaw * 0.1, 'YXZ');
+          const launchTilt = isLaunchingRef.current && launchElapsed > 220 ? -0.32 : 0;
+          gazeTiltEuler.set(gazePitch + launchTilt, gazeYaw, -gazeYaw * 0.1, 'YXZ');
+          gazeTiltQuat.setFromEuler(gazeTiltEuler);
           gazeTiltQuat.setFromEuler(gazeTiltEuler);
 
           modelRootRef.current.quaternion.copy(physicsRollQuat).multiply(gazeTiltQuat);
@@ -1156,18 +1276,19 @@ export const Mascot3D: React.FC<Mascot3DProps> = ({
         // 3. Thruster Jet Particle Exhaust Effect
         let upwardThrust = Math.max(0, -body.velocity.y * 0.15 + (body.position.y < -0.2 ? 0.6 : 0.1));
         if (isLaunchingRef.current) {
-          upwardThrust = 4.0;
+          upwardThrust = 5.5;
         }
 
         if (thrusterLightRef.current) {
           thrusterLightRef.current.position.set(body.position.x, body.position.y - 0.45, 0);
-          thrusterLightRef.current.intensity = isLaunchingRef.current ? 16 : upwardThrust * 3.5;
+          thrusterLightRef.current.intensity = isLaunchingRef.current ? 24 : upwardThrust * 3.5;
+          thrusterLightRef.current.distance = isLaunchingRef.current ? 8 : 4;
         }
 
         if (thrusterParticlesRef.current) {
           thrusterParticlesRef.current.position.set(body.position.x, body.position.y, 0);
           const mat = thrusterParticlesRef.current.material as THREE.PointsMaterial;
-          mat.opacity = isLaunchingRef.current ? 0.95 : Math.min(0.9, upwardThrust * 1.2);
+          mat.opacity = isLaunchingRef.current ? 0.98 : Math.min(0.9, upwardThrust * 1.2);
         }
 
         // 4. Ground Contact Shadow in 3D Scene
@@ -1229,6 +1350,8 @@ export const Mascot3D: React.FC<Mascot3DProps> = ({
       shockwaveMat.dispose();
       particleGeo.dispose();
       particleMat.dispose();
+      warpGeo.dispose();
+      warpMat.dispose();
     };
   }, []);
 

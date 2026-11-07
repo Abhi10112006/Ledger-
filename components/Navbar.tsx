@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import {
   Settings, HelpCircle, Download, LogOut, AlertTriangle, X, Type, Pencil,
   ChevronRight, Code2, FolderUp, ShieldAlert, Mail, ExternalLink, Sparkles, User,
-  ShieldCheck
+  ShieldCheck, Copy, Check, Trophy
 } from 'lucide-react';
 import { AppSettings } from '../types';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -10,7 +10,9 @@ import { LogoIcon } from './Logo';
 import { resetDB } from '../utils/db';
 import { useVirtualKeyboard } from '../hooks/useVirtualKeyboard';
 import { useHaptics } from '../hooks/useHaptics';
+import { useBackHandler } from '../utils/backHandler';
 import { APP_VERSION } from '../utils/version';
+import Mascot3D from './Mascot3D';
 
 interface Props {
   settings: AppSettings;
@@ -43,9 +45,17 @@ const Navbar: React.FC<Props> = ({
 }) => {
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [showCreditsModal, setShowCreditsModal] = useState(false);
+  const [devCreditCelebrate, setDevCreditCelebrate] = useState(0);
+  const [copiedEmail, setCopiedEmail] = useState(false);
   const [isEditingName, setIsEditingName] = useState(false);
   const [tempName, setTempName] = useState(settings.userName);
   const haptic = useHaptics();
+
+  // Android hardware/gesture back button handler for Developer Credit Modal
+  useBackHandler(showCreditsModal, () => {
+    setShowCreditsModal(false);
+    return true;
+  });
 
   const kbName = useVirtualKeyboard('text', setTempName);
 
@@ -476,11 +486,26 @@ const Navbar: React.FC<Props> = ({
                         <Code2 size={18} />
                       </div>
                       <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: 15, fontWeight: 600, color: '#FFFFFF', letterSpacing: '-0.01em' }}>
-                          Developer Credit
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <span style={{ fontSize: 15, fontWeight: 600, color: '#FFFFFF', letterSpacing: '-0.01em' }}>
+                            Developer Credit
+                          </span>
+                          <span
+                            style={{
+                              fontSize: 10,
+                              fontWeight: 700,
+                              padding: '1px 6px',
+                              borderRadius: 6,
+                              background: `${activeTheme.hex}25`,
+                              color: activeTheme.hex,
+                              letterSpacing: '0.02em',
+                            }}
+                          >
+                            3D EVE ✨
+                          </span>
                         </div>
                         <div style={{ fontSize: 12, color: 'rgba(235, 235, 245, 0.45)', marginTop: 1 }}>
-                          Developed by Abhi
+                          Architect: Abhinav Yaduwanshi
                         </div>
                       </div>
                       <ChevronRight size={18} style={{ color: 'rgba(235, 235, 245, 0.3)' }} />
@@ -699,83 +724,303 @@ const Navbar: React.FC<Props> = ({
         )}
       </AnimatePresence>
 
-      {/* ─── DEVELOPER CREDIT MODAL ─── */}
+      {/* ─── CINEMATIC DEVELOPER CREDIT MODAL WITH 3D MASCOT ─── */}
       <AnimatePresence>
         {showCreditsModal && (
-          <div style={{ position: 'fixed', inset: 0, zIndex: 3000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+          <div style={{ position: 'fixed', inset: 0, zIndex: 3000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px 12px' }}>
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setShowCreditsModal(false)}
-              style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(8px)' }}
+              style={{
+                position: 'fixed',
+                inset: 0,
+                background: 'rgba(2, 4, 8, 0.84)',
+                backdropFilter: 'blur(16px)',
+                WebkitBackdropFilter: 'blur(16px)',
+              }}
             />
 
             <motion.div
-              initial={{ scale: 0.92, opacity: 0, y: 14 }}
+              initial={{ scale: 0.94, opacity: 0, y: 16 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
-              exit={{ scale: 0.92, opacity: 0, y: 14 }}
-              transition={{ type: 'spring', stiffness: 320, damping: 28 }}
+              exit={{ scale: 0.94, opacity: 0, y: 16 }}
+              transition={{ type: 'spring', stiffness: 360, damping: 30 }}
               style={{
                 position: 'relative',
                 width: '100%',
-                maxWidth: 380,
-                background: sheetBg,
-                border: '0.5px solid rgba(255, 255, 255, 0.15)',
-                borderRadius: 24,
-                boxShadow: '0 20px 60px rgba(0,0,0,0.8)',
-                padding: '24px 20px',
+                maxWidth: 390,
+                background: 'linear-gradient(180deg, rgba(16, 20, 30, 0.96) 0%, rgba(8, 10, 16, 0.98) 100%)',
+                border: `1px solid ${activeTheme.hex}35`,
+                borderRadius: 28,
+                boxShadow: `0 24px 70px rgba(0,0,0,0.85), 0 0 50px ${activeTheme.hex}20`,
+                padding: '20px 18px 22px',
                 textAlign: 'center',
-                fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Text", Inter, sans-serif',
+                fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", Inter, sans-serif',
                 zIndex: 10,
+                maxHeight: '92vh',
+                overflowY: 'auto',
+                scrollbarWidth: 'none',
               }}
             >
+              {/* Ambient radial glow in background */}
               <div
                 style={{
-                  width: 56,
-                  height: 56,
-                  borderRadius: 28,
-                  margin: '0 auto 14px',
-                  background: `linear-gradient(135deg, ${activeTheme.hex}35, rgba(255,255,255,0.08))`,
-                  border: `1.5px solid ${activeTheme.hex}60`,
+                  position: 'absolute',
+                  top: '-15%',
+                  left: '50%',
+                  transform: 'translateX(-50%)',
+                  width: '85%',
+                  height: '45%',
+                  borderRadius: '50%',
+                  background: `radial-gradient(circle, ${activeTheme.hex}32 0%, transparent 70%)`,
+                  filter: 'blur(50px)',
+                  pointerEvents: 'none',
+                }}
+              />
+
+              {/* Close Button at top-right */}
+              <button
+                type="button"
+                onClick={() => {
+                  haptic('light');
+                  setShowCreditsModal(false);
+                }}
+                style={{
+                  position: 'absolute',
+                  top: 14,
+                  right: 14,
+                  width: 32,
+                  height: 32,
+                  borderRadius: 16,
+                  background: 'rgba(255,255,255,0.06)',
+                  border: '0.5px solid rgba(255,255,255,0.12)',
+                  color: 'rgba(255,255,255,0.6)',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  color: activeTheme.hex,
+                  cursor: 'pointer',
+                  zIndex: 25,
                 }}
               >
-                <Code2 size={26} />
+                <X size={16} />
+              </button>
+
+              {/* Holographic Header Pill */}
+              <div
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  padding: '4px 12px',
+                  borderRadius: 20,
+                  background: `${activeTheme.hex}18`,
+                  border: `0.5px solid ${activeTheme.hex}44`,
+                  marginBottom: 4,
+                }}
+              >
+                <Sparkles size={12} color={activeTheme.hex} />
+                <span
+                  style={{
+                    fontSize: 10.5,
+                    fontWeight: 700,
+                    letterSpacing: '0.08em',
+                    textTransform: 'uppercase',
+                    color: activeTheme.hex,
+                  }}
+                >
+                  SYSTEM ARCHITECT CREDITS
+                </span>
               </div>
 
-              <h3 style={{ margin: 0, fontSize: 19, fontWeight: 700, color: '#FFFFFF', letterSpacing: '-0.02em' }}>
-                Abhinav Yaduwanshi
-              </h3>
-              <p style={{ margin: '4px 0 16px 0', fontSize: 12, color: 'rgba(235, 235, 245, 0.45)' }}>
-                Architect & Developer • ID: ABHI_1289
-              </p>
+              {/* Interactive 3D Mascot hovering in calm idle mode with live physics */}
+              <div style={{ width: '100%', margin: '-14px 0 -12px', display: 'flex', justifyContent: 'center' }}>
+                <Mascot3D
+                  mood="idle"
+                  accentColor={activeTheme.hex}
+                  celebrateTrigger={devCreditCelebrate}
+                  isDeveloperCredit={true}
+                  onTap={() => {
+                    haptic('selection');
+                    setDevCreditCelebrate((c) => c + 1);
+                  }}
+                />
+              </div>
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 20 }}>
-                <a
-                  href="mailto:abhiyaduvanshi@zohomail.in"
+              {/* Developer Identity Card */}
+              <div style={{ marginTop: 2, marginBottom: 14 }}>
+                <h3
+                  style={{
+                    margin: 0,
+                    fontSize: 21,
+                    fontWeight: 700,
+                    letterSpacing: '-0.02em',
+                    color: '#ffffff',
+                    lineHeight: 1.2,
+                  }}
+                >
+                  Abhinav Yaduwanshi
+                </h3>
+
+                <div
                   style={{
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
                     gap: 8,
-                    padding: '12px 14px',
-                    borderRadius: 14,
-                    background: cardBg,
-                    border: cardBorder,
-                    color: '#FFFFFF',
-                    textDecoration: 'none',
-                    fontSize: 13,
+                    marginTop: 6,
+                  }}
+                >
+                  <span
+                    style={{
+                      fontSize: 11,
+                      fontWeight: 600,
+                      color: 'rgba(235, 235, 245, 0.65)',
+                      letterSpacing: '0.02em',
+                    }}
+                  >
+                    Architect & Lead Developer
+                  </span>
+                  <span
+                    style={{
+                      fontSize: 10,
+                      fontFamily: 'monospace',
+                      padding: '2px 7px',
+                      borderRadius: 6,
+                      background: 'rgba(255, 255, 255, 0.08)',
+                      border: '0.5px solid rgba(255, 255, 255, 0.14)',
+                      color: '#ffffff',
+                      fontWeight: 700,
+                    }}
+                  >
+                    ID: ABHI_1289
+                  </span>
+                </div>
+              </div>
+
+              {/* Feature telemetry chips */}
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'center',
+                  flexWrap: 'wrap',
+                  gap: 6,
+                  marginBottom: 16,
+                }}
+              >
+                <span
+                  style={{
+                    fontSize: 10,
+                    padding: '3px 8px',
+                    borderRadius: 8,
+                    background: 'rgba(255,255,255,0.04)',
+                    border: '0.5px solid rgba(255,255,255,0.08)',
+                    color: 'rgba(235, 235, 245, 0.6)',
                     fontWeight: 500,
                   }}
                 >
-                  <Mail size={16} color={activeTheme.hex} />
-                  <span>abhiyaduvanshi@zohomail.in</span>
-                </a>
+                  🛡️ 100% Offline Vault
+                </span>
+                <span
+                  style={{
+                    fontSize: 10,
+                    padding: '3px 8px',
+                    borderRadius: 8,
+                    background: 'rgba(255,255,255,0.04)',
+                    border: '0.5px solid rgba(255,255,255,0.08)',
+                    color: 'rgba(235, 235, 245, 0.6)',
+                    fontWeight: 500,
+                  }}
+                >
+                  🔒 AES-256 Encrypted
+                </span>
+                <span
+                  style={{
+                    fontSize: 10,
+                    padding: '3px 8px',
+                    borderRadius: 8,
+                    background: 'rgba(255,255,255,0.04)',
+                    border: '0.5px solid rgba(255,255,255,0.08)',
+                    color: 'rgba(235, 235, 245, 0.6)',
+                    fontWeight: 500,
+                  }}
+                >
+                  ✨ Pixar 3D Engine
+                </span>
+              </div>
 
+              {/* Links & Interactive Action Buttons */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 9, marginBottom: 16 }}>
+                {/* Email with 1-tap Copy */}
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: '11px 14px',
+                    borderRadius: 14,
+                    background: cardBg,
+                    border: cardBorder,
+                  }}
+                >
+                  <a
+                    href="mailto:abhiyaduvanshi@zohomail.in"
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 9,
+                      color: '#ffffff',
+                      textDecoration: 'none',
+                      fontSize: 12.5,
+                      fontWeight: 500,
+                      minWidth: 0,
+                    }}
+                  >
+                    <Mail size={16} color={activeTheme.hex} />
+                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      abhiyaduvanshi@zohomail.in
+                    </span>
+                  </a>
+
+                  <motion.button
+                    whileTap={{ scale: 0.92 }}
+                    type="button"
+                    onClick={() => {
+                      haptic('success');
+                      navigator.clipboard.writeText('abhiyaduvanshi@zohomail.in');
+                      setCopiedEmail(true);
+                      setTimeout(() => setCopiedEmail(false), 2200);
+                      window.dispatchEvent(
+                        new CustomEvent('abhi-ledger-toast', {
+                          detail: { message: 'Email copied to clipboard! 📋', type: 'success' },
+                        })
+                      );
+                    }}
+                    style={{
+                      background: copiedEmail ? `${activeTheme.hex}25` : 'rgba(255, 255, 255, 0.06)',
+                      border: copiedEmail
+                        ? `1px solid ${activeTheme.hex}`
+                        : '0.5px solid rgba(255, 255, 255, 0.12)',
+                      borderRadius: 8,
+                      padding: '5px 8px',
+                      color: copiedEmail ? activeTheme.hex : 'rgba(255, 255, 255, 0.7)',
+                      fontSize: 11,
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 4,
+                      flexShrink: 0,
+                      marginLeft: 8,
+                    }}
+                  >
+                    {copiedEmail ? <Check size={12} strokeWidth={3} /> : <Copy size={12} />}
+                    <span>{copiedEmail ? 'Copied' : 'Copy'}</span>
+                  </motion.button>
+                </div>
+
+                {/* Visit Web App Link */}
                 <a
                   href="https://abhis-ledger.vercel.app/"
                   target="_blank"
@@ -787,23 +1032,57 @@ const Navbar: React.FC<Props> = ({
                     gap: 8,
                     padding: '12px 14px',
                     borderRadius: 14,
-                    background: cardBg,
-                    border: cardBorder,
+                    background: `${activeTheme.hex}14`,
+                    border: `1px solid ${activeTheme.hex}38`,
                     color: activeTheme.hex,
                     textDecoration: 'none',
                     fontSize: 13,
                     fontWeight: 600,
+                    boxShadow: `0 2px 12px ${activeTheme.hex}15`,
                   }}
                 >
-                  <Sparkles size={16} />
-                  <span>Visit Web App</span>
+                  <Sparkles size={15} />
+                  <span>Visit Web Application</span>
                   <ExternalLink size={13} style={{ opacity: 0.6 }} />
                 </a>
+
+                {/* Interactive Cheer/Applaud Button */}
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.96 }}
+                  type="button"
+                  onClick={() => {
+                    haptic('success');
+                    setDevCreditCelebrate((c) => c + 1);
+                  }}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 8,
+                    padding: '11px 14px',
+                    borderRadius: 14,
+                    background: 'rgba(255, 255, 255, 0.05)',
+                    border: '0.5px solid rgba(255, 255, 255, 0.12)',
+                    color: '#ffffff',
+                    fontSize: 12.5,
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                  }}
+                >
+                  <Trophy size={14} color="#fbbf24" />
+                  <span>Send EVE Cheer to Abhi 👏</span>
+                </motion.button>
               </div>
 
-              <button
+              {/* Close Button */}
+              <motion.button
+                whileTap={{ scale: 0.97 }}
                 type="button"
-                onClick={() => setShowCreditsModal(false)}
+                onClick={() => {
+                  haptic('light');
+                  setShowCreditsModal(false);
+                }}
                 style={{
                   width: '100%',
                   height: 46,
@@ -814,10 +1093,11 @@ const Navbar: React.FC<Props> = ({
                   fontSize: 15,
                   fontWeight: 600,
                   cursor: 'pointer',
+                  boxShadow: '0 6px 20px rgba(255, 255, 255, 0.15)',
                 }}
               >
                 Done
-              </button>
+              </motion.button>
             </motion.div>
           </div>
         )}

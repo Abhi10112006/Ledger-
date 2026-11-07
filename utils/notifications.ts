@@ -2,6 +2,7 @@ import { LocalNotifications } from '@capacitor/local-notifications';
 import { registerPlugin, Capacitor } from '@capacitor/core';
 import { VersionInfo } from './version';
 import { Transaction } from '../types';
+import { normalizePhoneNumber } from './phoneUtils';
 
 export const CHANNEL_ID = 'debt_reminders';
 export const CHANNEL_APP_UPDATES = 'app_updates';
@@ -105,6 +106,8 @@ export const scheduleDebtReminder = async (
   try {
     await initNotificationChannels();
 
+    const normalizedPhone = friendPhone ? (normalizePhoneNumber(friendPhone, currency).e164 || friendPhone.trim()) : undefined;
+
     // 1. NATIVE ANDROID: Use Hardware AlarmManager with Exact Wakeup & Boot Recovery
     if (Capacitor.isNativePlatform()) {
       try {
@@ -114,7 +117,7 @@ export const scheduleDebtReminder = async (
           amount,
           currency,
           returnDate: dateStr,
-          friendPhone: friendPhone?.trim() || undefined
+          friendPhone: normalizedPhone
         });
         console.log(`[NativeReminders] Scheduled ${res.scheduledCount} multi-stage reminders for tx ${txId}`);
         return;
@@ -152,7 +155,7 @@ export const scheduleDebtReminder = async (
         body: `Payment of ${formattedAmount} from ${name} is due in 4 days (${dateFormatted}).`,
         channelId: CHANNEL_ID,
         schedule: { at: dMinus4, allowWhileIdle: true },
-        extra: { txId, friendPhone }
+        extra: { txId, friendPhone: normalizedPhone }
       });
     }
 
@@ -165,7 +168,7 @@ export const scheduleDebtReminder = async (
         body: `${name}'s settlement of ${formattedAmount} is due in 2 days (${dateFormatted}).`,
         channelId: CHANNEL_ID,
         schedule: { at: dMinus2, allowWhileIdle: true },
-        extra: { txId, friendPhone }
+        extra: { txId, friendPhone: normalizedPhone }
       });
     }
 
@@ -178,7 +181,7 @@ export const scheduleDebtReminder = async (
         body: `Tomorrow is the settlement date for ${name} (${formattedAmount}).`,
         channelId: CHANNEL_ID,
         schedule: { at: dMinus1, allowWhileIdle: true },
-        extra: { txId, friendPhone }
+        extra: { txId, friendPhone: normalizedPhone }
       });
     }
 
@@ -191,7 +194,7 @@ export const scheduleDebtReminder = async (
         body: `${name} has a scheduled payment of ${formattedAmount} due today! Tap to check details or call.`,
         channelId: CHANNEL_ID,
         schedule: { at: dDueMorning, allowWhileIdle: true },
-        extra: { txId, friendPhone }
+        extra: { txId, friendPhone: normalizedPhone }
       });
     }
 
@@ -204,7 +207,7 @@ export const scheduleDebtReminder = async (
         body: `Did ${name} complete their ${formattedAmount} settlement today? Tap to record payment.`,
         channelId: CHANNEL_ID,
         schedule: { at: dDueEvening, allowWhileIdle: true },
-        extra: { txId, friendPhone }
+        extra: { txId, friendPhone: normalizedPhone }
       });
     }
 
@@ -239,7 +242,7 @@ export const scheduleDebtReminder = async (
           body,
           channelId: CHANNEL_ID,
           schedule: { at: dOverdue, allowWhileIdle: true },
-          extra: { txId, friendPhone, daysLate }
+          extra: { txId, friendPhone: normalizedPhone, daysLate }
         });
       }
     }

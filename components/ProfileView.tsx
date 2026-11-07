@@ -4,6 +4,7 @@ import { ArrowUpRight, ArrowDownLeft, AlertTriangle, QrCode } from 'lucide-react
 import { Transaction, AppSettings } from '../types';
 import { generateStatementPDF } from '../utils/pdfGenerator';
 import { generateShareCard, generateReceiptCard, generateLoanCard } from '../utils/imageGenerator';
+import { normalizePhoneNumber } from '../utils/phoneUtils';
 import { motion, AnimatePresence } from 'framer-motion';
 import { LocalNotifications } from '@capacitor/local-notifications';
 import { useHaptics } from '../hooks/useHaptics';
@@ -108,7 +109,8 @@ const ProfileView: React.FC<Props> = ({
   // --- ACTIONS ---
 
   const handleShareMessage = async (platform: 'sms' | 'whatsapp') => {
-    const phoneNumber = account.transactions.find(t => t.friendPhone)?.friendPhone;
+    const rawPhone = account.transactions.find(t => t.friendPhone && t.friendPhone.trim().length > 0)?.friendPhone;
+    const normalized = normalizePhoneNumber(rawPhone, settings.currency);
     const amountStr = `${settings.currency}${Math.round(account.totalExposure)}`;
 
     let message = `Hi ${account.name}, please pay your due of ${amountStr}.`;
@@ -173,8 +175,8 @@ const ProfileView: React.FC<Props> = ({
 
     // 2. SMS: Share TEXT ONLY (Direct Intent)
     if (platform === 'sms') {
-      const link = phoneNumber
-        ? `sms:${phoneNumber}?body=${encodeURIComponent(message)}`
+      const link = normalized.e164
+        ? `sms:${normalized.e164}?body=${encodeURIComponent(message)}`
         : `sms:?body=${encodeURIComponent(message)}`;
       window.location.href = link;
     }
