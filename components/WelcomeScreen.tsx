@@ -30,6 +30,10 @@ const WelcomeScreen: React.FC<Props> = ({
   const haptic = useHaptics();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Capture at mount time whether user was ALREADY onboarded BEFORE this session
+  // This ensures a first-time user who saves their name during this session still sees "Welcome," not "Welcome Back,"
+  const wasAlreadyOnboardedRef = useRef(Boolean(settings.hasOnboarded || hasTransactions));
+
   // Check if user has a custom name (not default "Ledger" or "User")
   const hasCustomName = Boolean(
     settings.userName &&
@@ -53,6 +57,7 @@ const WelcomeScreen: React.FC<Props> = ({
   const [justSavedName, setJustSavedName] = useState(false);
   const [celebrateCount, setCelebrateCount] = useState(0);
   const [cardBounceY, setCardBounceY] = useState(0);
+  const [isLaunching, setIsLaunching] = useState(false);
 
   const accentColor = activeTheme?.hex || '#10b981';
 
@@ -253,8 +258,16 @@ const WelcomeScreen: React.FC<Props> = ({
       {/* --- MAIN GLASS CONTAINER --- */}
       <motion.div
         initial={{ opacity: 0, y: 18 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+        animate={{
+          opacity: isLaunching ? 0 : 1,
+          y: isLaunching ? -14 : 0,
+          scale: isLaunching ? 0.96 : 1,
+          filter: isLaunching ? 'blur(6px)' : 'blur(0px)',
+        }}
+        transition={{
+          duration: isLaunching ? 0.65 : 0.6,
+          ease: [0.16, 1, 0.3, 1],
+        }}
         className="w-full max-w-[360px] px-6 relative z-10 flex flex-col items-center"
       >
         {/* Brand Bar / Logo Badge */}
@@ -307,6 +320,13 @@ const WelcomeScreen: React.FC<Props> = ({
             celebrateTrigger={celebrateCount}
             isRestoring={isRestoring}
             hasCustomName={hasCustomName}
+            isLaunching={isLaunching}
+            onLaunchComplete={() => {
+              if (typeof window !== 'undefined') {
+                sessionStorage.removeItem('abhi_ledger_is_logged_out');
+              }
+              onLogin();
+            }}
             onTap={() => haptic('selection')}
             onPhysicsBounce={(intensity) => {
               setCardBounceY(Math.min(5, intensity * 0.75));
@@ -342,7 +362,7 @@ const WelcomeScreen: React.FC<Props> = ({
                     marginBottom: 5,
                   }}
                 >
-                  {isReturningSession ? 'Welcome Back,' : 'Welcome,'}{' '}
+                  {wasAlreadyOnboardedRef.current ? 'Welcome Back,' : 'Welcome,'}{' '}
                   <span style={{ color: accentColor }}>{cleanDisplayName}</span>
                 </h1>
                 <p
@@ -375,7 +395,7 @@ const WelcomeScreen: React.FC<Props> = ({
                     marginBottom: 5,
                   }}
                 >
-                  {isReturningSession ? 'Welcome Back' : 'Welcome to Your Vault'}
+                  {wasAlreadyOnboardedRef.current ? 'Welcome Back' : 'Welcome to Your Vault'}
                 </h1>
                 <p
                   style={{
@@ -493,18 +513,8 @@ const WelcomeScreen: React.FC<Props> = ({
                   )}
                 </div>
 
-                <div className="flex items-center justify-between px-1.5 mt-1.5">
-                  <p
-                    style={{
-                      margin: 0,
-                      fontSize: 11,
-                      color: 'rgba(235, 235, 245, 0.4)',
-                    }}
-                  >
-                    Press <kbd className="px-1 py-0.5 rounded bg-white/10 text-white/70">Enter</kbd> to save name
-                  </p>
-
-                  {hasCustomName && (
+                {hasCustomName && (
+                  <div className="flex justify-end px-1.5 mt-1.5">
                     <button
                       type="button"
                       onClick={() => setIsEditingName(false)}
@@ -512,8 +522,8 @@ const WelcomeScreen: React.FC<Props> = ({
                     >
                       Cancel
                     </button>
-                  )}
-                </div>
+                  </div>
+                )}
               </motion.form>
             ) : (
               /* Already saved name state */
@@ -584,12 +594,11 @@ const WelcomeScreen: React.FC<Props> = ({
           whileHover={{ scale: 1.01 }}
           whileTap={{ scale: 0.96 }}
           type="button"
+          disabled={isLaunching}
           onClick={() => {
+            if (isLaunching) return;
             haptic('medium');
-            if (typeof window !== 'undefined') {
-              sessionStorage.removeItem('abhi_ledger_is_logged_out');
-            }
-            onLogin();
+            setIsLaunching(true);
           }}
           style={{
             width: '100%',

@@ -29,6 +29,8 @@ interface Mascot3DProps {
   isRestoring?: boolean;
   hasCustomName?: boolean;
   onPhysicsBounce?: (intensity: number) => void;
+  isLaunching?: boolean;
+  onLaunchComplete?: () => void;
 }
 
 interface FloatingParticle {
@@ -51,6 +53,8 @@ export const Mascot3D: React.FC<Mascot3DProps> = ({
   isRestoring = false,
   hasCustomName = false,
   onPhysicsBounce,
+  isLaunching = false,
+  onLaunchComplete,
 }) => {
   const haptic = useHaptics();
 
@@ -112,6 +116,16 @@ export const Mascot3D: React.FC<Mascot3DProps> = ({
   const worldRef = useRef<CANNON.World | null>(null);
   const mascotBodyRef = useRef<CANNON.Body | null>(null);
   const bounceShockwaveAnimRef = useRef(0);
+  const isPhysicsReadyRef = useRef(false);
+  const loadTimeRef = useRef(0);
+
+  // Launch Sequence Refs
+  const isLaunchingRef = useRef(false);
+  isLaunchingRef.current = isLaunching;
+
+  // Speech & Timer Refs (Guaranteed no-stuck speech)
+  const lastSpeechSetTimeRef = useRef<number>(0);
+  const speechClearTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Time of Day determination for intelligent greetings
   const timeGreeting = useMemo(() => {
@@ -122,6 +136,25 @@ export const Mascot3D: React.FC<Mascot3DProps> = ({
     return { time: 'night', icon: '🌙' };
   }, []);
 
+  // Helper to set trick speech and track when it was set with guaranteed auto-clear
+  const setTrickSpeechTracked = (text: string | null, durationMs = 3200) => {
+    if (speechClearTimerRef.current) {
+      clearTimeout(speechClearTimerRef.current);
+      speechClearTimerRef.current = null;
+    }
+    setTrickSpeech(text);
+    if (text !== null) {
+      lastSpeechSetTimeRef.current = performance.now();
+      speechClearTimerRef.current = setTimeout(() => {
+        setTrickSpeech(null);
+        lastSpeechSetTimeRef.current = 0;
+        speechClearTimerRef.current = null;
+      }, durationMs);
+    } else {
+      lastSpeechSetTimeRef.current = 0;
+    }
+  };
+
   // Unified timer reset so speech bubbles and states NEVER collide or get stuck
   const scheduleResetToIdle = (delayMs = 3500) => {
     if (trickTimeoutRef.current) {
@@ -130,7 +163,7 @@ export const Mascot3D: React.FC<Mascot3DProps> = ({
     trickTimeoutRef.current = setTimeout(() => {
       setCurrentTrick('idle');
       currentTrickRef.current = 'idle';
-      setTrickSpeech(null);
+      setTrickSpeechTracked(null);
       returnToStateLoop();
     }, delayMs);
   };
@@ -276,7 +309,7 @@ export const Mascot3D: React.FC<Mascot3DProps> = ({
           'Directive: Wink and keep all transactions 100% offline! 🕶️',
           'Affirmative! Everything is encrypted and private. ✨',
         ];
-        setTrickSpeech(winkQuotes[Math.floor(Math.random() * winkQuotes.length)]);
+        setTrickSpeechTracked(winkQuotes[Math.floor(Math.random() * winkQuotes.length)], 3200);
         spawnParticles('star');
         crossfadeToAction('EVE_Idle_Wink', false, 0.2, () => returnToStateLoop());
         break;
@@ -288,7 +321,7 @@ export const Mascot3D: React.FC<Mascot3DProps> = ({
           'Wheee! Real zero-gravity pirouette! 🛸💫',
           'Scanning all angles... Zero cloud trackers detected! 🤖',
         ];
-        setTrickSpeech(spinQuotes[Math.floor(Math.random() * spinQuotes.length)]);
+        setTrickSpeechTracked(spinQuotes[Math.floor(Math.random() * spinQuotes.length)], 3200);
         spawnParticles('star');
         crossfadeToAction('EVE_Idle_Active_Spin', false, 0.2, () => returnToStateLoop());
         break;
@@ -300,7 +333,7 @@ export const Mascot3D: React.FC<Mascot3DProps> = ({
           'Supersonic flight maneuver! All systems nominal! 🌌',
           'Ten out of ten smooth landing! 🏆',
         ];
-        setTrickSpeech(flipQuotes[Math.floor(Math.random() * flipQuotes.length)]);
+        setTrickSpeechTracked(flipQuotes[Math.floor(Math.random() * flipQuotes.length)], 3200);
         spawnParticles('star');
         crossfadeToAction('EVE_FlyForwardBoost_Start', false, 0.2, () => returnToStateLoop());
         break;
@@ -312,7 +345,7 @@ export const Mascot3D: React.FC<Mascot3DProps> = ({
           'Directive: Celebrate financial sovereignty! 🪩🎉',
           'Woohoo! We are going to build immense wealth together! 🌟',
         ];
-        setTrickSpeech(partyQuotes[Math.floor(Math.random() * partyQuotes.length)]);
+        setTrickSpeechTracked(partyQuotes[Math.floor(Math.random() * partyQuotes.length)], 3600);
         spawnParticles('party');
         crossfadeToAction('EVE_MultiPlayer_Win_Start', false, 0.2, () => {
           crossfadeToAction('EVE_MultiPlayer_Win_Idle', true, 0.3);
@@ -326,7 +359,7 @@ export const Mascot3D: React.FC<Mascot3DProps> = ({
           'Diagnostic check: Offline database is in pristine condition! ⚡',
           'Direct sensor scan: No third-party servers detected! 💎',
         ];
-        setTrickSpeech(scanQuotes[Math.floor(Math.random() * scanQuotes.length)]);
+        setTrickSpeechTracked(scanQuotes[Math.floor(Math.random() * scanQuotes.length)], 3200);
         crossfadeToAction('EVE_ScanIdle_Loop', true, 0.25);
         break;
       }
@@ -337,7 +370,7 @@ export const Mascot3D: React.FC<Mascot3DProps> = ({
           'Directive: Awaiting your input! What shall we log? ✨',
           'Curious sensors active! Ready when you are! 👀',
         ];
-        setTrickSpeech(curiousQuotes[Math.floor(Math.random() * curiousQuotes.length)]);
+        setTrickSpeechTracked(curiousQuotes[Math.floor(Math.random() * curiousQuotes.length)], 3200);
         crossfadeToAction('EVE_Idle_Active_PitchUp_L', false, 0.25, () => returnToStateLoop());
         break;
       }
@@ -348,7 +381,7 @@ export const Mascot3D: React.FC<Mascot3DProps> = ({
           'Boom! High-five! 🖐️⚡ We are going to crush your financial goals!',
           'Affirmative! Solid partnership locked in! 🚀',
         ];
-        setTrickSpeech(highfiveQuotes[Math.floor(Math.random() * highfiveQuotes.length)]);
+        setTrickSpeechTracked(highfiveQuotes[Math.floor(Math.random() * highfiveQuotes.length)], 3200);
         spawnParticles('star');
         crossfadeToAction('EVE_BrakeFast', false, 0.2, () => returnToStateLoop());
         break;
@@ -360,7 +393,7 @@ export const Mascot3D: React.FC<Mascot3DProps> = ({
           'Directive: Maximum friendship mode activated! ❤️',
           'You are the best vault keeper in the galaxy! ✨',
         ];
-        setTrickSpeech(heartQuotes[Math.floor(Math.random() * heartQuotes.length)]);
+        setTrickSpeechTracked(heartQuotes[Math.floor(Math.random() * heartQuotes.length)], 3200);
         spawnParticles('heart');
         crossfadeToAction('EVE_Idle_Active_Loop', true, 0.25);
         break;
@@ -386,7 +419,7 @@ export const Mascot3D: React.FC<Mascot3DProps> = ({
         `Saved locally with encryption, ${clean}! Let's build that wealth! 💎`,
         `Welcome aboard, ${clean}! Your offline profile is set! 🌟`,
       ];
-      setTrickSpeech(celebrationQuotes[Math.floor(Math.random() * celebrationQuotes.length)]);
+      setTrickSpeechTracked(celebrationQuotes[Math.floor(Math.random() * celebrationQuotes.length)], 4000);
 
       crossfadeToAction('EVE_MultiPlayer_Win_Start', false, 0.25, () => {
         crossfadeToAction('EVE_MultiPlayer_Win_Idle', true, 0.3);
@@ -396,17 +429,58 @@ export const Mascot3D: React.FC<Mascot3DProps> = ({
     }
   }, [celebrateTrigger]);
 
+  // "Launch into Vault" exit sequence
+  useEffect(() => {
+    if (!isLaunching) return;
+
+    // 1. Play the supersonic boost animation
+    crossfadeToAction('EVE_FlyForwardBoost_Start', false, 0.15);
+
+    // 2. 350ms delay: thrusters ignite with maximum intensity and apply launch boost
+    const thrusterTimer = setTimeout(() => {
+      if (mascotBodyRef.current) {
+        const body = mascotBodyRef.current;
+        isDraggingRef.current = true; // disable hover spring
+        body.velocity.set(0, 14, 0);
+        body.angularVelocity.set(0, 0, 0);
+      }
+      haptic('heavy');
+      spawnParticles('star');
+    }, 350);
+
+    // 3. 950ms total: signal launch completion to transition to dashboard
+    const completeTimer = setTimeout(() => {
+      if (onLaunchComplete) onLaunchComplete();
+    }, 950);
+
+    return () => {
+      clearTimeout(thrusterTimer);
+      clearTimeout(completeTimer);
+    };
+  }, [isLaunching]);
+
   // React to mood changes (typing, asking, welcome, idle)
   useEffect(() => {
     if (currentTrickRef.current !== 'idle') return;
     returnToStateLoop();
   }, [mood]);
 
-  // Periodic idle thought rotation
+  // Periodic dynamic scenario dialogue rotation with strict anti-stuck failsafe
   useEffect(() => {
     const idleInterval = setInterval(() => {
       setIdleThoughtIndex((prev) => prev + 1);
-    }, 12000);
+
+      // Strict failsafe: if any trickSpeech has been displaying for more than 4 seconds, clear it immediately
+      if (lastSpeechSetTimeRef.current > 0) {
+        const elapsed = performance.now() - lastSpeechSetTimeRef.current;
+        if (elapsed > 3800) {
+          setTrickSpeechTracked(null);
+          setCurrentTrick('idle');
+          currentTrickRef.current = 'idle';
+          returnToStateLoop();
+        }
+      }
+    }, 6000);
     return () => clearInterval(idleInterval);
   }, []);
 
@@ -529,7 +603,7 @@ export const Mascot3D: React.FC<Mascot3DProps> = ({
           'Mayday! Brace for impact on the login card! 💥',
           'Gravity test in progress! Hold onto your coins! 🛸',
         ];
-        setTrickSpeech(fallQuotes[Math.floor(Math.random() * fallQuotes.length)]);
+        setTrickSpeechTracked(fallQuotes[Math.floor(Math.random() * fallQuotes.length)], 3000);
         crossfadeToAction('EVE_BrakeFast', false, 0.15, () => returnToStateLoop());
         scheduleResetToIdle(3200);
       } else if (Math.abs(dx) > 60 && Math.abs(velX) > 2.5) {
@@ -552,9 +626,12 @@ export const Mascot3D: React.FC<Mascot3DProps> = ({
   };
 
   // =========================================================================
-  // INTELLIGENT DIALOGUE ENGINE
+  // INTELLIGENT DIALOGUE ENGINE (Scenario-Aware & Dynamically Rotating)
   // =========================================================================
   const getSpeechText = () => {
+    if (isLaunching) {
+      return 'Thrusters engaged! Launching into your encrypted vault! 🚀✨';
+    }
     if (isActivelyDragging) {
       return 'Wheeeee! Zero-gravity flight mode engaged! 🛸✨';
     }
@@ -566,7 +643,7 @@ export const Mascot3D: React.FC<Mascot3DProps> = ({
     }
     if (mood === 'celebrate') {
       const clean = userName && userName.trim() ? userName.trim().split(' ')[0] : 'friend';
-      return `Directive complete! Name saved, ${clean}. Press Open Dashboard whenever you're ready! ⭐`;
+      return `Directive complete! Saved, ${clean}. Tap Open Dashboard whenever you're ready! ⭐`;
     }
 
     const cleanTyped = userName.trim();
@@ -592,41 +669,37 @@ export const Mascot3D: React.FC<Mascot3DProps> = ({
           `Directive: All financial records encrypted and intact. Ready when you are, ${first}! 🚀`,
           `Welcome back, ${first}! Zero cloud leaks, 100% private. 🛡️`,
           `Look who is back! Systems nominal, ${first}. Let's check the ledger! 💎`,
+          `All biometric & local vaults secure. Ready to manage expenses, ${first}? ✨`,
         ];
         return returningQuotes[idleThoughtIndex % returningQuotes.length];
       }
       const genericWelcomeQuotes = [
         'Welcome back! Your offline vault is safe and sound. 🔒',
         'Welcome back! All records are encrypted and ready. 🛡️',
+        'Directive: Vault secured with AES-256 offline encryption. 💎',
+        'Ready to roll! Tap Open Dashboard to review your ledger! 🚀',
       ];
       return genericWelcomeQuotes[idleThoughtIndex % genericWelcomeQuotes.length];
     }
 
-    const timeGreetingsMap: Record<string, string[]> = {
-      morning: [
-        `Good morning! Ready to start a fresh financial day? ${timeGreeting.icon}`,
-        'Directive: Protect your offline vault with AES-256 security! ☕',
-        "Hi! I'm EVE. No cloud, 100% private and offline! 🛡️",
-      ],
-      afternoon: [
-        `Good afternoon! Financial records are in tip-top shape. ${timeGreeting.icon}`,
-        'Midday check-in! Everything is stored right on your device. ✨',
-        'Hi! Write your name above, or tap Open Dashboard to jump right in! 🚀',
-      ],
-      evening: [
-        `Good evening! Ready to balance today's ledger? ${timeGreeting.icon}`,
-        'Evening! All transactions resting securely in encrypted SQLite. 🌙',
-        'Tap me for zero-G tricks, or swipe me down to see me bounce! 🎩',
-      ],
-      night: [
-        `Burning the midnight oil? Your private vault never sleeps. ${timeGreeting.icon}`,
-        'Late night accounting? Your data stays 100% offline. 🌌',
-        "E-v-a! No signups needed, just pure private security! 🤖",
-      ],
-    };
+    const dynamicScenarios = [
+      timeGreeting.time === 'morning'
+        ? `Good morning! Ready for a fresh financial day? ${timeGreeting.icon}`
+        : timeGreeting.time === 'afternoon'
+        ? `Good afternoon! Financial records are in tip-top shape. ${timeGreeting.icon}`
+        : timeGreeting.time === 'evening'
+        ? `Good evening! Ready to balance today's ledger? ${timeGreeting.icon}`
+        : `Late night accounting? Your private vault never sleeps. ${timeGreeting.icon}`,
+      "Hi! I'm EVE. No cloud, no signups, 100% offline & private! 🛡️",
+      'Directive: Protect your offline wealth with AES-256 security! 💎',
+      'Tip: Tap me for zero-G tricks, or swipe me down to see me bounce! 🛸',
+      'You can write your name above or tap Open Dashboard to jump right in! 🚀',
+      'Diagnostic check: Offline database is healthy and pristine! ⚡',
+      'Zero third-party trackers detected. Your data stays right on this device! 🔒',
+      'E-v-a! Gyroscopes calibrated and ready for action! 🤖✨',
+    ];
 
-    const currentList = timeGreetingsMap[timeGreeting.time] || timeGreetingsMap.morning;
-    return currentList[idleThoughtIndex % currentList.length];
+    return dynamicScenarios[idleThoughtIndex % dynamicScenarios.length];
   };
 
   // =========================================================================
@@ -830,8 +903,13 @@ export const Mascot3D: React.FC<Mascot3DProps> = ({
     world.addBody(mascotBody);
     mascotBodyRef.current = mascotBody;
 
-    // Collision listener with 450ms cooldown so multiple bounces don't spam state
+    // Collision listener with 450ms cooldown and startup protection so multiple bounces don't spam state
     mascotBody.addEventListener('collide', (e: any) => {
+      // Don't register collisions before physics is ready, during startup settling (first 900ms), or during launch
+      if (!isPhysicsReadyRef.current) return;
+      if (performance.now() - loadTimeRef.current < 900) return;
+      if (isLaunchingRef.current) return;
+
       const now = performance.now();
       if (now - lastBounceTimeRef.current < 450) return;
 
@@ -853,7 +931,7 @@ export const Mascot3D: React.FC<Mascot3DProps> = ({
           'Oof! Soft landing! Anti-gravity thrusters firing! ⚡',
           'Spring physics engaged! Re-centering altitude! 🚀',
         ];
-        setTrickSpeech(bounceQuotes[Math.floor(Math.random() * bounceQuotes.length)]);
+        setTrickSpeechTracked(bounceQuotes[Math.floor(Math.random() * bounceQuotes.length)], 2600);
         scheduleResetToIdle(2800);
       } else if (impactSpeed > 1.1) {
         lastBounceTimeRef.current = now;
@@ -950,6 +1028,13 @@ export const Mascot3D: React.FC<Mascot3DProps> = ({
           currentActionRef.current = startAction;
         }
 
+        // Reset physics body at equilibrium position before enabling physics simulation
+        mascotBody.position.set(0, 0, 0);
+        mascotBody.velocity.set(0, 0, 0);
+        mascotBody.angularVelocity.set(0, 0, 0);
+        loadTimeRef.current = performance.now();
+        isPhysicsReadyRef.current = true;
+
         setIsLoaded(true);
       },
       undefined,
@@ -992,6 +1077,19 @@ export const Mascot3D: React.FC<Mascot3DProps> = ({
       // 1. Step Cannon-ES Physics World
       if (worldRef.current && mascotBodyRef.current) {
         const body = mascotBodyRef.current;
+
+        // If physics is not ready yet, keep EVE stably anchored at equilibrium with 0 velocity
+        if (!isPhysicsReadyRef.current) {
+          body.position.set(0, 0, 0);
+          body.velocity.set(0, 0, 0);
+          body.angularVelocity.set(0, 0, 0);
+          worldRef.current.step(1 / 60, dt, 3);
+          if (modelRootRef.current) {
+            modelRootRef.current.position.set(0, 0, 0);
+          }
+          renderer.render(scene, camera);
+          return;
+        }
 
         // Hard clamp position inside visible frustum so EVE never escapes the box
         body.position.x = THREE.MathUtils.clamp(body.position.x, -1.12, 1.12);
@@ -1056,16 +1154,20 @@ export const Mascot3D: React.FC<Mascot3DProps> = ({
         }
 
         // 3. Thruster Jet Particle Exhaust Effect
-        const upwardThrust = Math.max(0, -body.velocity.y * 0.15 + (body.position.y < -0.2 ? 0.6 : 0.1));
+        let upwardThrust = Math.max(0, -body.velocity.y * 0.15 + (body.position.y < -0.2 ? 0.6 : 0.1));
+        if (isLaunchingRef.current) {
+          upwardThrust = 4.0;
+        }
+
         if (thrusterLightRef.current) {
           thrusterLightRef.current.position.set(body.position.x, body.position.y - 0.45, 0);
-          thrusterLightRef.current.intensity = upwardThrust * 3.5;
+          thrusterLightRef.current.intensity = isLaunchingRef.current ? 16 : upwardThrust * 3.5;
         }
 
         if (thrusterParticlesRef.current) {
           thrusterParticlesRef.current.position.set(body.position.x, body.position.y, 0);
           const mat = thrusterParticlesRef.current.material as THREE.PointsMaterial;
-          mat.opacity = Math.min(0.9, upwardThrust * 1.2);
+          mat.opacity = isLaunchingRef.current ? 0.95 : Math.min(0.9, upwardThrust * 1.2);
         }
 
         // 4. Ground Contact Shadow in 3D Scene
