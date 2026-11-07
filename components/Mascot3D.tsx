@@ -433,34 +433,42 @@ export const Mascot3D: React.FC<Mascot3DProps> = ({
     }
   }, [celebrateTrigger]);
 
-  // "Launch into Vault" Cinematic Exit Sequence
+  // "Launch into Vault" 3-Stage Pixar Swoop Sequence
   useEffect(() => {
     if (!isLaunching) return;
 
+    if (trickTimeoutRef.current) clearTimeout(trickTimeoutRef.current);
     launchStartTimeRef.current = performance.now();
-    isDraggingRef.current = true; // disable hover spring
+    isDraggingRef.current = true; // Disable idle hover spring
 
-    // Disable ceiling boundary so EVE can streak into the cosmos/vault
+    // Disable physics collisions & gravity so Cannon never fights our kinematic Pixar curve
+    if (worldRef.current) {
+      worldRef.current.gravity.set(0, 0, 0);
+    }
     if (ceilingBodyRef.current) {
       ceilingBodyRef.current.collisionResponse = false;
     }
+    if (mascotBodyRef.current) {
+      mascotBodyRef.current.velocity.set(0, 0, 0);
+      mascotBodyRef.current.angularVelocity.set(0, 0, 0);
+    }
 
-    // Step 1: Boost Start animation cleanly blends into high-speed Boost Loop
-    crossfadeToAction('EVE_FlyForwardBoost_Start', false, 0.12, () => {
-      crossfadeToAction('EVE_FlyForwardBoost_Loop', true, 0.2);
+    // Play EVE's authentic Pixar flight boost animation
+    crossfadeToAction('EVE_FlyForwardBoost_Start', false, 0.14, () => {
+      crossfadeToAction('EVE_FlyForwardBoost_Loop', true, 0.18);
     });
 
-    // Step 2 (240ms): Thruster plasma ignition shockwave & heavy haptic pop
+    // Stage 2 Ignition (240ms): Sonic ground ring + star burst + heavy haptic thump
     const ignitionTimer = setTimeout(() => {
       bounceShockwaveAnimRef.current = 1.0;
       spawnParticles('star');
       haptic('heavy');
     }, 240);
 
-    // Step 3 (950ms): Vault breach complete, handover to dashboard
+    // Stage 3 Complete (860ms): Handover right as she crests the top of the camera lens
     const completeTimer = setTimeout(() => {
       if (onLaunchComplete) onLaunchComplete();
-    }, 950);
+    }, 860);
 
     return () => {
       clearTimeout(ignitionTimer);
@@ -1133,28 +1141,39 @@ export const Mascot3D: React.FC<Mascot3DProps> = ({
       if (shockwaveMatRef.current) shockwaveMatRef.current.color.copy(activeColor);
       if (thrusterLightRef.current) thrusterLightRef.current.color.copy(activeColor);
 
-      // Camera Handheld Rumble & Cinematic Tracking during launch (without costly matrix recompilations)
+      // Camera Dolly & Subtle Ignition Shake (Do NOT lookAt-follow her Y, or she won't fly off screen!)
       if (cameraRef.current) {
         const cam = cameraRef.current;
         if (isLaunchingRef.current) {
-          const flightTime = Math.min(1, Math.max(0, (launchElapsed - 220) / 700));
-          const shake = (Math.random() - 0.5) * 0.02 * (1 - flightTime * 0.7);
-          cam.position.set(shake, 0.18 + shake * 0.5, 3.8);
-          cam.lookAt(0, Math.min(2.8, flightTime * 3.0), 0);
+          if (launchElapsed < 240) {
+            // Stage 1: Subtle camera push-in during anticipation crouch
+            const p = launchElapsed / 240;
+            cam.position.set(0, 0.18 + p * 0.04, 3.8 - p * 0.18);
+            cam.lookAt(0, 0.18, 0);
+          } else {
+            // Stage 2: Crisp ignition impulse shake that decays smoothly as she streaks up
+            const flightP = Math.min(1, (launchElapsed - 240) / 620);
+            const decay = Math.pow(1 - flightP, 2);
+            const shakeX = Math.sin(launchElapsed * 0.09) * 0.028 * decay;
+            const shakeY = Math.cos(launchElapsed * 0.11) * 0.028 * decay;
+            cam.position.set(shakeX, 0.22 + shakeY, 3.62 + flightP * 0.25);
+            cam.lookAt(0, 0.25, 0);
+          }
         } else {
           cam.position.set(0, 0.18, 3.8);
           cam.lookAt(0, 0.18, 0);
         }
       }
 
-      // Supersonic Warp Lines Animation
+      // Subtle Speed Streaks During Launch
       if (warpLinesRef.current && warpMatRef.current) {
-        if (isLaunchingRef.current && launchElapsed > 220) {
-          warpMatRef.current.opacity = Math.min(0.92, (launchElapsed - 220) / 180);
+        if (isLaunchingRef.current && launchElapsed > 240) {
+          const flightP = Math.min(1, (launchElapsed - 240) / 500);
+          warpMatRef.current.opacity = Math.sin(flightP * Math.PI) * 0.55;
           warpMatRef.current.color.copy(activeColor);
           const posAttr = warpLinesRef.current.geometry.attributes.position as THREE.BufferAttribute;
           const arr = posAttr.array as Float32Array;
-          const speed = 22.0 * dt;
+          const speed = 26.0 * dt;
           for (let i = 0; i < warpLineCount; i++) {
             arr[i * 6 + 1] -= speed;
             arr[i * 6 + 4] -= speed;
@@ -1171,11 +1190,10 @@ export const Mascot3D: React.FC<Mascot3DProps> = ({
         }
       }
 
-      // 1. Step Cannon-ES Physics World
+      // 1. Step Cannon-ES Physics World & Kinematic Pixar Launch Curve
       if (worldRef.current && mascotBodyRef.current) {
         const body = mascotBodyRef.current;
 
-        // If physics is not ready yet, keep EVE stably anchored at equilibrium with 0 velocity
         if (!isPhysicsReadyRef.current) {
           body.position.set(0, 0, 0);
           body.velocity.set(0, 0, 0);
@@ -1190,87 +1208,120 @@ export const Mascot3D: React.FC<Mascot3DProps> = ({
 
         const hoverTargetY = Math.sin(elapsedTime * 2.2) * 0.045;
         const hoverTargetX = 0;
-
-        // Startup stabilization: anchor peacefully at hover height for the first 650ms after load (no flying/jerking!)
         const timeSinceReady = performance.now() - loadTimeRef.current;
-        if (timeSinceReady < 650 && !isLaunchingRef.current) {
-          body.position.set(0, hoverTargetY, 0);
+
+        if (isLaunchingRef.current) {
+          // KINEMATIC PIXAR 2-STAGE LAUNCH (Zero gravity fight, 100% deterministic & silky smooth)
           body.velocity.set(0, 0, 0);
           body.angularVelocity.set(0, 0, 0);
-        }
 
-        // Hard clamp position inside visible frustum so EVE never escapes the box horizontally,
-        // and allow vertical freedom during launch so she streaks into the vault!
-        body.position.x = THREE.MathUtils.clamp(body.position.x, -1.12, 1.12);
-        body.position.y = THREE.MathUtils.clamp(body.position.y, -0.88, isLaunchingRef.current ? 5.5 : 1.2);
-        body.position.z = 0;
-        body.velocity.z = 0;
-        body.angularVelocity.x = 0;
-        body.angularVelocity.y = 0;
+          let launchY = 0;
+          let launchZ = 0;
+          let pitchAngle = 0;
+          let scaleX = 1;
+          let scaleY = 1;
 
-        // Continuous Smooth Rocket Acceleration on Launch vs Stable Anti-Gravity Spring
-        if (isLaunchingRef.current) {
-          if (launchElapsed < 220) {
-            body.velocity.y = -0.32;
-            body.velocity.x = 0;
+          if (launchElapsed < 240) {
+            // Stage 1 (0 - 240ms): Anticipation squat & coil down before blastoff
+            const p = launchElapsed / 240;
+            const easeOut = 1 - Math.pow(1 - p, 2);
+            launchY = -0.22 * easeOut;
+            launchZ = -0.12 * easeOut;
+            pitchAngle = 0.24 * easeOut; // Tilts head slightly forward in anticipation
+            // Pixar squash on coil
+            scaleX = 1 + 0.08 * easeOut;
+            scaleY = 1 - 0.1 * easeOut;
           } else {
-            const flightRatio = Math.min(1, (launchElapsed - 220) / 450);
-            const rocketThrust = 18.0 + flightRatio * 24.0;
-            body.velocity.y += rocketThrust * dt;
-            body.velocity.x *= 0.92;
-            body.angularVelocity.z = 0;
+            // Stage 2 (240 - 860ms): Explosive cubic-bezier swoop up & toward the camera lens
+            const p = Math.min(1, (launchElapsed - 240) / 620);
+            const easeInCubic = p * p * p;
+            const easeOutQuad = 1 - (1 - p) * (1 - p);
+
+            launchY = -0.22 + easeInCubic * 4.2; // Streaks rapidly out the top of the frame
+            launchZ = -0.12 + easeOutQuad * 1.35; // Swoops forward toward the viewer in 3D!
+            pitchAngle = 0.24 - easeOutQuad * 0.58; // Pitches chest heroically skyward
+
+            // Pixar stretch on acceleration
+            const stretch = Math.sin(Math.min(1, p * 1.4) * Math.PI) * 0.14;
+            scaleX = 1 - stretch * 0.45;
+            scaleY = 1 + stretch;
           }
-        } else if (!isDraggingRef.current && timeSinceReady >= 650) {
-          const kSpringY = 38;
-          const kDampY = 10.5;
-          const kSpringX = 20;
-          const kDampX = 7.5;
 
-          const fAntiGrav = -body.mass * world.gravity.y;
-          const fSpringY = -kSpringY * (body.position.y - hoverTargetY) - kDampY * body.velocity.y;
-          const fSpringX = -kSpringX * (body.position.x - hoverTargetX) - kDampX * body.velocity.x;
+          body.position.x *= 0.85;
+          body.position.y = launchY;
 
-          body.applyForce(new CANNON.Vec3(fSpringX, fAntiGrav + fSpringY, 0));
-          body.angularVelocity.z += (-body.quaternion.z * 20 - body.angularVelocity.z * 8) * dt;
-        }
+          if (modelRootRef.current) {
+            modelRootRef.current.position.set(body.position.x, launchY, launchZ);
+            modelRootRef.current.scale.set(scaleX, scaleY, scaleX);
+            gazeTiltEuler.set(pitchAngle, 0, 0, 'YXZ');
+            modelRootRef.current.quaternion.setFromEuler(gazeTiltEuler);
+          }
+        } else {
+          // Normal Interactive Physics Mode
+          if (modelRootRef.current) {
+            modelRootRef.current.scale.set(1, 1, 1);
+          }
 
-        worldRef.current.step(1 / 60, dt, 3);
+          if (timeSinceReady < 650) {
+            body.position.set(0, hoverTargetY, 0);
+            body.velocity.set(0, 0, 0);
+            body.angularVelocity.set(0, 0, 0);
+          }
 
-        // 2. Smooth 3D Gaze Tilt Applied to modelRoot (100% immune to neck/head detachment!)
-        const isIdleOrTyping =
-          currentTrickRef.current === 'idle' ||
-          currentTrickRef.current === 'scan' ||
-          currentTrickRef.current === 'hearts';
+          body.position.x = THREE.MathUtils.clamp(body.position.x, -1.12, 1.12);
+          body.position.y = THREE.MathUtils.clamp(body.position.y, -0.88, 1.2);
+          body.position.z = 0;
+          body.velocity.z = 0;
+          body.angularVelocity.x = 0;
+          body.angularVelocity.y = 0;
 
-        const targetYaw = isIdleOrTyping
-          ? THREE.MathUtils.clamp(targetPointerRef.current.x * 0.32, -0.32, 0.32)
-          : 0;
-        const targetPitch = isIdleOrTyping
-          ? THREE.MathUtils.clamp(
-              isFocusedRef.current ? 0.22 : targetPointerRef.current.y * 0.2,
-              -0.22,
-              0.24
-            )
-          : 0;
+          if (!isDraggingRef.current && timeSinceReady >= 650) {
+            const kSpringY = 38;
+            const kDampY = 10.5;
+            const kSpringX = 20;
+            const kDampX = 7.5;
 
-        const kGazeSpring = 22;
-        const dGazeDamping = 7.5;
-        gazeVelYaw += ((targetYaw - gazeYaw) * kGazeSpring - gazeVelYaw * dGazeDamping) * dt;
-        gazeVelPitch += ((targetPitch - gazePitch) * kGazeSpring - gazeVelPitch * dGazeDamping) * dt;
-        gazeYaw += gazeVelYaw * dt;
-        gazePitch += gazeVelPitch * dt;
+            const fAntiGrav = -body.mass * world.gravity.y;
+            const fSpringY = -kSpringY * (body.position.y - hoverTargetY) - kDampY * body.velocity.y;
+            const fSpringX = -kSpringX * (body.position.x - hoverTargetX) - kDampX * body.velocity.x;
 
-        if (modelRootRef.current) {
-          modelRootRef.current.position.set(body.position.x, body.position.y, 0);
+            body.applyForce(new CANNON.Vec3(fSpringX, fAntiGrav + fSpringY, 0));
+            body.angularVelocity.z += (-body.quaternion.z * 20 - body.angularVelocity.z * 8) * dt;
+          }
 
-          // Combine Cannon Z-roll with smooth 3D pointer gaze and supersonic aerodynamic tilt
-          physicsRollQuat.set(0, 0, body.quaternion.z, body.quaternion.w).normalize();
-          const launchTilt = isLaunchingRef.current && launchElapsed > 220 ? -0.32 : 0;
-          gazeTiltEuler.set(gazePitch + launchTilt, gazeYaw, -gazeYaw * 0.1, 'YXZ');
-          gazeTiltQuat.setFromEuler(gazeTiltEuler);
-          gazeTiltQuat.setFromEuler(gazeTiltEuler);
+          worldRef.current.step(1 / 60, dt, 3);
 
-          modelRootRef.current.quaternion.copy(physicsRollQuat).multiply(gazeTiltQuat);
+          // 2. Smooth 3D Gaze Tilt Applied to modelRoot
+          const isIdleOrTyping =
+            currentTrickRef.current === 'idle' ||
+            currentTrickRef.current === 'scan' ||
+            currentTrickRef.current === 'hearts';
+
+          const targetYaw = isIdleOrTyping
+            ? THREE.MathUtils.clamp(targetPointerRef.current.x * 0.32, -0.32, 0.32)
+            : 0;
+          const targetPitch = isIdleOrTyping
+            ? THREE.MathUtils.clamp(
+                isFocusedRef.current ? 0.22 : targetPointerRef.current.y * 0.2,
+                -0.22,
+                0.24
+              )
+            : 0;
+
+          const kGazeSpring = 22;
+          const dGazeDamping = 7.5;
+          gazeVelYaw += ((targetYaw - gazeYaw) * kGazeSpring - gazeVelYaw * dGazeDamping) * dt;
+          gazeVelPitch += ((targetPitch - gazePitch) * kGazeSpring - gazeVelPitch * dGazeDamping) * dt;
+          gazeYaw += gazeVelYaw * dt;
+          gazePitch += gazeVelPitch * dt;
+
+          if (modelRootRef.current) {
+            modelRootRef.current.position.set(body.position.x, body.position.y, 0);
+            physicsRollQuat.set(0, 0, body.quaternion.z, body.quaternion.w).normalize();
+            gazeTiltEuler.set(gazePitch, gazeYaw, -gazeYaw * 0.1, 'YXZ');
+            gazeTiltQuat.setFromEuler(gazeTiltEuler);
+            modelRootRef.current.quaternion.copy(physicsRollQuat).multiply(gazeTiltQuat);
+          }
         }
 
         // 3. Thruster Jet Particle Exhaust Effect
@@ -1397,8 +1448,12 @@ export const Mascot3D: React.FC<Mascot3DProps> = ({
       {/* --- INTELLIGENT DIALOGUE SPEECH BUBBLE --- */}
       <motion.div
         initial={{ opacity: 0, y: 10, scale: 0.9 }}
-        animate={{ opacity: 1, y: 0, scale: 1 }}
-        transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
+        animate={{
+          opacity: isLaunching ? 0 : 1,
+          y: isLaunching ? -14 : 0,
+          scale: isLaunching ? 0.88 : 1,
+        }}
+        transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
         className="relative z-30 mb-2 max-w-[320px]"
       >
         <div

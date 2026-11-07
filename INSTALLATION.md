@@ -2,7 +2,7 @@
 
 > **Official Installation & Developer Setup Manual**  
 > *Target Environments:* Web (Browser / PWA), Android (Capacitor 8 / Native Hybrid)  
-> *Version:* `3.5.0` (Fintech Pro & Direct In-App Updates)
+> *Version:* `4.0.0` (Fintech Enterprise & Direct In-App Updates)
 
 ---
 

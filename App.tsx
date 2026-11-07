@@ -765,7 +765,11 @@ const AppContent: React.FC = () => {
           hasTransactions={transactions.length > 0}
         />
       ) : (
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.5 }}>
+        <motion.div
+          initial={{ opacity: 0, scale: 0.97 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
+        >
           {/* --- DASHBOARD LAYER --- */}
           <div>
             <Navbar

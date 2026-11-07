@@ -33,7 +33,7 @@
     <text x="64" y="49" class="mono" font-size="10" fill="#94A3B8">Background Alert</text>
     
     <rect x="18" y="72" width="179" height="60" rx="8" fill="rgba(0, 0, 0, 0.4)" stroke="rgba(255, 255, 255, 0.06)" />
-    <text x="28" y="93" class="sans" font-size="11" font-weight="700" fill="#38BDF8">⚡ Ledger v3.5 Available</text>
+    <text x="28" y="93" class="sans" font-size="11" font-weight="700" fill="#38BDF8">⚡ Ledger v4.0 Available</text>
     <text x="28" y="111" class="sans" font-size="10" fill="#94A3B8">AlarmManager checks</text>
     <text x="28" y="123" class="sans" font-size="10" fill="#94A3B8">every 12h or on boot.</text>
 

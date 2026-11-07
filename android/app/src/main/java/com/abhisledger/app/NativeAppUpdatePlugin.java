@@ -146,7 +146,7 @@ public class NativeAppUpdatePlugin extends Plugin {
                     URL u = new URL(currentUrl);
                     conn = (HttpURLConnection) u.openConnection();
                     conn.setInstanceFollowRedirects(true);
-                    conn.setRequestProperty("User-Agent", "AbhisLedger-AppUpdate/3.5");
+                    conn.setRequestProperty("User-Agent", "AbhisLedger-AppUpdate/4.0");
                     conn.setConnectTimeout(25000);
                     conn.setReadTimeout(35000);
 

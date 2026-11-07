@@ -271,25 +271,22 @@ const WelcomeScreen: React.FC<Props> = ({
         onChange={handleRestoreFile}
       />
 
-      {/* --- MAIN GLASS CONTAINER --- */}
+      {/* --- MAIN GLASS CONTAINER (Keep opacity 1 so Mascot3D stays 100% visible during launch!) --- */}
       <motion.div
         initial={{ opacity: 0, y: 18 }}
-        animate={{
-          opacity: isLaunching ? 0 : 1,
-          y: isLaunching ? -18 : 0,
-          scale: isLaunching ? 0.94 : 1,
-        }}
-        transition={{
-          duration: isLaunching ? 0.65 : 0.6,
-          ease: [0.16, 1, 0.3, 1],
-        }}
-        className="w-full max-w-[360px] px-6 relative z-10 flex flex-col items-center"
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+        className="w-full max-w-[360px] px-6 relative z-20 flex flex-col items-center"
       >
-        {/* Brand Bar / Logo Badge */}
+        {/* Brand Bar / Logo Badge (Fades up on launch) */}
         <motion.div
           initial={{ scale: 0.85, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          transition={{ duration: 0.5, delay: 0.05 }}
+          animate={{
+            scale: isLaunching ? 0.9 : 1,
+            opacity: isLaunching ? 0 : 1,
+            y: isLaunching ? -12 : 0,
+          }}
+          transition={{ duration: 0.35 }}
           className="flex items-center gap-2 mb-1 px-3 py-1.5 rounded-full"
           style={{
             background: 'rgba(255, 255, 255, 0.04)',
@@ -325,8 +322,15 @@ const WelcomeScreen: React.FC<Props> = ({
           </span>
         </motion.div>
 
-        {/* --- 3D INTERACTIVE MASCOT WITH ANIMATED TRICKS & RIGID BODY BOUNCE PHYSICS --- */}
-        <div className="w-full my-1 flex justify-center overflow-visible">
+        {/* --- 3D INTERACTIVE MASCOT (Stays fully visible & scales up into camera on launch) --- */}
+        <motion.div
+          animate={{
+            scale: isLaunching ? [1, 0.96, 1.18] : 1,
+            y: isLaunching ? [0, 10, -24] : 0,
+          }}
+          transition={{ duration: 0.85, times: [0, 0.28, 1], ease: [0.22, 1, 0.36, 1] }}
+          className="w-full my-1 flex justify-center overflow-visible relative z-30"
+        >
           <Mascot3D
             mood={mascotMood}
             userName={inputName || cleanDisplayName}
@@ -348,13 +352,23 @@ const WelcomeScreen: React.FC<Props> = ({
               setTimeout(() => setCardBounceY(0), 160);
             }}
           />
-        </div>
+        </motion.div>
 
-        {/* --- DYNAMIC HEADER & FORM (REACTS PHYSICALLY TO MASCOT BOUNCE) --- */}
+        {/* --- DYNAMIC HEADER & FORM (Drops & fades away cleanly as EVE blasts off) --- */}
         <motion.div
-          animate={{ y: cardBounceY }}
-          transition={{ type: 'spring', stiffness: 350, damping: 20 }}
-          className="w-full flex flex-col items-center"
+          animate={{
+            y: isLaunching ? 36 : cardBounceY,
+            opacity: isLaunching ? 0 : 1,
+            scale: isLaunching ? 0.94 : 1,
+            filter: isLaunching ? 'blur(10px)' : 'blur(0px)',
+          }}
+          transition={
+            isLaunching
+              ? { duration: 0.42, delay: 0.12, ease: [0.32, 0, 0.67, 0] }
+              : { type: 'spring', stiffness: 350, damping: 20 }
+          }
+          className="w-full flex flex-col items-center pointer-events-auto"
+          style={{ pointerEvents: isLaunching ? 'none' : 'auto' }}
         >
           <div className="text-center mt-2 mb-4 w-full">
           <AnimatePresence mode="wait">
@@ -748,138 +762,43 @@ const WelcomeScreen: React.FC<Props> = ({
         </motion.div>
       </motion.div>
 
-      {/* --- CINEMATIC VAULT WARP OVERLAY (DURING LAUNCH) --- */}
+      {/* --- CLEAN PIXAR THRUSTER BLOOM & CAMERA BREACH TRANSITION --- */}
       <AnimatePresence>
         {isLaunching && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 pointer-events-none z-50 flex flex-col items-center justify-center overflow-hidden"
+            className="fixed inset-0 pointer-events-none z-40 flex items-center justify-center overflow-hidden"
           >
-            {/* Anamorphic Horizontal Laser Light Flare */}
-            <motion.div
-              initial={{ scaleX: 0, opacity: 0 }}
-              animate={{
-                scaleX: [0, 1.8, 3.5],
-                opacity: [0, 1, 0],
-              }}
-              transition={{ duration: 0.9, times: [0, 0.35, 1], ease: 'easeOut' }}
-              style={{
-                position: 'absolute',
-                top: '42%',
-                width: '100vw',
-                height: 4,
-                background: `linear-gradient(90deg, transparent 0%, ${accentColor} 25%, #ffffff 50%, ${accentColor} 75%, transparent 100%)`,
-                boxShadow: `0 0 35px 8px ${accentColor}`,
-                willChange: 'transform, opacity',
-              }}
-            />
-
-            {/* Radial Hyperspace Energy Bloom */}
+            {/* Expanding Floor Thruster Downwash Ring */}
             <motion.div
               initial={{ scale: 0.2, opacity: 0 }}
               animate={{
-                scale: [0.2, 1.5, 3.0],
-                opacity: [0, 0.75, 0],
+                scale: [0.2, 2.2, 4.2],
+                opacity: [0, 0.65, 0],
               }}
-              transition={{ duration: 0.95, times: [0, 0.35, 1], ease: [0.16, 1, 0.3, 1] }}
+              transition={{ duration: 0.65, delay: 0.22, ease: [0.16, 1, 0.3, 1] }}
               style={{
                 position: 'absolute',
-                top: '32%',
-                width: '75vw',
-                height: '75vw',
+                top: '44%',
+                width: 220,
+                height: 64,
                 borderRadius: '50%',
-                background: `radial-gradient(circle, ${accentColor}45 0%, ${accentColor}12 40%, transparent 68%)`,
-                willChange: 'transform, opacity',
+                background: `radial-gradient(ellipse, #ffffff 0%, ${accentColor}88 35%, transparent 72%)`,
+                filter: 'blur(12px)',
               }}
             />
 
-            {/* Radiant Sonic Shockwave Ring */}
-            <motion.div
-              initial={{ scale: 0.1, opacity: 0 }}
-              animate={{
-                scale: [0.1, 2.0, 3.8],
-                opacity: [0, 0.7, 0],
-              }}
-              transition={{ duration: 0.8, delay: 0.24, ease: 'easeOut' }}
-              style={{
-                position: 'absolute',
-                top: '38%',
-                width: '40vw',
-                height: '40vw',
-                borderRadius: '50%',
-                border: `2px solid ${accentColor}`,
-                boxShadow: `0 0 20px ${accentColor}`,
-                willChange: 'transform, opacity',
-              }}
-            />
-
-            {/* High-Tech Cinematic HUD Directive Badge */}
-            <motion.div
-              initial={{ opacity: 0, y: 30, scale: 0.9 }}
-              animate={{
-                opacity: [0, 1, 1, 0],
-                y: [30, 0, -6, -26],
-                scale: [0.9, 1, 1, 0.96],
-              }}
-              transition={{ duration: 0.95, times: [0, 0.25, 0.75, 1] }}
-              className="flex flex-col items-center gap-1.5 relative z-10 px-5 py-2.5 rounded-2xl"
-              style={{
-                background: 'rgba(6, 8, 14, 0.88)',
-                border: `1px solid ${accentColor}55`,
-                boxShadow: `0 0 30px ${accentColor}30`,
-                willChange: 'transform, opacity',
-              }}
-            >
-              <div className="flex items-center gap-2">
-                <span className="relative flex h-2 w-2">
-                  <span
-                    className="animate-ping absolute inline-flex h-full w-full rounded-full opacity-75"
-                    style={{ backgroundColor: accentColor }}
-                  />
-                  <span
-                    className="relative inline-flex rounded-full h-2 w-2"
-                    style={{ backgroundColor: accentColor }}
-                  />
-                </span>
-                <span
-                  style={{
-                    fontFamily: 'monospace',
-                    fontSize: 11,
-                    letterSpacing: '0.18em',
-                    textTransform: 'uppercase',
-                    color: '#ffffff',
-                    fontWeight: 700,
-                  }}
-                >
-                  VAULT WARP VELOCITY ENGAGED
-                </span>
-              </div>
-              <span
-                style={{
-                  fontSize: 12.5,
-                  fontWeight: 500,
-                  color: 'rgba(255, 255, 255, 0.85)',
-                  letterSpacing: '-0.01em',
-                }}
-              >
-                Entering Encrypted Ledger Vault...
-              </span>
-            </motion.div>
-
-            {/* Final Cinematic Light Flash into Dashboard */}
+            {/* Seamless Final Iris/Bloom Fade as EVE Flies Over Camera */}
             <motion.div
               initial={{ opacity: 0 }}
-              animate={{
-                opacity: [0, 0, 0.9, 1],
-              }}
-              transition={{ duration: 0.95, times: [0, 0.65, 0.88, 1] }}
+              animate={{ opacity: [0, 0, 1] }}
+              transition={{ duration: 0.88, times: [0, 0.62, 1], ease: 'easeInOut' }}
               style={{
                 position: 'absolute',
                 inset: 0,
-                background: `radial-gradient(ellipse at center, ${accentColor}30 0%, #040507 80%)`,
-                willChange: 'opacity',
+                background: `radial-gradient(circle at 50% 25%, ${accentColor}35 0%, #040507 72%)`,
               }}
             />
           </motion.div>

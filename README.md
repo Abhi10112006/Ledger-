@@ -3,7 +3,7 @@
 # 💎 ABHI'S LEDGER // THE FINANCIAL MAINFRAME
 ### *Next-Generation Offline-First Debt Intelligence & Credit Ledger*
 
-[![Version](https://img.shields.io/badge/Version-3.5.0--Fintech--Pro-00F0FF?style=for-the-badge&logo=semver&logoColor=black)](https://github.com/Abhi10112006/Ledger-/releases)
+[![Version](https://img.shields.io/badge/Version-4.0.0--Enterprise-00F0FF?style=for-the-badge&logo=semver&logoColor=black)](https://github.com/Abhi10112006/Ledger-/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge)](LICENSE)
 [![Platform](https://img.shields.io/badge/Platform-Android%20%7C%20Web%20PWA-3DDC84?style=for-the-badge&logo=android&logoColor=white)](https://ledger69.vercel.app/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.8-3178C6?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
@@ -16,7 +16,7 @@
 
 <p align="center">
   <a href="https://github.com/Abhi10112006/Ledger-/releases/latest/download/app-release.apk">
-    <img src="https://img.shields.io/badge/⚡_DOWNLOAD_APK-v3.5.0_(Direct)-0A84FF?style=for-the-badge&logo=android&logoColor=white" height="40" alt="Download APK" />
+    <img src="https://img.shields.io/badge/⚡_DOWNLOAD_APK-v4.0.0_(Direct)-0A84FF?style=for-the-badge&logo=android&logoColor=white" height="40" alt="Download APK" />
   </a>
   &nbsp;&nbsp;
   <a href="https://ledger69.vercel.app/">
@@ -51,7 +51,7 @@ Most personal finance and debt tracker apps are sluggish, riddled with ads, and 
 
 ![Core Features Overview](assets/docs/features-overview.svg)
 
-| Capability | ❌ The "Other" Apps | 📉 Spreadsheets & Notes | 💎 Abhi's Ledger v3.5 |
+| Capability | ❌ The "Other" Apps | 📉 Spreadsheets & Notes | 💎 Abhi's Ledger v4.0 |
 | :--- | :--- | :--- | :--- |
 | **Data Privacy** | Cloud servers, data mining | Plain text, unencrypted | **100% On-Device (SQLite & IndexedDB)** |
 | **Authentication** | Passwords stored on web servers | None | **Biometric Gate (Fingerprint/Face) + Hardware Keystore PIN** |
@@ -189,7 +189,7 @@ If you already have Abhi's Ledger installed on your device:
    * The native Android `AppUpdateBroadcastReceiver` checks [`public/version.json`](https://raw.githubusercontent.com/Abhi10112006/Ledger-/main/public/version.json) every 12 hours and on device reboot.
 2. **System Tray Notification**:
    * A system notification appears in your status bar:  
-     `⚡ Ledger Update: v3.5 Available — Tap to install directly!`
+     `⚡ Ledger Update: v4.0 Available — Tap to install directly!`
 3. **1-Tap Direct Install**:
    * Tap the notification or open the app to see the bottom update banner.
    * Tap **`⚡ 1-Tap Direct Install`**.
@@ -205,7 +205,7 @@ If you already have Abhi's Ledger installed on your device:
 #### Step 1: Download the Latest APK
 Download the verified APK directly from the official repository release:
 
-👉 **[Download Latest APK (v3.5.0)](https://github.com/Abhi10112006/Ledger-/releases/latest/download/app-release.apk)**  
+👉 **[Download Latest APK (v4.0.0)](https://github.com/Abhi10112006/Ledger-/releases/latest/download/app-release.apk)**  
 *(Alternative: Browse all historical releases at [GitHub Releases](https://github.com/Abhi10112006/Ledger-/releases))*
 
 #### Step 2: Open the Downloaded APK
@@ -227,10 +227,10 @@ Android protects against unauthorized APK installations. If prompted:
 
 When you make improvements and want all existing users to automatically receive the update:
 1. **Increment Version**:
-   * Bump `"version"` in [`public/version.json`](public/version.json) (e.g. `"3.5.0"` → `"3.6.0"`).
+   * Bump `"version"` in [`public/version.json`](public/version.json) (e.g. `"4.0.0"` → `"4.1.0"`).
    * Update `"changelog"` in [`public/version.json`](public/version.json).
    * Bump `APP_VERSION` in [`utils/version.ts`](utils/version.ts).
-   * Increment `versionCode` (e.g. `4` → `5`) and `versionName` in [`android/app/build.gradle`](android/app/build.gradle).
+   * Increment `versionCode` (e.g. `5` → `6`) and `versionName` in [`android/app/build.gradle`](android/app/build.gradle).
 2. **Build Release APK**:
    ```bash
    npm run build
